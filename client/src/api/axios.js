@@ -3,9 +3,10 @@ import { store } from "../store/store";
 import { setCredentials, logout } from "../store/authSlice";
 
 const API = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: `${import.meta.env.VITE_API_BASE_URL}/api`,
   withCredentials: true,
 });
+
 
 API.interceptors.request.use((config) => {
   const token = store.getState().auth.accessToken;

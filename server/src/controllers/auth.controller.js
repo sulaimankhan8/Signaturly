@@ -14,7 +14,7 @@ export const register = asyncHandler (async (req, res) => {
 
 export const login = asyncHandler (async (req, res) => {
     const { user, accessToken, refreshToken } = await loginUser(req.body);
-
+     console.log("login controller", { userId: user._id, email: user.email });
     res
     .cookie("refreshToken", refreshToken, {
       httpOnly: true,

@@ -32,7 +32,7 @@ export default function PdfEditor() {
         console.log("PdfEditor fetching PDF " + JSON.stringify({ pdfId }));
         const res = await API.get(`/pdf/${pdfId}`);
         console.log("PdfEditor fetchPdf response " + JSON.stringify(res?.data));
-        const url = `http://localhost:5000${res.data.data.url}`;
+        const url = `${import.meta.env.VITE_API_BASE_URL}${res.data.data.url}`;
         setPdfUrl(url);
         console.log("PdfEditor setPdfUrl " + JSON.stringify({ url }));
       } catch (error) {
@@ -107,7 +107,7 @@ export default function PdfEditor() {
       console.log("signPdf response " + JSON.stringify(response?.data));
 
       // Download the signed PDF
-      const url = `http://localhost:5000${response.data.data.signedPdfUrl}`;
+      const url = `${import.meta.env.VITE_API_BASE_URL}${response.data.data.signedPdfUrl}`;
       console.log("signPdf signed PDF url " + JSON.stringify({ url }));
       window.open(url, "_blank", "noopener,noreferrer");
 
