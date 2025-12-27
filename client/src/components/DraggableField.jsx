@@ -161,7 +161,7 @@ console.log("FIELD %", field.xPercent, field.yPercent);
   // Render signature field - FIXED for proper resizing
   const renderSignatureField = () => {
     return (
-      <div className="w-full h-full flex items-center justify-center relative overflow-hidden bg-gray-50">
+      <div className="w-full h-full flex items-center justify-center relative overflow-hidden ">
         {localField.signatureUrl ? (
           <img
             src={localField.signatureUrl}
