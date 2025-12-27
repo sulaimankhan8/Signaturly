@@ -4,8 +4,11 @@ import { store } from "./store/store";
 import App from "./App";
 import "react-resizable/css/styles.css";
 import "./index.css";
+import { Analytics } from "@vercel/analytics/react";
+
 ReactDOM.createRoot(document.getElementById("root")).render(
   <Provider store={store}>
     <App />
+    <Analytics />
   </Provider>
 );
