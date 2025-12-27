@@ -87,14 +87,21 @@ export const signPdf = async ({ pdfId, userId, fields }) => {
 }
 
 
-      case "date":
-        page.drawText(field.value || new Date().toLocaleDateString(), {
-          x,
-          y: y + height * 0.25,
-          size: Math.max(8, height * 0.6),
-          color: rgb(0, 0, 0),
-        });
-        break;
+      case "date": {
+  const fontSize =
+    field.fontSizePercent
+      ? field.fontSizePercent * ph
+      : height * 0.6;
+
+  page.drawText(field.value || new Date().toLocaleDateString(), {
+    x,
+    y: y + height / 2 - fontSize / 3,
+    size: Math.max(8, fontSize),
+    color: rgb(0, 0, 0),
+  });
+  break;
+}
+
 
       case "signature":
         if (!field.signatureUrl) {
@@ -138,32 +145,35 @@ export const signPdf = async ({ pdfId, userId, fields }) => {
         }
         break;
 
-      case "radio":
-        // Draw a radio button (circle)
-        const radius = Math.min(width, height) / 2;
-        const centerX = x + width / 2;
-        const centerY = y + height / 2;
+      case "radio": {
+  const size =
+    field.fontSizePercent
+      ? field.fontSizePercent * ph
+      : Math.min(width, height) * 0.6;
 
-        // Draw the outer circle
-        page.drawCircle({
-          x: centerX,
-          y: centerY,
-          size: radius,
-          borderWidth: 1,
-          color: rgb(1, 1, 1), // White fill
-          borderColor: rgb(0, 0, 0), // Black border
-        });
+  const radius = size / 2;
+  const centerX = x + width / 2;
+  const centerY = y + height / 2;
 
-        // If checked, draw the inner circle
-        if (field.checked) {
-          page.drawCircle({
-            x: centerX,
-            y: centerY,
-            size: radius * 0.6,
-            color: rgb(0, 0, 0), // Black fill
-          });
-        }
-        break;
+  page.drawCircle({
+    x: centerX,
+    y: centerY,
+    size: radius,
+    borderWidth: 1,
+    color: rgb(1, 1, 1),
+    borderColor: rgb(0, 0, 0),
+  });
+
+  if (field.checked) {
+    page.drawCircle({
+      x: centerX,
+      y: centerY,
+      size: radius * 0.6,
+      color: rgb(0, 0, 0),
+    });
+  }
+  break;
+}
 
       default:
         console.warn("Unknown field type:", field.type);
