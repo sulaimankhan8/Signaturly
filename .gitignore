@@ -1,0 +1,61 @@
+# ================================
+# Node / JavaScript
+# ================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ================================
+# Environment Variables
+# ================================
+.env
+.env.local
+.env.development
+.env.production
+
+# ================================
+# Frontend (Vite / React)
+# ================================
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ================================
+# Backend (Node / Express)
+# ================================
+backend/node_modules/
+backend/dist/
+
+# ================================
+# PDF / Uploads / Generated Files
+# ================================
+*.pdf
+uploads/
+signed-pdfs/
+
+# ================================
+# OS / Editor
+# ================================
+.DS_Store
+Thumbs.db
+
+# ================================
+# IDEs
+# ================================
+.vscode/
+.idea/
+*.iml
+
+# ================================
+# Logs
+# ================================
+logs/
+*.log
+
+# ================================
+# Build & Cache
+# ================================
+.cache/
+.tmp/

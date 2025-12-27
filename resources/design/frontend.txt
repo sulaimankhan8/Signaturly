@@ -1,0 +1,37 @@
+client/
+├─ src/
+│  ├─ api/
+│  │  ├─ auth.api.js
+│  │  └─ pdf.api.js
+│
+│  ├─ components/
+│  │  ├─ PdfViewer.jsx
+│  │  ├─ FieldPalette.jsx
+│  │  ├─ DraggableField.jsx
+│  │  ├─ ResizeHandle.jsx
+│  │  ├─ SignatureUpload.jsx
+│  │  └─ TextFieldBox.jsx
+│
+│  ├─ hooks/
+│  │  ├─ usePdfDimensions.js
+│  │  ├─ useDragResize.js
+│  │  └─ useAuth.js
+│
+│  ├─ pages/
+│  │  ├─ Login.jsx
+│  │  ├─ Register.jsx
+│  │  ├─ UploadPdf.jsx
+│  │  └─ PdfEditor.jsx
+│
+│  ├─ store/
+│  │  ├─ store.js
+│  │  └─ authSlice.js
+│
+│  ├─ utils/
+│  │  ├─ coordinate.utils.js
+│  │  └─ constants.js
+│
+│  ├─ App.jsx
+│  └─ main.jsx
+│
+└─ package.json
