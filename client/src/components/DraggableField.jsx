@@ -15,6 +15,9 @@ export default function DraggableField({
   const [showTooltip, setShowTooltip] = useState(false);
   const inputRef = useRef(null);
 
+  // 🔥 interval ref for press & hold
+  const holdIntervalRef = useRef(null);
+
   // ---------------- SYNC PROPS ----------------
   useEffect(() => {
     setLocalField(field);
@@ -38,36 +41,56 @@ export default function DraggableField({
     onUpdate(updated);
   };
 
-  // ---------------- FONT CONTROLS ----------------
-  const handleFontSizeChange = (delta) => {
+  // ---------------- FONT SIZE CHANGE ----------------
+  const changeFontSize = (delta) => {
     const nextPx = Math.max(8, Math.min(72, fontSizePx + delta));
     handleUpdate({ fontSizePercent: nextPx / pageHeight });
   };
 
+  // ---------------- PRESS & HOLD LOGIC ----------------
+  const startHold = (delta) => {
+    changeFontSize(delta); // immediate change
+    holdIntervalRef.current = setInterval(() => {
+      changeFontSize(delta);
+    }, 120); // speed (lower = faster)
+  };
+
+  const stopHold = () => {
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
+  };
+
+  // ---------------- FONT CONTROLS ----------------
   const renderFontControls = () => (
     <div className="absolute top-0 right-0 flex bg-white shadow-md rounded-bl z-10">
       <button
-        className="px-2 py-1 text-xs hover:bg-orange-500 hover:text-white"
-        onClick={(e) => {
+        className="px-2 py-1 text-xs hover:bg-orange-500 hover:text-white select-none"
+        onMouseDown={(e) => {
           e.stopPropagation();
-          handleFontSizeChange(-1);
+          startHold(-1);
         }}
+        onMouseUp={stopHold}
+        onMouseLeave={stopHold}
       >
         −
       </button>
       <button
-        className="px-2 py-1 text-xs hover:bg-orange-500 hover:text-white"
-        onClick={(e) => {
+        className="px-2 py-1 text-xs hover:bg-orange-500 hover:text-white select-none"
+        onMouseDown={(e) => {
           e.stopPropagation();
-          handleFontSizeChange(1);
+          startHold(1);
         }}
+        onMouseUp={stopHold}
+        onMouseLeave={stopHold}
       >
         +
       </button>
     </div>
   );
 
-  // ================= TEXT FIELD =================
+  // ================= TEXT =================
   const renderTextField = () => (
     <div className="w-full h-full relative">
       {isEditing ? (
@@ -95,7 +118,7 @@ export default function DraggableField({
     </div>
   );
 
-  // ================= DATE FIELD =================
+  // ================= DATE =================
   const renderDateField = () => {
     const getDateValue = () => {
       if (!localField.value) return "";
@@ -169,7 +192,7 @@ export default function DraggableField({
     );
   };
 
-  // ================= FIELD SWITCH =================
+  // ================= SWITCH =================
   const renderFieldContent = () => {
     switch (localField.type) {
       case "text":
