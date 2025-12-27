@@ -68,6 +68,9 @@ export default function PdfEditor() {
   const updateField = (updatedField) => {
     setFields((all) => all.map((x) => (x.id === updatedField.id ? updatedField : x)));
   };
+ const removeField = (id) => {
+  setFields((prev) => prev.filter((f) => f.id !== id));
+};
 
   const signPdf = async () => {
     try {
@@ -312,7 +315,7 @@ export default function PdfEditor() {
             </div>
 
             {/* PDF Viewer */}
-            <div className="flex-1 flex items-center justify-center p-6 overflow-auto">
+            <div className="flex-1 flex items-center justify-center p-6 overflow-auto bg-transparent">
               <div className="relative inline-block">
                 <PdfViewer
                   fileUrl={pdfUrl}
@@ -337,6 +340,7 @@ export default function PdfEditor() {
                         pageWidth={pageDims.width}
                         pageHeight={pageDims.height}
                         onUpdate={updateField}
+                        onRemove={removeField}
                       />
                     ))}
                 </div>
