@@ -2,6 +2,108 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import SignatureWorker from "../workers/signature.worker.js?worker";
 
+function SignaturePad({ onConfirm }) {
+  const canvasRef = useRef(null);
+  const ctxRef = useRef(null);
+  const [drawing, setDrawing] = useState(false);
+  const strokesRef = useRef([]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.offsetWidth * dpr;
+    canvas.height = canvas.offsetHeight * dpr;
+    ctx.scale(dpr, dpr);
+
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#000";
+
+    ctxRef.current = ctx;
+  }, []);
+
+  const getPos = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+      p: e.pressure || 0.5,
+    };
+  };
+
+  const redraw = () => {
+    const ctx = ctxRef.current;
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    strokesRef.current.forEach((stroke) => {
+      ctx.beginPath();
+      ctx.moveTo(stroke[0].x, stroke[0].y);
+      stroke.forEach((p) => {
+        ctx.lineWidth = 1.5 + p.p * 2;
+        ctx.lineTo(p.x, p.y);
+      });
+      ctx.stroke();
+    });
+  };
+
+  const down = (e) => {
+    e.preventDefault();
+    setDrawing(true);
+    strokesRef.current.push([getPos(e)]);
+  };
+
+  const move = (e) => {
+    if (!drawing) return;
+    strokesRef.current.at(-1).push(getPos(e));
+    redraw();
+  };
+
+  const up = () => setDrawing(false);
+
+  const clear = () => {
+    strokesRef.current = [];
+    redraw();
+  };
+
+  const confirm = async () => {
+    const blob = await new Promise((r) =>
+      canvasRef.current.toBlob(r, "image/png")
+    );
+    onConfirm(blob);
+  };
+
+  return (
+    <div className="mt-8">
+      <div className="border-2 border-dashed border-gray-500 rounded-xl h-48 bg-white">
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full touch-none"
+          onPointerDown={down}
+          onPointerMove={move}
+          onPointerUp={up}
+          onPointerLeave={up}
+        />
+      </div>
+
+      <div className="flex gap-3 mt-4">
+        <button
+          onClick={clear}
+          className="px-4 py-2 bg-gray-600 text-white rounded-lg"
+        >
+          Clear
+        </button>
+        <button
+          onClick={confirm}
+          className="ml-auto px-4 py-2 bg-orange-500 text-white rounded-lg"
+        >
+          Use Signature
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function SignatureRemover() {
   const [file, setFile] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -127,6 +229,15 @@ export default function SignatureRemover() {
     a.click();
   };
 
+  /* ---------------- Live signature handler ---------------- */
+  const handleLiveSignature = (blob) => {
+    outputBlobRef.current = blob;
+    setOutputImageUrl(URL.createObjectURL(blob));
+    setOriginalImageUrl(null);
+    setFile(null);
+  };
+
+ 
   /* ---------------- UI ---------------- */
 
   return (
@@ -223,6 +334,20 @@ export default function SignatureRemover() {
             </button>
           </div>
 
+
+
+                  {/* Live Signature */}
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-3 text-center">
+              Draw Your Signature
+            </h3>
+
+            <p className="text-gray-400 text-sm text-center mb-4">
+              Draw directly using mouse, touch, or stylus.
+            </p>
+
+            <SignaturePad onConfirm={handleLiveSignature} />
+          </div>
           {/* Preview */}
           {(originalImageUrl || outputImageUrl) && (
             <div className="mt-8 flex gap-6 justify-center flex-wrap">
