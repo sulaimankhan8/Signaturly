@@ -1,3 +1,52 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #08090d;
+    color: #f3f4f6;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    overflow-x: hidden;
+  }
+}
+
+/* Custom Matte Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d0e14;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #262938;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #950101;
+}
+
+/* Subtle Glassmorphism */
+.glass-panel {
+  background: rgba(21, 24, 34, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-panel-crimson {
+  background: linear-gradient(135deg, rgba(61, 0, 0, 0.4) 0%, rgba(21, 24, 34, 0.8) 100%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 0, 60, 0.2);
+}
+
+/* Smooth Focus Rings */
+*:focus-visible {
+  outline: 2px solid #ff003c;
+  outline-offset: 2px;
+}

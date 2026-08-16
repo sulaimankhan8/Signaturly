@@ -5,6 +5,22 @@ export default function SignatureUpload({ onUploaded }) {
   const [preview, setPreview] = useState("");
   const [uploading, setUploading] = useState(false);
 
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (!selectedFile) return;
+
+    setFile(selectedFile);
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const base64Url = evt.target.result;
+      setPreview(base64Url);
+      // Immediately notify parent with base64 Data URL so signatures work instantly!
+      onUploaded(base64Url);
+    };
+    reader.readAsDataURL(selectedFile);
+  };
+
   const uploadToCloudinary = async () => {
     if (!file) return;
 
@@ -20,55 +36,37 @@ export default function SignatureUpload({ onUploaded }) {
       );
 
       const data = await res.json();
-      console.log("Cloudinary upload response:", data);
-      
-      // Check if the response contains the secure_url
       if (data.secure_url) {
         onUploaded(data.secure_url);
       } else if (data.url) {
-        // Fallback to url if secure_url is not available
         onUploaded(data.url);
-      } else {
-        console.error("No URL found in response:", data);
-        alert("Error uploading signature. Please try again.");
       }
     } catch (error) {
-      console.error("Upload error:", error);
-      alert("Error uploading signature. Please try again.");
+      console.error("Cloudinary upload error:", error);
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <input
         type="file"
-        accept="image/png"
-        onChange={(e) => {
-          const selectedFile = e.target.files[0];
-          if (selectedFile) {
-            setFile(selectedFile);
-            setPreview(URL.createObjectURL(selectedFile));
-          }
-        }}
+        accept="image/*"
+        onChange={handleFileChange}
+        className="block w-full text-xs text-gray-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-orange-500 file:text-white hover:file:bg-orange-600 cursor-pointer"
       />
 
       {preview && (
-        <img
-          src={preview}
-          className="h-20 border rounded"
-          alt="Signature preview"
-        />
+        <div className="bg-white p-2 rounded-lg border border-gray-700 flex flex-col items-center">
+          <img
+            src={preview}
+            className="max-h-20 object-contain"
+            alt="Signature preview"
+          />
+          <span className="text-[10px] text-green-600 font-semibold mt-1">✓ Signature Attached</span>
+        </div>
       )}
-
-      <button
-        onClick={uploadToCloudinary}
-        disabled={uploading || !file}
-        className="px-4 py-2 bg-blue-600 text-white rounded disabled:bg-gray-400"
-      >
-        {uploading ? "Uploading..." : "Upload Signature"}
-      </button>
     </div>
   );
 }

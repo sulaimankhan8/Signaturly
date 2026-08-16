@@ -7,7 +7,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "nuke": "node src/scripts/nuke-db.js",
+    "nuke-db": "node src/scripts/nuke-db.js"
   },
   "keywords": [],
   "author": "",

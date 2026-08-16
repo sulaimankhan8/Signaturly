@@ -1,0 +1,403 @@
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import toast, { Toaster } from "react-hot-toast";
+import { fetchMyPdfsApi, deletePdfApi, fetchPdfAuditApi } from "../api/pdf.api";
+import Navbar from "../components/Navbar";
+
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const user = useSelector((state) => state.auth.user);
+
+  const [documents, setDocuments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedAudit, setSelectedAudit] = useState(null);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [isAuditLoading, setIsAuditLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+
+  const loadDocuments = async () => {
+    try {
+      setIsLoading(true);
+      const data = await fetchMyPdfsApi();
+      setDocuments(data || []);
+    } catch (err) {
+      console.error("Failed to load user documents:", err);
+      toast.error("Failed to load documents. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDocuments();
+  }, []);
+
+  const handleDelete = async (id, title) => {
+    if (!window.confirm(`Are you sure you want to delete "${title}"?`)) return;
+
+    try {
+      setDeletingId(id);
+      await deletePdfApi(id);
+      setDocuments((prev) => prev.filter((doc) => doc._id !== id));
+      toast.success("Document deleted successfully");
+    } catch (err) {
+      console.error("Delete document error:", err);
+      toast.error(err.response?.data?.message || "Failed to delete document");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleOpenAudit = async (id) => {
+    try {
+      setIsAuditLoading(true);
+      setIsAuditModalOpen(true);
+      const data = await fetchPdfAuditApi(id);
+      setSelectedAudit(data);
+    } catch (err) {
+      console.error("Audit trail fetch error:", err);
+      toast.error("Failed to fetch audit trail");
+      setIsAuditModalOpen(false);
+    } finally {
+      setIsAuditLoading(false);
+    }
+  };
+
+  const filteredDocuments = useMemo(() => {
+    return documents.filter((doc) => {
+      const matchesSearch = doc.originalFileName
+        ?.toLowerCase()
+        .includes(searchQuery.toLowerCase());
+
+      const matchesStatus =
+        statusFilter === "all"
+          ? true
+          : statusFilter === "signed"
+          ? doc.status === "signed"
+          : doc.status !== "signed";
+
+      return matchesSearch && matchesStatus;
+    });
+  }, [documents, searchQuery, statusFilter]);
+
+  const stats = useMemo(() => {
+    const total = documents.length;
+    const signed = documents.filter((d) => d.status === "signed").length;
+    const pending = total - signed;
+    return { total, signed, pending };
+  }, [documents]);
+
+  return (
+    <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans selection:bg-red-600 selection:text-white">
+      <Toaster position="top-right" />
+      <Navbar />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Welcome Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-display font-extrabold tracking-tight text-white flex items-center gap-3">
+              Document Vault
+            </h1>
+            <p className="text-gray-400 text-sm mt-1">
+              Welcome back, <span className="text-red-400 font-bold">{user?.name || user?.email}</span>. Manage and e-sign your documents easily.
+            </p>
+          </div>
+
+          <button
+            onClick={() => navigate("/upload")}
+            className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold rounded-xl shadow-lg shadow-red-900/30 transition-all hover:scale-[1.02] active:scale-95 border border-red-500/30"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+            </svg>
+            Upload Document
+          </button>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="bg-[#12141c] backdrop-blur-md border border-white/10 rounded-2xl p-5 flex items-center space-x-4 shadow-xl">
+            <div className="w-12 h-12 rounded-xl bg-red-950/60 border border-red-800/40 text-red-400 flex items-center justify-center shadow-inner">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Documents</p>
+              <p className="text-2xl font-display font-bold text-white mt-0.5">{stats.total}</p>
+            </div>
+          </div>
+
+          <div className="bg-[#12141c] backdrop-blur-md border border-white/10 rounded-2xl p-5 flex items-center space-x-4 shadow-xl">
+            <div className="w-12 h-12 rounded-xl bg-emerald-950/60 border border-emerald-800/40 text-emerald-400 flex items-center justify-center shadow-inner">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Signed & Completed</p>
+              <p className="text-2xl font-display font-bold text-emerald-400 mt-0.5">{stats.signed}</p>
+            </div>
+          </div>
+
+          <div className="bg-[#12141c] backdrop-blur-md border border-white/10 rounded-2xl p-5 flex items-center space-x-4 shadow-xl">
+            <div className="w-12 h-12 rounded-xl bg-amber-950/60 border border-amber-800/40 text-amber-400 flex items-center justify-center shadow-inner">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Draft / Pending</p>
+              <p className="text-2xl font-display font-bold text-amber-400 mt-0.5">{stats.pending}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Filter & Search Bar */}
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-[#12141c] p-4 rounded-2xl border border-white/10 shadow-lg">
+          {/* Search Box */}
+          <div className="relative w-full md:w-80">
+            <input
+              type="text"
+              placeholder="Search documents..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-[#08090d] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-500 text-xs font-medium"
+            />
+            <svg
+              className="w-4 h-4 absolute left-3.5 top-3.5 text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+
+          {/* Filter Tabs */}
+          <div className="flex bg-[#08090d] p-1 rounded-xl border border-white/10 w-full md:w-auto">
+            {["all", "signed", "draft"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setStatusFilter(tab)}
+                className={`flex-1 md:flex-none px-5 py-2 text-xs font-bold rounded-lg capitalize transition-all ${
+                  statusFilter === tab
+                    ? "bg-gradient-to-r from-red-600 to-red-800 text-white shadow-md border border-red-500/30"
+                    : "text-gray-400 hover:text-white"
+                }`}
+              >
+                {tab === "draft" ? "Drafts" : tab}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Document Gallery Grid */}
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-12 h-12 border-4 border-white/10 border-t-red-600 rounded-full animate-spin mb-4" />
+            <p className="text-gray-400 text-sm font-medium">Fetching documents...</p>
+          </div>
+        ) : filteredDocuments.length === 0 ? (
+          <div className="text-center py-20 bg-[#12141c] rounded-3xl border border-white/10 p-8 shadow-2xl">
+            <div className="w-16 h-16 bg-red-950/60 border border-red-800/40 rounded-2xl flex items-center justify-center mx-auto mb-4 text-red-400">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-display font-bold text-white mb-2">No documents found</h3>
+            <p className="text-gray-400 text-xs max-w-md mx-auto mb-6">
+              {searchQuery
+                ? "No documents matched your search term."
+                : "You haven't uploaded any documents yet. Get started by uploading your first PDF!"}
+            </p>
+            <button
+              onClick={() => navigate("/upload")}
+              className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-800 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-900/30 transition-all hover:scale-105"
+            >
+              Upload PDF
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredDocuments.map((doc) => {
+              const isSigned = doc.status === "signed";
+              const createdDate = new Date(doc.createdAt).toLocaleDateString(undefined, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              });
+
+              return (
+                <div
+                  key={doc._id}
+                  className="bg-[#12141c] border border-white/10 hover:border-red-600/50 rounded-2xl p-5 flex flex-col justify-between transition-all hover:shadow-2xl hover:shadow-red-950/40 group relative overflow-hidden"
+                >
+                  <div className="space-y-4">
+                    {/* Top Row: PDF Icon & Status Badge */}
+                    <div className="flex items-start justify-between">
+                      <div className="w-12 h-12 bg-red-950/70 border border-red-800/40 text-red-400 rounded-xl flex items-center justify-center font-display font-bold text-sm shadow-inner">
+                        PDF
+                      </div>
+                      <span
+                        className={`px-3 py-1 text-[11px] font-bold rounded-lg border ${
+                          isSigned
+                            ? "bg-emerald-950/60 text-emerald-300 border-emerald-800/50"
+                            : "bg-amber-950/60 text-amber-300 border-amber-800/50"
+                        }`}
+                      >
+                        {isSigned ? "✓ Signed" : "Draft"}
+                      </span>
+                    </div>
+
+                    {/* Title & Metadata */}
+                    <div>
+                      <h3
+                        className="text-base font-bold text-white group-hover:text-red-400 transition-colors line-clamp-1"
+                        title={doc.originalFileName}
+                      >
+                        {doc.originalFileName}
+                      </h3>
+                      <p className="text-[11px] text-gray-400 mt-1 flex items-center gap-2">
+                        <span>{doc.pageCount} {doc.pageCount === 1 ? "page" : "pages"}</span>
+                        <span>•</span>
+                        <span>{createdDate}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Actions Bar */}
+                  <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => navigate(`/editor/${doc._id}`)}
+                      className="flex-1 py-2.5 px-3 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-red-950/50 border border-red-500/30"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                      {isSigned ? "Re-sign" : "Sign"}
+                    </button>
+
+                    {isSigned && (
+                      <a
+                        href={`${import.meta.env.VITE_API_BASE_URL}${doc.signedUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2.5 bg-emerald-950/70 hover:bg-emerald-900 text-emerald-300 rounded-xl text-xs font-bold border border-emerald-800/50 transition-colors"
+                        title="Download Signed PDF"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      </a>
+                    )}
+
+                    {isSigned && (
+                      <button
+                        onClick={() => handleOpenAudit(doc._id)}
+                        className="p-2.5 bg-blue-950/70 hover:bg-blue-900 text-blue-300 rounded-xl text-xs font-bold border border-blue-800/50 transition-colors"
+                        title="View Cryptographic Audit Trail"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => handleDelete(doc._id, doc.originalFileName)}
+                      disabled={deletingId === doc._id}
+                      className="p-2.5 bg-red-950/50 hover:bg-red-900/80 text-red-300 hover:text-white rounded-xl text-xs font-bold border border-red-800/40 transition-colors disabled:opacity-50"
+                      title="Delete Document"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </main>
+
+      {/* Audit Trail Modal */}
+      {isAuditModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-[#12141c] border border-white/10 rounded-3xl max-w-2xl w-full p-6 space-y-6 shadow-2xl relative">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <h3 className="text-lg font-display font-bold text-white flex items-center gap-2">
+                <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                Cryptographic Audit Trail
+              </h3>
+              <button
+                onClick={() => setIsAuditModalOpen(false)}
+                className="text-gray-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {isAuditLoading ? (
+              <div className="py-12 flex justify-center">
+                <div className="w-10 h-10 border-4 border-white/10 border-t-red-600 rounded-full animate-spin" />
+              </div>
+            ) : selectedAudit ? (
+              <div className="space-y-4 text-xs text-gray-300 max-h-[60vh] overflow-y-auto pr-1">
+                <div className="bg-[#08090d] p-4 rounded-xl space-y-1 border border-white/10">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Document Title</p>
+                  <p className="text-white font-semibold text-sm">{selectedAudit.pdf?.originalFileName}</p>
+                </div>
+
+                {selectedAudit.auditLogs?.map((log, index) => (
+                  <div key={log._id || index} className="bg-[#08090d] p-4 rounded-xl space-y-3 border border-white/10">
+                    <div className="flex items-center justify-between text-xs text-red-400 font-bold">
+                      <span>Signature Entry #{selectedAudit.auditLogs.length - index}</span>
+                      <span className="text-gray-400 font-mono text-[11px]">{new Date(log.signedAt).toLocaleString()}</span>
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] text-gray-400 font-mono uppercase">Original Document Hash (SHA-256):</p>
+                      <p className="text-xs font-mono bg-black/60 p-2 rounded-lg text-emerald-300 break-all border border-emerald-950">
+                        {log.originalHash}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] text-gray-400 font-mono uppercase">Signed Document Hash (SHA-256):</p>
+                      <p className="text-xs font-mono bg-black/60 p-2 rounded-lg text-red-400 break-all border border-red-950">
+                        {log.signedHash}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-[11px] text-gray-400">Total Fields Embedded: <span className="font-bold text-white">{log.fieldsMeta?.length || 0}</span></p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-400 text-xs">No audit trail records found.</p>
+            )}
+
+            <div className="pt-4 border-t border-white/10 flex justify-end">
+              <button
+                onClick={() => setIsAuditModalOpen(false)}
+                className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

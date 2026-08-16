@@ -7,215 +7,209 @@ export default function DraggableField({
   field,
   pageWidth,
   pageHeight,
+  isSelected,
+  onSelect,
   onUpdate,
   onRemove,
 }) {
   const [localField, setLocalField] = useState(field);
   const [isEditing, setIsEditing] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(false);
   const inputRef = useRef(null);
+  const fieldRef = useRef(null);
 
-  // ---------------- SYNC PROPS ----------------
   useEffect(() => {
-    console.log("[SYNC field -> localField]", field);
     setLocalField(field);
   }, [field]);
 
-  // ---------------- POSITION & SIZE ----------------
+  useEffect(() => {
+    if (!isSelected) return;
+
+    const handleKeyDown = (e) => {
+      if (isEditing) return;
+
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        onRemove(localField.id);
+      } else if (e.key === "Escape") {
+        onSelect(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSelected, isEditing, localField.id, onRemove, onSelect]);
+
   const xPx = localField.xPercent * pageWidth;
   const yPx = localField.yPercent * pageHeight;
-  const w = localField.widthPercent * pageWidth;
-  const h = localField.heightPercent * pageHeight;
+  const w = Math.max(30, localField.widthPercent * pageWidth);
+  const h = Math.max(20, localField.heightPercent * pageHeight);
 
-  console.log("[LAYOUT]", {
-    type: localField.type,
-    xPx,
-    yPx,
-    w,
-    h,
-  });
-
-  // ---------------- FONT SIZE (SINGLE SOURCE OF TRUTH) ----------------
   const fontSizePx = localField.fontSizePercent
     ? localField.fontSizePercent * pageHeight
-    : h * 0.6;
+    : h * 0.55;
 
-  console.log("[FONT SIZE]", {
-    type: localField.type,
-    fontSizePercent: localField.fontSizePercent,
-    fontSizePx,
-  });
-
-  // ---------------- UPDATE HELPER ----------------
   const handleUpdate = (updates) => {
     const updated = { ...localField, ...updates };
-    console.log("[UPDATE FIELD]", {
-      type: localField.type,
-      before: localField,
-      updates,
-      after: updated,
-    });
     setLocalField(updated);
     onUpdate(updated);
   };
 
-  // ---------------- FONT CONTROLS ----------------
   const handleFontSizeChange = (delta) => {
-    const nextPx = Math.max(8, Math.min(72, fontSizePx + delta));
-    console.log("[FONT INC/DEC]", {
-      type: localField.type,
-      delta,
-      oldPx: fontSizePx,
-      newPx: nextPx,
-      newPercent: nextPx / pageHeight,
-    });
+    const nextPx = Math.max(8, Math.min(96, fontSizePx + delta));
     handleUpdate({ fontSizePercent: nextPx / pageHeight });
   };
 
-  const renderFontControls = () => (
-    <div className="absolute top-0 right-0 flex bg-white shadow-md rounded-bl z-10">
-      <button
-        className="px-2 py-1 text-xs hover:bg-orange-500 hover:text-white"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleFontSizeChange(-1);
-        }}
-      >
-        −
-      </button>
-      <button
-        className="px-2 py-1 text-xs hover:bg-orange-500 hover:text-white"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleFontSizeChange(1);
-        }}
-      >
-        +
-      </button>
-    </div>
-  );
+  const renderToolbar = () => {
+    if (!isSelected) return null;
 
-  // ================= TEXT FIELD =================
-  const renderTextField = () => {
-    console.log("[RENDER TEXT]");
     return (
-      <div className="w-full h-full relative">
-        {isEditing ? (
-          <input
-            ref={inputRef}
-            className="w-full h-full px-2 bg-transparent outline-none"
-            style={{ fontSize: fontSizePx }}
-            value={localField.value || ""}
-            onChange={(e) => handleUpdate({ value: e.target.value })}
-            onBlur={() => setIsEditing(false)}
-            autoFocus
-          />
-        ) : (
-          <div
-            className="w-full h-full px-2 cursor-text flex items-center"
-            style={{ fontSize: fontSizePx }}
-            onClick={() => setIsEditing(true)}
-          >
-            {localField.value || (
-              <span className="text-gray-500 opacity-60">Click to edit</span>
-            )}
+      <div
+        className="absolute -top-10 left-0 flex items-center bg-[#0e1017] text-white rounded-xl shadow-2xl px-2.5 py-1 space-x-2 text-xs border border-red-500/40 z-50 animate-fade-in"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="font-bold text-red-400 capitalize px-1 text-[11px]">
+          {localField.type}
+        </span>
+
+        {localField.type !== "signature" && (
+          <div className="flex items-center space-x-1 border-l border-r border-white/10 px-2">
+            <span className="text-gray-400 text-[10px] uppercase font-mono">Font:</span>
+            <button
+              type="button"
+              className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center text-gray-200 font-bold text-xs"
+              onClick={() => handleFontSizeChange(-1)}
+              title="Decrease font size"
+            >
+              −
+            </button>
+            <span className="text-[11px] font-mono text-red-300 w-5 text-center font-bold">
+              {Math.round(fontSizePx)}
+            </span>
+            <button
+              type="button"
+              className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center text-gray-200 font-bold text-xs"
+              onClick={() => handleFontSizeChange(1)}
+              title="Increase font size"
+            >
+              +
+            </button>
           </div>
         )}
-        {renderFontControls()}
+
+        <button
+          type="button"
+          className="text-red-400 hover:text-white hover:bg-red-600/30 p-1 rounded-lg transition-colors"
+          onClick={() => onRemove(localField.id)}
+          title="Delete Field (Del)"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
       </div>
     );
   };
 
-  // ================= DATE FIELD =================
+  const renderTextField = () => (
+    <div className="w-full h-full relative flex items-center">
+      {isEditing ? (
+        <input
+          ref={inputRef}
+          className="w-full h-full px-2 bg-white text-gray-900 border border-red-500 outline-none rounded"
+          style={{ fontSize: `${fontSizePx}px` }}
+          value={localField.value || ""}
+          onChange={(e) => handleUpdate({ value: e.target.value })}
+          onBlur={() => setIsEditing(false)}
+          autoFocus
+        />
+      ) : (
+        <div
+          className="w-full h-full px-2 cursor-text flex items-center text-gray-900 font-medium select-none truncate"
+          style={{ fontSize: `${fontSizePx}px` }}
+          onClick={() => setIsEditing(true)}
+        >
+          {localField.value || (
+            <span className="text-gray-400 italic font-normal">Click to enter text...</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   const renderDateField = () => {
-    console.log("[RENDER DATE]");
     const getDateValue = () => {
       if (!localField.value) return "";
       const d = new Date(localField.value);
-      return isNaN(d) ? "" : d.toISOString().split("T")[0];
+      return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
     };
 
     return (
-      <div className="w-full h-full relative flex items-center ">
+      <div className="w-full h-full relative flex items-center px-2">
         <input
           type="date"
           value={getDateValue()}
           onChange={(e) => {
-            const d = new Date(e.target.value);
-            console.log("[DATE CHANGE]", d);
-            handleUpdate({ value: d.toLocaleDateString() });
+            if (e.target.value) {
+              const d = new Date(e.target.value);
+              handleUpdate({ value: d.toLocaleDateString() });
+            }
           }}
-          className="w-full h-full bg-transparent outline-none text-center cursor-pointer"
-          style={{
-  fontSize: fontSizePx,
-  paddingLeft: "0px",
-          textAlign: "left",
-  paddingTop: `${fontSizePx * 0.01}px`,
- 
-}}
-
+          className="w-full h-full bg-transparent text-gray-900 outline-none cursor-pointer font-medium"
+          style={{ fontSize: `${fontSizePx}px` }}
         />
-        {renderFontControls()}
       </div>
     );
   };
 
-  // ================= SIGNATURE =================
-  const renderSignatureField = () => {
-    console.log("[RENDER SIGNATURE]");
-    return (
-      <div className="w-full h-full flex items-center justify-center overflow-hidden">
-        {localField.signatureUrl ? (
-          <img
-            src={localField.signatureUrl}
-            alt="signature"
-            className="w-full h-full object-contain"
-          />
-        ) : (
-          <span className="text-gray-500 opacity-60 text-xs">SIGN</span>
-        )}
-      </div>
-    );
-  };
+  const renderSignatureField = () => (
+    <div className="w-full h-full flex items-center justify-center p-1 overflow-hidden">
+      {localField.signatureUrl ? (
+        <img
+          src={localField.signatureUrl}
+          alt="Signature"
+          className="w-full h-full object-contain pointer-events-none"
+        />
+      ) : (
+        <div className="flex flex-col items-center justify-center text-red-600 space-y-0.5">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+          <span className="text-[10px] font-bold tracking-wider uppercase">Signature</span>
+        </div>
+      )}
+    </div>
+  );
 
-  // ================= RADIO =================
   const renderRadioField = () => {
-    console.log("[RENDER RADIO]");
-    const size = fontSizePx;
+    const size = Math.min(w, h, fontSizePx * 1.2);
     const innerSize = size * 0.5;
 
-    console.log("[RADIO SIZE]", { size, innerSize });
-
     return (
-      <div className="w-full h-full relative flex items-center justify-center">
+      <div className="w-full h-full flex items-center justify-center">
         <div
-          className={`rounded-full border-2 cursor-pointer flex items-center justify-center ${
+          className={`rounded-full border-2 cursor-pointer flex items-center justify-center transition-all ${
             localField.checked
-              ? "bg-orange-500 border-orange-500"
-              : "bg-white border-gray-400"
+              ? "bg-red-600 border-red-600 shadow-md shadow-red-900/40"
+              : "bg-white border-gray-400 hover:border-red-500"
           }`}
           style={{ width: size, height: size }}
           onClick={(e) => {
             e.stopPropagation();
-            console.log("[RADIO TOGGLE]", !localField.checked);
             handleUpdate({ checked: !localField.checked });
           }}
         >
           {localField.checked && (
             <div
-              className="rounded-full bg-white"
+              className="rounded-full bg-white shadow-inner"
               style={{ width: innerSize, height: innerSize }}
             />
           )}
         </div>
-        {renderFontControls()}
       </div>
     );
   };
 
-  // ================= FIELD SWITCH =================
   const renderFieldContent = () => {
-    console.log("[RENDER FIELD TYPE]", localField.type);
     switch (localField.type) {
       case "text":
         return renderTextField();
@@ -230,30 +224,33 @@ export default function DraggableField({
     }
   };
 
-  // ================= RENDER =================
   return (
     <Draggable
       position={{ x: xPx, y: yPx }}
-      cancel=".react-resizable-handle"
+      cancel=".react-resizable-handle, input, button"
+      onStart={() => onSelect(localField.id)}
       onStop={(_, d) => {
-        console.log("[DRAG STOP]", d);
-        handleUpdate({
-          xPercent: Math.min(Math.max(d.x / pageWidth, 0), 1),
-          yPercent: Math.min(Math.max(d.y / pageHeight, 0), 1),
-        });
+        const xPercent = Math.min(Math.max(d.x / pageWidth, 0), 0.98);
+        const yPercent = Math.min(Math.max(d.y / pageHeight, 0), 0.98);
+        handleUpdate({ xPercent, yPercent });
       }}
     >
-      <div className="absolute">
+      <div
+        ref={fieldRef}
+        className="absolute cursor-move select-none"
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect(localField.id);
+        }}
+      >
         <ResizableBox
           width={w}
           height={h}
           resizeHandles={["se"]}
-          minConstraints={
-            localField.type === "radio" ? [30, 30] : [50, 24]
-          }
-          maxConstraints={[pageWidth, pageHeight]}
+          minConstraints={localField.type === "radio" ? [24, 24] : [40, 24]}
+          maxConstraints={[pageWidth - xPx, pageHeight - yPx]}
+          onResizeStart={() => onSelect(localField.id)}
           onResizeStop={(_, { size }) => {
-            console.log("[RESIZE STOP]", size);
             handleUpdate({
               widthPercent: size.width / pageWidth,
               heightPercent: size.height / pageHeight,
@@ -261,30 +258,17 @@ export default function DraggableField({
           }}
         >
           <div
-            className="border border-gray-300 w-full h-full relative overflow-hidden flex items-center justify-center"
-            onMouseEnter={() => setShowTooltip(true)}
-            onMouseLeave={() => setShowTooltip(false)}
+            className={`w-full h-full relative rounded border transition-all ${
+              isSelected
+                ? "border-red-500 ring-2 ring-red-600/40 bg-red-950/20 shadow-xl"
+                : "border-red-400/60 hover:border-red-500 bg-white/60 backdrop-blur-[1px]"
+            }`}
           >
-            <button
-              className="absolute top-0 left-0 bg-red-500 text-white text-xs px-2 py-1 rounded-br z-20"
-              onClick={(e) => {
-                e.stopPropagation();
-                console.log("[REMOVE FIELD]", localField.id);
-                onRemove(localField.id);
-              }}
-            >
-              ✕
-            </button>
+            {renderToolbar()}
 
             {renderFieldContent()}
 
-            <div className="absolute bottom-1 right-1 w-3 h-3 border-r-2 border-b-2 border-orange-500 rotate-45" />
-
-            {showTooltip && (
-              <div className="absolute -top-7 left-0 bg-black text-white text-xs px-2 py-1 rounded">
-                {localField.type}
-              </div>
-            )}
+            <div className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 border-r-2 border-b-2 border-red-500 pointer-events-none" />
           </div>
         </ResizableBox>
       </div>

@@ -3,6 +3,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import UploadPdf from "./pages/UploadPdf";
 import HomeRedirect from "./pages/HomeRedirect";
+import Dashboard from "./pages/Dashboard";
 import PdfEditor from "./pages/PdfEditor";
 import SignatureRemover from "./pages/RemoveBg";
 import { hydrateAuth } from "./store/authActions";
@@ -16,15 +17,17 @@ export default function App() {
   useEffect(() => {
     dispatch(hydrateAuth());
   }, [dispatch]);
+
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomeRedirect />} />
+        <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/upload" element={<UploadPdf />} />
         <Route path="/signature-remover" element={<SignatureRemover />} />
-      <Route path="/editor/:pdfId" element={<PdfEditor />} />
+        <Route path="/editor/:pdfId" element={<PdfEditor />} />
       </Routes>
     </BrowserRouter>
   );
