@@ -296,10 +296,13 @@ export default function SignatureRemover() {
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-10 shadow-2xl space-y-8">
+        <div className="bg-[#13151f] border-2 border-white/20 rounded-3xl p-6 sm:p-10 shadow-[6px_6px_0px_0px_#ef4444] space-y-8">
           <div>
-            <h2 className="text-2xl font-display font-bold text-white">Signature Studio</h2>
-            <p className="text-gray-400 text-xs mt-1">
+            <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-yellow-400 text-black border-2 border-black rounded shadow-[2px_2px_0px_0px_#ef4444] mb-2 inline-block">
+              Signature Vector Studio
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black uppercase text-white tracking-tight">Signature Studio</h2>
+            <p className="text-gray-300 text-xs sm:text-sm mt-1 font-medium">
               Remove paper background lighting automatically or draw a digital signature for transparent PDF burning.
             </p>
           </div>
@@ -308,23 +311,23 @@ export default function SignatureRemover() {
           <div
             className={`border-2 border-dashed rounded-2xl p-8 sm:p-10 text-center cursor-pointer transition-all ${
               isDragging
-                ? "border-red-500 bg-red-950/20 scale-[1.01]"
-                : "border-white/10 hover:border-red-500/50 bg-[#08090d]/60"
+                ? "border-yellow-400 bg-[#090a0f] scale-[1.01]"
+                : "border-white/25 hover:border-yellow-400 bg-[#090a0f]"
             }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
           >
-            <div className="w-14 h-14 bg-red-950/60 text-red-400 border border-red-800/40 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <div className="w-14 h-14 bg-yellow-400 text-black border-2 border-black rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[3px_3px_0px_0px_#ef4444]">
+              <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <h3 className="text-base sm:text-lg font-display font-semibold text-white">
+            <h3 className="text-base sm:text-lg font-black text-white uppercase tracking-tight">
               Click or drag a photo of your paper signature
             </h3>
-            <p className="text-gray-400 text-xs mt-1">
+            <p className="text-gray-400 text-xs mt-1 font-medium">
               JPG, PNG, WebP supported. High contrast produces best results.
             </p>
 
@@ -339,10 +342,10 @@ export default function SignatureRemover() {
 
           {/* Strength Slider */}
           {file && (
-            <div className="bg-[#08090d] p-4 rounded-xl border border-white/10 space-y-2">
-              <div className="flex justify-between text-xs text-gray-300">
+            <div className="bg-[#090a0f] p-4 rounded-xl border-2 border-white/20 space-y-2">
+              <div className="flex justify-between text-xs font-black text-gray-300 uppercase tracking-wider">
                 <span>Threshold Strength:</span>
-                <span className="font-mono text-red-400 font-bold">{strength}</span>
+                <span className="font-mono text-yellow-400 font-bold">{strength}</span>
               </div>
               <input
                 type="range"
@@ -361,29 +364,29 @@ export default function SignatureRemover() {
             <button
               onClick={processImage}
               disabled={!file || isProcessing}
-              className="flex-1 py-3.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 disabled:opacity-40 text-white font-bold text-xs rounded-xl transition-all shadow-lg shadow-red-950/50 border border-red-500/30"
+              className="flex-1 py-3.5 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-[4px_4px_0px_0px_#facc15] hover:shadow-[5px_5px_0px_0px_#fff] border-2 border-black"
             >
-              {isProcessing ? "Processing BG..." : "Remove Paper Background"}
+              {isProcessing ? "Processing BG..." : "Remove Paper Background →"}
             </button>
 
             <button
               onClick={downloadImage}
               disabled={!outputImageUrl}
-              className="flex-1 py-3.5 bg-emerald-950/70 hover:bg-emerald-900 text-emerald-300 border border-emerald-800/50 disabled:opacity-40 font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-2"
+              className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white border-2 border-black shadow-[4px_4px_0px_0px_#000] hover:shadow-[5px_5px_0px_0px_#fff] disabled:opacity-40 font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               <span>Download Transparent PNG</span>
             </button>
           </div>
 
           {/* Draw Signature */}
-          <div className="pt-6 border-t border-white/10">
-            <h3 className="text-sm font-display font-bold text-white mb-1 uppercase tracking-wider">
+          <div className="pt-6 border-t-2 border-white/10">
+            <h3 className="text-sm font-black text-white mb-1 uppercase tracking-wider">
               Or Draw Digital Signature
             </h3>
-            <p className="text-gray-400 text-xs">
+            <p className="text-gray-300 text-xs font-medium">
               Draw directly on pad using mouse, touch screen, or pen.
             </p>
             <SignaturePad onConfirm={handleLiveSignature} />
@@ -391,22 +394,22 @@ export default function SignatureRemover() {
 
           {/* Previews */}
           {(originalImageUrl || outputImageUrl) && (
-            <div className="pt-6 border-t border-white/10 flex flex-col items-center space-y-4">
+            <div className="pt-6 border-t-2 border-white/10 flex flex-col items-center space-y-4">
               <div className="flex gap-6 justify-center flex-wrap w-full">
                 {originalImageUrl && (
                   <div className="text-center space-y-2">
-                    <span className="text-xs text-gray-400 font-medium">Original Upload:</span>
+                    <span className="text-xs text-gray-300 font-black uppercase tracking-wider">Original Upload:</span>
                     <img
                       src={originalImageUrl}
                       alt="Original"
-                      className="max-h-48 border border-white/10 rounded-xl bg-white/5 p-2"
+                      className="max-h-48 border-2 border-white/20 rounded-xl bg-white/5 p-2"
                     />
                   </div>
                 )}
                 {outputImageUrl && (
                   <div className="text-center space-y-2">
-                    <span className="text-xs text-emerald-400 font-semibold">Transparent PNG Result:</span>
-                    <div className="border border-emerald-800/50 rounded-xl bg-[#08090d] p-3 shadow-lg shadow-emerald-950/40">
+                    <span className="text-xs text-emerald-400 font-black uppercase tracking-wider">Transparent PNG Result:</span>
+                    <div className="border-2 border-emerald-500 rounded-xl bg-[#090a0f] p-3 shadow-[4px_4px_0px_0px_#22c55e]">
                       <img
                         src={outputImageUrl}
                         alt="Result"
@@ -420,10 +423,10 @@ export default function SignatureRemover() {
               {outputImageUrl && (
                 <button
                   onClick={downloadImage}
-                  className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-950/50 flex items-center gap-2 transition-all"
+                  className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-wider text-xs rounded-xl shadow-[3px_3px_0px_0px_#000] border-2 border-black flex items-center gap-2 transition-all"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
                   <span>Download Signature as PNG</span>
                 </button>
@@ -432,6 +435,7 @@ export default function SignatureRemover() {
           )}
         </div>
       </main>
+
     </div>
   );
 }

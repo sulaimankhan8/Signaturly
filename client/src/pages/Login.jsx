@@ -2,7 +2,7 @@ import { useState } from "react";
 import { loginApi } from "../api/auth.api";
 import { useDispatch } from "react-redux";
 import { setCredentials } from "../store/authSlice";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 
 export default function Login() {
@@ -31,28 +31,46 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#08090d] text-gray-100 flex items-center justify-center p-4 selection:bg-red-600 selection:text-white">
+    <div className="min-h-screen bg-[#090a0f] text-gray-100 flex flex-col items-center justify-center p-4 selection:bg-yellow-400 selection:text-black font-sans antialiased relative">
       <Toaster position="top-right" />
-      <div className="max-w-md w-full space-y-8">
+
+      {/* Top Back to Home Navigation */}
+      <div className="w-full max-w-md mb-6 flex justify-between items-center">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#151722] hover:bg-[#1f2233] text-gray-300 hover:text-white text-xs font-black uppercase tracking-wider border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] transition-all"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span>Back to Home</span>
+        </Link>
+
+        <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-yellow-400 text-black border-2 border-black rounded shadow-[2px_2px_0px_0px_#ef4444]">
+          PRO VAULT
+        </span>
+      </div>
+
+      <div className="max-w-md w-full space-y-6">
         {/* Brand / Title Section */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-red-600 via-red-700 to-red-950 rounded-2xl shadow-xl shadow-red-950/50 border border-red-500/30 mb-2">
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <div className="inline-flex items-center justify-center w-14 h-14 bg-red-600 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_#facc15] mb-2 transform -rotate-1">
+            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </div>
-          <h2 className="text-3xl font-display font-extrabold text-white tracking-tight">
-            Signatur<span className="text-red-500">ly</span> <span className="text-xs uppercase font-bold text-red-400 bg-red-950/60 px-2 py-0.5 rounded border border-red-800/40">Pro</span>
+          <h2 className="text-3xl font-black text-white tracking-tight uppercase">
+            Sign In to Vault
           </h2>
-          <p className="text-xs text-gray-400">Sign in to your document vault and e-signature workspace</p>
+          <p className="text-xs text-gray-400 font-medium">Access your executed contracts and e-signature workspace</p>
         </div>
 
         {/* Login Form Card */}
-        <div className="bg-[#12141c] border border-white/10 rounded-3xl shadow-2xl p-8 space-y-6">
+        <div className="bg-[#151722] border-2 border-white/20 rounded-3xl shadow-[6px_6px_0px_0px_#ef4444] p-8 space-y-6">
           <form onSubmit={submit} className="space-y-5">
             {/* Email Field */}
             <div>
-              <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-2">
+              <label htmlFor="email" className="block text-xs font-black uppercase tracking-wider text-gray-300 mb-2">
                 Email Address
               </label>
               <div className="relative">
@@ -66,7 +84,7 @@ export default function Login() {
                   type="email"
                   autoComplete="email"
                   required
-                  className="block w-full pl-10 pr-4 py-3 bg-[#08090d] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-500 text-xs transition-colors"
+                  className="block w-full pl-10 pr-4 py-3 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-yellow-400 text-xs font-medium transition-colors"
                   placeholder="name@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -77,16 +95,15 @@ export default function Login() {
             {/* Password Field */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-gray-300">
+                <label htmlFor="password" className="block text-xs font-black uppercase tracking-wider text-gray-300">
                   Password
                 </label>
-                <button
-                  type="button"
-                  onClick={() => navigate("/forgot-password")}
-                  className="text-[11px] text-red-400 hover:text-red-300 transition-colors font-medium"
+                <Link
+                  to="/forgot-password"
+                  className="text-[11px] text-yellow-400 hover:text-yellow-300 transition-colors font-bold"
                 >
                   Forgot password?
-                </button>
+                </Link>
               </div>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-500">
@@ -99,14 +116,14 @@ export default function Login() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   required
-                  className="block w-full pl-10 pr-10 py-3 bg-[#08090d] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-500 text-xs transition-colors"
+                  className="block w-full pl-10 pr-10 py-3 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-yellow-400 text-xs font-medium transition-colors"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <button
                   type="button"
-                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-500 hover:text-gray-300"
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-white"
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
@@ -127,7 +144,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center items-center py-3.5 px-4 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-950/50 border border-red-500/30 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex justify-center items-center py-3.5 px-4 bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_#facc15] hover:shadow-[6px_6px_0px_0px_#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <>
@@ -135,21 +152,21 @@ export default function Login() {
                   <span>Authenticating...</span>
                 </>
               ) : (
-                "Sign In to Vault"
+                "Sign In to Vault →"
               )}
             </button>
           </form>
 
           {/* Register Link */}
-          <div className="pt-4 border-t border-white/10 text-center">
-            <p className="text-xs text-gray-400">
+          <div className="pt-4 border-t-2 border-white/10 text-center">
+            <p className="text-xs text-gray-300 font-medium">
               Don't have an account?{" "}
-              <button
-                onClick={() => navigate("/register")}
-                className="font-bold text-red-400 hover:text-red-300 transition-colors ml-1"
+              <Link
+                to="/register"
+                className="font-black text-yellow-400 hover:text-yellow-300 underline underline-offset-4 ml-1"
               >
                 Create an account
-              </button>
+              </Link>
             </p>
           </div>
         </div>

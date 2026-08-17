@@ -135,37 +135,38 @@ export default function Dashboard() {
     switch (status) {
       case "signed":
         return (
-          <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg border bg-emerald-950/60 text-emerald-300 border-emerald-800/50">
-            ✓ Signed & Completed
+          <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-emerald-500 text-black shadow-[2px_2px_0px_0px_#fff]">
+            ✓ Signed & Sealed
           </span>
         );
       case "pending":
       case "partially_signed":
         return (
-          <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg border bg-blue-950/60 text-blue-300 border-blue-800/50">
-            ⏳ In Progress (Sent)
+          <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-yellow-400 text-black shadow-[2px_2px_0px_0px_#ef4444]">
+            ⏳ In Progress
           </span>
         );
       case "declined":
         return (
-          <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg border bg-red-950/60 text-red-300 border-red-800/50">
+          <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-red-600 text-white shadow-[2px_2px_0px_0px_#fff]">
             ✕ Declined
           </span>
         );
       case "voided":
         return (
-          <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg border bg-gray-900 text-gray-400 border-gray-700">
+          <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-gray-800 text-gray-300 shadow-[2px_2px_0px_0px_#000]">
             Voided
           </span>
         );
       default:
         return (
-          <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg border bg-amber-950/60 text-amber-300 border-amber-800/50">
+          <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-purple-500 text-white shadow-[2px_2px_0px_0px_#fff]">
             Draft
           </span>
         );
     }
   };
+
 
   return (
     <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans selection:bg-red-600 selection:text-white">
@@ -176,17 +177,17 @@ export default function Dashboard() {
         {/* Welcome Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-display font-extrabold tracking-tight text-white flex items-center gap-3">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white flex items-center gap-3 uppercase">
               Document Vault
             </h1>
-            <p className="text-gray-400 text-xs sm:text-sm mt-1">
-              Welcome back, <span className="text-red-400 font-bold">{user?.name || user?.email}</span>. Manage agreements, track signers, and execute e-signatures.
+            <p className="text-gray-300 text-xs sm:text-sm mt-1 font-medium">
+              Welcome back, <span className="text-yellow-400 font-black">{user?.name || user?.email}</span>. Manage agreements, track signers, and execute e-signatures.
             </p>
           </div>
 
           <button
             onClick={() => navigate("/upload")}
-            className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold rounded-xl shadow-lg shadow-red-900/30 transition-all hover:scale-[1.02] active:scale-95 border border-red-500/30 text-xs"
+            className="inline-flex items-center justify-center px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#facc15] hover:shadow-[4px_4px_0px_0px_#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 transition-all border-2 border-black text-xs"
           >
             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
@@ -197,57 +198,57 @@ export default function Dashboard() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          <div className="bg-[#12141c] backdrop-blur-md border border-white/10 rounded-2xl p-5 flex items-center space-x-4 shadow-xl">
-            <div className="w-12 h-12 rounded-xl bg-red-950/60 border border-red-800/40 text-red-400 flex items-center justify-center shadow-inner">
+          <div className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-5 flex items-center space-x-4 shadow-[4px_4px_0px_0px_#ef4444]">
+            <div className="w-12 h-12 rounded-xl bg-red-600 text-white border-2 border-black flex items-center justify-center font-black shadow-[2px_2px_0px_0px_#000]">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Total Documents</p>
-              <p className="text-2xl font-display font-bold text-white mt-0.5">{stats.total}</p>
+              <p className="text-[11px] font-black uppercase tracking-wider text-gray-300">Total Documents</p>
+              <p className="text-2xl font-black text-white font-mono mt-0.5">{stats.total}</p>
             </div>
           </div>
 
-          <div className="bg-[#12141c] backdrop-blur-md border border-white/10 rounded-2xl p-5 flex items-center space-x-4 shadow-xl">
-            <div className="w-12 h-12 rounded-xl bg-blue-950/60 border border-blue-800/40 text-blue-400 flex items-center justify-center shadow-inner">
+          <div className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-5 flex items-center space-x-4 shadow-[4px_4px_0px_0px_#3b82f6]">
+            <div className="w-12 h-12 rounded-xl bg-blue-600 text-white border-2 border-black flex items-center justify-center font-black shadow-[2px_2px_0px_0px_#000]">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">In Progress</p>
-              <p className="text-2xl font-display font-bold text-blue-400 mt-0.5">{stats.pending}</p>
+              <p className="text-[11px] font-black uppercase tracking-wider text-gray-300">In Progress</p>
+              <p className="text-2xl font-black text-blue-400 font-mono mt-0.5">{stats.pending}</p>
             </div>
           </div>
 
-          <div className="bg-[#12141c] backdrop-blur-md border border-white/10 rounded-2xl p-5 flex items-center space-x-4 shadow-xl">
-            <div className="w-12 h-12 rounded-xl bg-emerald-950/60 border border-emerald-800/40 text-emerald-400 flex items-center justify-center shadow-inner">
+          <div className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-5 flex items-center space-x-4 shadow-[4px_4px_0px_0px_#22c55e]">
+            <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white border-2 border-black flex items-center justify-center font-black shadow-[2px_2px_0px_0px_#000]">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Completed</p>
-              <p className="text-2xl font-display font-bold text-emerald-400 mt-0.5">{stats.signed}</p>
+              <p className="text-[11px] font-black uppercase tracking-wider text-gray-300">Completed</p>
+              <p className="text-2xl font-black text-emerald-400 font-mono mt-0.5">{stats.signed}</p>
             </div>
           </div>
 
-          <div className="bg-[#12141c] backdrop-blur-md border border-white/10 rounded-2xl p-5 flex items-center space-x-4 shadow-xl">
-            <div className="w-12 h-12 rounded-xl bg-amber-950/60 border border-amber-800/40 text-amber-400 flex items-center justify-center shadow-inner">
+          <div className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-5 flex items-center space-x-4 shadow-[4px_4px_0px_0px_#facc15]">
+            <div className="w-12 h-12 rounded-xl bg-yellow-400 text-black border-2 border-black flex items-center justify-center font-black shadow-[2px_2px_0px_0px_#000]">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </div>
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Drafts</p>
-              <p className="text-2xl font-display font-bold text-amber-400 mt-0.5">{stats.drafts}</p>
+              <p className="text-[11px] font-black uppercase tracking-wider text-gray-300">Drafts</p>
+              <p className="text-2xl font-black text-yellow-400 font-mono mt-0.5">{stats.drafts}</p>
             </div>
           </div>
         </div>
 
         {/* Filter & Search Bar */}
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-[#12141c] p-4 rounded-2xl border border-white/10 shadow-lg">
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-[#13151f] p-4 rounded-2xl border-2 border-white/20 shadow-[4px_4px_0px_0px_#000]">
           {/* Search Box */}
           <div className="relative w-full md:w-80">
             <input
@@ -255,20 +256,20 @@ export default function Dashboard() {
               placeholder="Search documents by title..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-[#08090d] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-500 text-xs font-medium"
+              className="w-full pl-10 pr-4 py-2.5 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-yellow-400 text-xs font-bold transition-colors"
             />
             <svg
-              className="w-4 h-4 absolute left-3.5 top-3.5 text-gray-500"
+              className="w-4 h-4 absolute left-3.5 top-3 text-gray-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex bg-[#08090d] p-1 rounded-xl border border-white/10 w-full md:w-auto overflow-x-auto">
+          <div className="flex bg-[#090a0f] p-1.5 rounded-xl border-2 border-white/20 w-full md:w-auto overflow-x-auto gap-1">
             {[
               { id: "all", label: "All Docs" },
               { id: "pending", label: "In Progress" },
@@ -279,10 +280,10 @@ export default function Dashboard() {
               <button
                 key={tab.id}
                 onClick={() => setStatusFilter(tab.id)}
-                className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap transition-all ${
+                className={`px-3.5 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg whitespace-nowrap transition-all ${
                   statusFilter === tab.id
-                    ? "bg-gradient-to-r from-red-600 to-red-800 text-white shadow-md border border-red-500/30"
-                    : "text-gray-400 hover:text-white"
+                    ? "bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_#facc15]"
+                    : "text-gray-300 hover:text-white hover:bg-white/10"
                 }`}
               >
                 {tab.label}
@@ -294,27 +295,27 @@ export default function Dashboard() {
         {/* Document Gallery Grid */}
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-12 h-12 border-4 border-white/10 border-t-red-600 rounded-full animate-spin mb-4" />
-            <p className="text-gray-400 text-xs font-medium">Fetching documents...</p>
+            <div className="w-12 h-12 border-4 border-white/20 border-t-yellow-400 rounded-full animate-spin mb-4" />
+            <p className="text-gray-300 text-xs font-bold uppercase tracking-wider">Fetching documents...</p>
           </div>
         ) : filteredDocuments.length === 0 ? (
-          <div className="text-center py-20 bg-[#12141c] rounded-3xl border border-white/10 p-8 shadow-2xl">
-            <div className="w-16 h-16 bg-red-950/60 border border-red-800/40 rounded-2xl flex items-center justify-center mx-auto mb-4 text-red-400">
+          <div className="text-center py-20 bg-[#13151f] rounded-3xl border-2 border-white/20 p-8 shadow-[6px_6px_0px_0px_#000]">
+            <div className="w-16 h-16 bg-red-600 border-2 border-black rounded-2xl flex items-center justify-center mx-auto mb-4 text-white shadow-[3px_3px_0px_0px_#facc15]">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h3 className="text-lg font-display font-bold text-white mb-1">No documents found</h3>
-            <p className="text-gray-400 text-xs max-w-md mx-auto mb-6">
+            <h3 className="text-lg font-black text-white uppercase mb-1">No documents found</h3>
+            <p className="text-gray-300 text-xs max-w-md mx-auto mb-6 font-medium">
               {searchQuery
                 ? "No documents matched your search term."
                 : "You haven't uploaded any documents yet. Get started by uploading a PDF!"}
             </p>
             <button
               onClick={() => navigate("/upload")}
-              className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-800 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-900/30 transition-all hover:scale-105"
+              className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_#facc15] hover:shadow-[4px_4px_0px_0px_#fff] transition-all"
             >
-              Upload PDF
+              Upload PDF →
             </button>
           </div>
         ) : (
@@ -331,12 +332,12 @@ export default function Dashboard() {
               return (
                 <div
                   key={docId}
-                  className="bg-[#12141c] border border-white/10 hover:border-red-600/50 rounded-2xl p-5 flex flex-col justify-between transition-all hover:shadow-2xl hover:shadow-red-950/40 group relative overflow-hidden space-y-5"
+                  className="bg-[#13151f] border-2 border-white/20 hover:border-red-500 rounded-2xl p-5 flex flex-col justify-between transition-all shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#ef4444] group space-y-5"
                 >
                   <div className="space-y-4">
                     {/* Top Row: PDF Icon & Status Badge */}
                     <div className="flex items-start justify-between">
-                      <div className="w-12 h-12 bg-red-950/70 border border-red-800/40 text-red-400 rounded-xl flex items-center justify-center font-display font-bold text-sm shadow-inner">
+                      <div className="px-3 py-1 bg-red-600 text-white border-2 border-black rounded-lg font-black text-xs uppercase tracking-wider shadow-[2px_2px_0px_0px_#000]">
                         PDF
                       </div>
                       {getStatusBadge(doc.status)}
@@ -345,12 +346,12 @@ export default function Dashboard() {
                     {/* Title & Metadata */}
                     <div>
                       <h3
-                        className="text-base font-bold text-white group-hover:text-red-400 transition-colors line-clamp-1"
+                        className="text-base font-black text-white group-hover:text-yellow-400 transition-colors line-clamp-1"
                         title={doc.originalFileName}
                       >
                         {doc.originalFileName}
                       </h3>
-                      <p className="text-[11px] text-gray-400 mt-1 flex items-center gap-2">
+                      <p className="text-[11px] text-gray-400 mt-1 flex items-center gap-2 font-mono">
                         <span>{doc.pageCount} {doc.pageCount === 1 ? "page" : "pages"}</span>
                         <span>•</span>
                         <span>{createdDate}</span>
@@ -359,15 +360,15 @@ export default function Dashboard() {
                   </div>
 
                   {/* Actions Bar */}
-                  <div className="pt-4 border-t border-white/10 flex items-center justify-between gap-2">
+                  <div className="pt-4 border-t-2 border-white/10 flex items-center justify-between gap-2">
                     {/* Direct Self-Sign or Editor */}
                     <button
                       onClick={() => navigate(`/editor/${docId}`)}
-                      className="py-2.5 px-3 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-red-950/50 border border-red-500/30"
+                      className="py-2 px-3 bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_#facc15] hover:shadow-[3px_3px_0px_0px_#fff] border-2 border-black"
                       title="Self Sign Document"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                       </svg>
                       <span>Sign</span>
                     </button>
@@ -375,11 +376,11 @@ export default function Dashboard() {
                     {/* Send for multi-signature */}
                     <button
                       onClick={() => navigate(`/send/${docId}`)}
-                      className="py-2.5 px-3 bg-white/5 hover:bg-white/15 text-gray-200 hover:text-white border border-white/10 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                      className="py-2 px-3 bg-[#1e2235] hover:bg-[#282d47] text-white border-2 border-white/20 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff]"
                       title="Send to Multiple Recipients"
                     >
-                      <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      <svg className="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                       </svg>
                       <span>Send</span>
                     </button>
@@ -390,11 +391,11 @@ export default function Dashboard() {
                         href={`${import.meta.env.VITE_API_BASE_URL}${doc.signedUrl}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-2.5 bg-emerald-950/70 hover:bg-emerald-900 text-emerald-300 rounded-xl text-xs font-bold border border-emerald-800/50 transition-colors"
+                        className="w-8 h-8 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
                         title="Download Signed PDF"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                       </a>
                     )}
@@ -402,22 +403,22 @@ export default function Dashboard() {
                     {/* View Audit Trail */}
                     <button
                       onClick={() => handleOpenAudit(docId)}
-                      className="p-2.5 bg-blue-950/70 hover:bg-blue-900 text-blue-300 rounded-xl text-xs font-bold border border-blue-800/50 transition-colors"
+                      className="w-8 h-8 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
                       title="View Cryptographic Audit Trail"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                       </svg>
                     </button>
 
                     {/* Track Signers & Remind */}
                     <button
                       onClick={() => handleOpenRecipients(docId)}
-                      className="p-2.5 bg-purple-950/70 hover:bg-purple-900 text-purple-300 rounded-xl text-xs font-bold border border-purple-800/50 transition-colors"
+                      className="w-8 h-8 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
                       title="Track Signers & Send Reminders"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                       </svg>
                     </button>
 
@@ -425,11 +426,11 @@ export default function Dashboard() {
                     <button
                       onClick={() => handleDelete(docId, doc.originalFileName)}
                       disabled={deletingId === docId}
-                      className="p-2.5 bg-red-950/50 hover:bg-red-900/80 text-red-300 hover:text-white rounded-xl text-xs font-bold border border-red-800/40 transition-colors disabled:opacity-50"
+                      className="w-8 h-8 bg-red-950 hover:bg-red-800 text-red-400 hover:text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all disabled:opacity-50"
                       title="Delete Document"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                     </button>
                   </div>
@@ -438,6 +439,7 @@ export default function Dashboard() {
             })}
           </div>
         )}
+
       </main>
 
       {/* Signers & Reminder Modal */}

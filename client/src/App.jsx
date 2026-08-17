@@ -17,6 +17,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import BulkSend from "./pages/BulkSend";
 import Landing from "./pages/Landing";
+import FontTestLab from "./pages/FontTestLab";
 import { hydrateAuth } from "./store/authActions";
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
@@ -50,8 +51,11 @@ export default function App() {
         <Route path="/send/:pdfId" element={<SendDocument />} />
         <Route path="/assign/:pdfId" element={<AssignFields />} />
         <Route path="/sign/:token" element={<SigningPage />} />
+        {/* Isolated Font Testing Suite (Accessible by direct URL only) */}
+        <Route path="/test" element={<FontTestLab />} />
       </Routes>
     </BrowserRouter>
   );
 }
+
 

@@ -27,40 +27,40 @@ export default function Navbar() {
 
 
   return (
-    <header className="sticky top-0 z-50 bg-[#08090d]/90 backdrop-blur-xl border-b border-white/10">
+    <header className="sticky top-0 z-50 bg-[#090a0f]/95 backdrop-blur-xl border-b-2 border-white/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
         {/* Brand / Logo */}
         <div
           onClick={() => navigate("/dashboard")}
           className="flex items-center space-x-3 cursor-pointer group"
         >
-          <div className="w-10 h-10 bg-gradient-to-br from-red-600 via-red-700 to-red-950 rounded-xl flex items-center justify-center border border-red-500/30 shadow-lg shadow-red-600/20 group-hover:scale-105 transition-all">
+          <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center border-2 border-black shadow-[3px_3px_0px_0px_#ffffff] group-hover:rotate-[-2deg] transition-all">
             <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
           <div>
-            <span className="text-xl font-display font-bold text-white tracking-tight">
+            <span className="text-xl font-black text-white tracking-tight">
               Signatur<span className="text-red-500">ly</span>
             </span>
-            <span className="ml-2 text-[10px] uppercase font-bold tracking-widest text-red-400 bg-red-950/60 px-2 py-0.5 rounded border border-red-800/40">
+            <span className="ml-2 text-[10px] uppercase font-black tracking-widest bg-yellow-400 text-black px-2 py-0.5 rounded border-2 border-black shadow-[2px_2px_0px_0px_#ef4444]">
               Pro
             </span>
           </div>
         </div>
 
         {/* Desktop Center Links */}
-        <nav className="hidden md:flex items-center space-x-1 bg-white/5 p-1 rounded-2xl border border-white/5">
+        <nav className="hidden md:flex items-center space-x-1.5 bg-[#151722] p-1.5 rounded-2xl border-2 border-white/20 shadow-[3px_3px_0px_0px_#000]">
           {navLinks.map((link) => {
             const isActive = location.pathname === link.path || location.pathname.startsWith(`${link.path}/`);
             return (
               <button
                 key={link.path}
                 onClick={() => navigate(link.path)}
-                className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all ${
+                className={`px-3.5 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${
                   isActive
-                    ? "bg-gradient-to-r from-red-600 to-red-800 text-white shadow-md shadow-red-900/40 border border-red-500/30"
-                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                    ? "bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_#facc15]"
+                    : "text-gray-300 hover:text-white hover:bg-white/10"
                 }`}
               >
                 {link.label}
@@ -73,25 +73,26 @@ export default function Navbar() {
         <div className="flex items-center space-x-3">
           <div
             onClick={() => navigate("/settings")}
-            className="hidden sm:flex items-center space-x-2 text-xs text-gray-300 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 cursor-pointer transition-colors"
+            className="hidden sm:flex items-center space-x-2 text-xs font-bold text-gray-200 bg-[#151722] hover:bg-[#1f2233] px-3 py-1.5 rounded-xl border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] cursor-pointer transition-colors"
             title="Manage Profile & Settings"
           >
-            <div className="w-6 h-6 rounded-lg bg-red-600 text-white flex items-center justify-center text-xs font-bold uppercase shadow">
+            <div className="w-6 h-6 rounded-lg bg-yellow-400 text-black border border-black flex items-center justify-center text-xs font-black uppercase">
               {(user?.name || user?.email || "U")[0]}
             </div>
-            <span className="font-semibold text-xs max-w-[120px] truncate">{user?.name || user?.email}</span>
+            <span className="font-black text-xs max-w-[120px] truncate">{user?.name || user?.email}</span>
           </div>
 
           <button
             onClick={handleLogout}
-            className="hidden sm:flex px-3 py-2 text-xs font-bold text-gray-300 hover:text-white bg-red-950/40 hover:bg-red-900/60 border border-red-800/40 rounded-xl transition-all items-center gap-1.5"
+            className="hidden sm:flex px-3.5 py-2 text-xs font-black uppercase tracking-wider text-white bg-red-600 hover:bg-red-500 border-2 border-black shadow-[2px_2px_0px_0px_#ffffff] hover:shadow-[3px_3px_0px_0px_#ffffff] rounded-xl transition-all items-center gap-1.5"
             title="Sign Out"
           >
-            <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
             <span>Logout</span>
           </button>
+
 
           {/* Mobile Drawer Button */}
           <button

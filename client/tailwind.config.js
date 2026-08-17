@@ -18,9 +18,14 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["'Plus Jakarta Sans'", "sans-serif"],
+        sans: ["'DM Sans'", "sans-serif"],
         display: ["'Space Grotesk'", "sans-serif"],
+        legal: ["'Lora'", "serif"],
+        serif: ["'Lora'", "serif"],
+        mono: ["'JetBrains Mono'", "monospace"],
+        signature: ["'Great Vibes'", "cursive"],
       },
+
     },
   },
   plugins: [],

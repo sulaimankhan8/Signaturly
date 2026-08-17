@@ -109,16 +109,19 @@ export default function Settings() {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
         {/* Header */}
         <div>
-          <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-white">
+          <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-yellow-400 text-black border-2 border-black rounded shadow-[2px_2px_0px_0px_#ef4444] mb-2 inline-block">
+            Vault Preferences
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-white">
             Account Settings
           </h1>
-          <p className="text-gray-400 text-xs sm:text-sm mt-1">
+          <p className="text-gray-300 text-xs sm:text-sm mt-1 font-medium">
             Manage your personal profile, security credentials, and default signature assets.
           </p>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex bg-[#12141c] p-1.5 rounded-2xl border border-white/10 max-w-md">
+        <div className="flex bg-[#13151f] p-1.5 rounded-2xl border-2 border-white/20 max-w-md gap-1 shadow-[3px_3px_0px_0px_#000]">
           {[
             { id: "profile", label: "Profile & Account" },
             { id: "security", label: "Security & Password" },
@@ -127,9 +130,9 @@ export default function Settings() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
+              className={`flex-1 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${
                 activeTab === tab.id
-                  ? "bg-gradient-to-r from-red-600 to-red-800 text-white shadow-md border border-red-500/30"
+                  ? "bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_#facc15]"
                   : "text-gray-400 hover:text-white"
               }`}
             >
@@ -140,12 +143,12 @@ export default function Settings() {
 
         {/* Tab 1: Profile */}
         {activeTab === "profile" && (
-          <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-            <h2 className="text-base font-display font-bold text-white">Personal Profile</h2>
+          <div className="bg-[#13151f] border-2 border-white/20 rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_#ef4444] space-y-6">
+            <h2 className="text-base font-black text-white uppercase">Personal Profile</h2>
 
             <form onSubmit={handleUpdateName} className="space-y-5 max-w-lg">
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-300 mb-2">
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-300 mb-2">
                   Full Name
                 </label>
                 <input
@@ -153,22 +156,22 @@ export default function Settings() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full p-3 bg-[#08090d] border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-red-500"
+                  className="w-full p-3 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-yellow-400 font-medium"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-400 mb-2">
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-400 mb-2">
                   Email Address (Primary)
                 </label>
                 <input
                   type="email"
                   disabled
                   value={profile?.email || authUser?.email || ""}
-                  className="w-full p-3 bg-[#08090d]/60 border border-white/5 rounded-xl text-gray-400 text-xs cursor-not-allowed font-mono"
+                  className="w-full p-3 bg-[#090a0f] border-2 border-white/10 rounded-xl text-gray-400 text-xs cursor-not-allowed font-mono"
                 />
-                <span className="text-[10px] text-gray-500 mt-1 block">
-                  Email cannot be changed directly for security and audit integrity.
+                <span className="text-[10px] text-gray-400 mt-1 block font-medium">
+                  Email cannot be changed directly for statutory security and audit trail integrity.
                 </span>
               </div>
 
@@ -176,9 +179,9 @@ export default function Settings() {
                 <button
                   type="submit"
                   disabled={isUpdatingProfile}
-                  className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md border border-red-500/30 transition-all hover:scale-105"
+                  className="px-6 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-black uppercase tracking-wider text-xs rounded-xl shadow-[3px_3px_0px_0px_#facc15] border-2 border-black transition-all hover:-translate-x-0.5 hover:-translate-y-0.5"
                 >
-                  {isUpdatingProfile ? "Saving Changes..." : "Save Profile"}
+                  {isUpdatingProfile ? "Saving Changes..." : "Save Profile →"}
                 </button>
               </div>
             </form>
@@ -187,15 +190,15 @@ export default function Settings() {
 
         {/* Tab 2: Security */}
         {activeTab === "security" && (
-          <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="bg-[#13151f] border-2 border-white/20 rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_#ef4444] space-y-6">
             <div>
-              <h2 className="text-base font-display font-bold text-white">Change Account Password</h2>
-              <p className="text-gray-400 text-xs mt-0.5">Ensure your account is using a long, random password.</p>
+              <h2 className="text-base font-black text-white uppercase">Change Account Password</h2>
+              <p className="text-gray-300 text-xs mt-0.5 font-medium">Ensure your account is using a long, random password.</p>
             </div>
 
             <form onSubmit={handleChangePassword} className="space-y-4 max-w-lg">
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-300 mb-2">
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-300 mb-2">
                   Current Password
                 </label>
                 <input
@@ -204,12 +207,12 @@ export default function Settings() {
                   placeholder="••••••••"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full p-3 bg-[#08090d] border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-red-500"
+                  className="w-full p-3 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-yellow-400 font-medium"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-300 mb-2">
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-300 mb-2">
                   New Password (min. 6 characters)
                 </label>
                 <input
@@ -219,12 +222,12 @@ export default function Settings() {
                   placeholder="••••••••"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full p-3 bg-[#08090d] border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-red-500"
+                  className="w-full p-3 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-yellow-400 font-medium"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-300 mb-2">
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-300 mb-2">
                   Confirm New Password
                 </label>
                 <input
@@ -234,7 +237,7 @@ export default function Settings() {
                   placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full p-3 bg-[#08090d] border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-red-500"
+                  className="w-full p-3 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-yellow-400 font-medium"
                 />
               </div>
 
@@ -242,9 +245,9 @@ export default function Settings() {
                 <button
                   type="submit"
                   disabled={isChangingPassword}
-                  className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md border border-red-500/30 transition-all hover:scale-105"
+                  className="px-6 py-3 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-black uppercase tracking-wider text-xs rounded-xl shadow-[3px_3px_0px_0px_#facc15] border-2 border-black transition-all hover:-translate-x-0.5 hover:-translate-y-0.5"
                 >
-                  {isChangingPassword ? "Updating Password..." : "Update Password"}
+                  {isChangingPassword ? "Updating Password..." : "Update Password →"}
                 </button>
               </div>
             </form>
@@ -253,15 +256,15 @@ export default function Settings() {
 
         {/* Tab 3: Signatures */}
         {activeTab === "signatures" && (
-          <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="bg-[#13151f] border-2 border-white/20 rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_#ef4444] space-y-6">
             <div>
-              <h2 className="text-base font-display font-bold text-white">Default E-Signature Asset</h2>
-              <p className="text-gray-400 text-xs mt-0.5">
+              <h2 className="text-base font-black text-white uppercase">Default E-Signature Asset</h2>
+              <p className="text-gray-300 text-xs mt-0.5 font-medium">
                 Draw, type, or upload your signature once. It will be pre-loaded when you sign documents.
               </p>
             </div>
 
-            <div className="max-w-lg bg-[#08090d] p-6 rounded-2xl border border-white/10">
+            <div className="max-w-lg bg-[#090a0f] p-6 rounded-2xl border-2 border-white/20 shadow-[3px_3px_0px_0px_#000]">
               <SignatureManager
                 defaultSignatureUrl={savedSignature}
                 onUploaded={handleSaveSignature}
@@ -270,6 +273,7 @@ export default function Settings() {
           </div>
         )}
       </main>
+
     </div>
   );
 }

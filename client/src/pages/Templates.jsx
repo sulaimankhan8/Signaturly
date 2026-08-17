@@ -163,10 +163,10 @@ export default function Templates() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-white">
+            <h1 className="text-3xl sm:text-4xl font-black text-white uppercase tracking-tight">
               Document Templates
             </h1>
-            <p className="text-gray-400 text-xs sm:text-sm mt-1">
+            <p className="text-gray-300 text-xs sm:text-sm mt-1 font-medium">
               Create custom reusable agreements or choose from our vetted contract library.
             </p>
           </div>
@@ -174,15 +174,17 @@ export default function Templates() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/templates/bulk")}
-              className="inline-flex items-center justify-center px-4 py-3 bg-purple-950/60 hover:bg-purple-900/80 text-purple-200 hover:text-white font-bold rounded-xl shadow-lg border border-purple-800/40 text-xs transition-all hover:scale-105 active:scale-95"
+              className="inline-flex items-center justify-center px-4 py-3 bg-[#1e2235] hover:bg-[#282d47] text-white font-black uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#000] border-2 border-white/20 text-xs transition-all hover:-translate-x-0.5 hover:-translate-y-0.5"
             >
-              <span className="mr-1.5">⚡</span>
+              <svg className="w-3.5 h-3.5 mr-1.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
               Bulk Send (CSV)
             </button>
 
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold rounded-xl shadow-lg shadow-red-950/50 border border-red-500/30 text-xs transition-all hover:scale-105 active:scale-95"
+              className="inline-flex items-center justify-center px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#facc15] hover:shadow-[4px_4px_0px_0px_#fff] border-2 border-black text-xs transition-all hover:-translate-x-0.5 hover:-translate-y-0.5"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
@@ -192,35 +194,34 @@ export default function Templates() {
           </div>
         </div>
 
-
         {/* Tab & Search Bar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#12141c] p-4 rounded-2xl border border-white/10 shadow-lg">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#13151f] p-4 rounded-2xl border-2 border-white/20 shadow-[4px_4px_0px_0px_#000]">
           {/* Tabs */}
-          <div className="flex bg-[#08090d] p-1 rounded-xl border border-white/10">
+          <div className="flex bg-[#090a0f] p-1.5 rounded-xl border-2 border-white/20 gap-1">
             <button
               onClick={() => setActiveTab("my")}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all flex items-center gap-2 ${
                 activeTab === "my"
-                  ? "bg-gradient-to-r from-red-600 to-red-800 text-white shadow-md border border-red-500/30"
-                  : "text-gray-400 hover:text-white"
+                  ? "bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_#facc15]"
+                  : "text-gray-300 hover:text-white hover:bg-white/10"
               }`}
             >
               <span>My Templates</span>
-              <span className="px-1.5 py-0.2 bg-black/40 rounded text-[10px] font-mono">
+              <span className="px-1.5 py-0.2 bg-black/50 text-white rounded text-[10px] font-mono">
                 {templates.length}
               </span>
             </button>
 
             <button
               onClick={() => setActiveTab("library")}
-              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2 ${
+              className={`px-3.5 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg transition-all flex items-center gap-2 ${
                 activeTab === "library"
-                  ? "bg-gradient-to-r from-red-600 to-red-800 text-white shadow-md border border-red-500/30"
-                  : "text-gray-400 hover:text-white"
+                  ? "bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_#facc15]"
+                  : "text-gray-300 hover:text-white hover:bg-white/10"
               }`}
             >
               <span>Prebuilt Library</span>
-              <span className="px-1.5 py-0.2 bg-red-950/80 text-red-300 border border-red-800/50 rounded text-[10px] font-mono">
+              <span className="px-1.5 py-0.2 bg-yellow-400 text-black font-black rounded text-[10px] font-mono">
                 {prebuiltTemplates.length} Pro
               </span>
             </button>
@@ -233,18 +234,19 @@ export default function Templates() {
               placeholder="Search templates by title or category..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-[#08090d] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-500 text-xs font-medium"
+              className="w-full pl-10 pr-4 py-2.5 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-yellow-400 text-xs font-bold"
             />
             <svg
-              className="w-4 h-4 absolute left-3.5 top-3.5 text-gray-500"
+              className="w-4 h-4 absolute left-3.5 top-3 text-gray-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
         </div>
+
 
         {/* Tab 1: User's Templates */}
         {activeTab === "my" && (
@@ -288,23 +290,23 @@ export default function Templates() {
                   return (
                     <div
                       key={templateId}
-                      className="bg-[#12141c] border border-white/10 hover:border-red-600/50 rounded-2xl p-5 flex flex-col justify-between transition-all hover:shadow-2xl hover:shadow-red-950/40 group space-y-5"
+                      className="bg-[#13151f] border-2 border-white/20 hover:border-red-500 rounded-2xl p-5 flex flex-col justify-between transition-all shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#ef4444] group space-y-5"
                     >
                       <div className="space-y-4">
                         <div className="flex items-start justify-between">
-                          <div className="w-12 h-12 bg-red-950/60 border border-red-800/40 text-red-400 rounded-xl flex items-center justify-center font-bold text-sm shadow-inner">
-                            TPL
+                          <div className="px-3 py-1 bg-red-600 text-white border-2 border-black rounded-lg font-black text-xs uppercase tracking-wider shadow-[2px_2px_0px_0px_#000]">
+                            TEMPLATE
                           </div>
-                          <span className="px-2.5 py-1 bg-white/5 border border-white/10 rounded-lg text-[10px] font-mono text-gray-300">
+                          <span className="px-2.5 py-1 bg-[#090a0f] border-2 border-white/10 rounded-lg text-[10px] font-mono text-yellow-400 font-bold">
                             {t.usageCount || 0} Uses
                           </span>
                         </div>
 
                         <div>
-                          <h3 className="text-base font-bold text-white group-hover:text-red-400 transition-colors line-clamp-1">
+                          <h3 className="text-base font-black text-white group-hover:text-yellow-400 transition-colors line-clamp-1">
                             {t.name}
                           </h3>
-                          <p className="text-xs text-gray-400 line-clamp-2 mt-1 min-h-[32px]">
+                          <p className="text-xs text-gray-400 line-clamp-2 mt-1 min-h-[32px] font-medium">
                             {t.description || "No description provided."}
                           </p>
                         </div>
@@ -314,11 +316,10 @@ export default function Templates() {
                           {(t.roles || []).map((r, i) => (
                             <span
                               key={i}
-                              className="px-2 py-0.5 rounded text-[10px] font-bold border"
+                              className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border-2 border-black shadow-[1px_1px_0px_0px_#000]"
                               style={{
-                                backgroundColor: `${r.color}20`,
-                                borderColor: `${r.color}60`,
-                                color: r.color,
+                                backgroundColor: r.color,
+                                color: "#000000",
                               }}
                             >
                               {r.name}
@@ -328,43 +329,44 @@ export default function Templates() {
                       </div>
 
                       {/* Actions */}
-                      <div className="pt-4 border-t border-white/10 flex items-center justify-between gap-2">
+                      <div className="pt-4 border-t-2 border-white/10 flex items-center justify-between gap-2">
                         <button
                           onClick={() => navigate(`/templates/use/${templateId}`)}
-                          className="flex-1 py-2.5 px-3 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold text-xs rounded-xl shadow-md shadow-red-950/50 border border-red-500/30 transition-all flex items-center justify-center gap-1.5"
+                          className="flex-1 py-2 px-3 bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_#facc15] hover:shadow-[3px_3px_0px_0px_#fff] border-2 border-black transition-all flex items-center justify-center gap-1.5"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                           </svg>
-                          <span>Use Template</span>
+                          <span>Use</span>
                         </button>
 
                         <button
                           onClick={() => navigate(`/templates/bulk?templateId=${templateId}`)}
-                          className="p-2.5 bg-purple-950/40 hover:bg-purple-900/70 text-purple-300 hover:text-white rounded-xl text-xs font-bold border border-purple-800/30 transition-colors"
+                          className="w-8 h-8 bg-[#1e2235] hover:bg-[#282d47] text-white rounded-xl text-xs font-black border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
                           title="Bulk Send (CSV)"
                         >
-                          <span>⚡</span>
+                          <svg className="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                          </svg>
                         </button>
 
                         <button
                           onClick={() => navigate(`/templates/edit/${templateId}`)}
-                          className="p-2.5 bg-white/5 hover:bg-white/15 text-gray-300 hover:text-white rounded-xl text-xs font-bold border border-white/10 transition-colors"
+                          className="w-8 h-8 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
                           title="Edit Template Layout & Fields"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                         </button>
 
-
                         <button
                           onClick={() => handleDelete(templateId, t.name)}
-                          className="p-2.5 bg-red-950/50 hover:bg-red-900/80 text-red-300 hover:text-white rounded-xl text-xs font-bold border border-red-800/40 transition-colors"
+                          className="w-8 h-8 bg-red-950 hover:bg-red-800 text-red-400 hover:text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
                           title="Delete Template"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
                       </div>
@@ -379,15 +381,15 @@ export default function Templates() {
         {/* Tab 2: Prebuilt Templates Library */}
         {activeTab === "library" && (
           <div className="space-y-6">
-            <div className="bg-gradient-to-r from-red-950/60 to-[#12141c] border border-red-800/30 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+            <div className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-[4px_4px_0px_0px_#000]">
               <div>
-                <span className="text-[10px] uppercase font-bold text-red-400 tracking-wider">
+                <span className="text-[10px] uppercase font-black text-yellow-400 tracking-wider">
                   Vetted Standard Contracts
                 </span>
-                <h2 className="text-xl font-display font-extrabold text-white mt-0.5">
+                <h2 className="text-xl font-black text-white uppercase mt-0.5">
                   Ready-to-Use Legal Templates
                 </h2>
-                <p className="text-gray-300 text-xs mt-1 max-w-xl">
+                <p className="text-gray-300 text-xs mt-1 max-w-xl font-medium">
                   Each template comes with pre-configured signer roles, signature anchors, and date fields. Click <strong>"Use Now"</strong> to instantly dispatch.
                 </p>
               </div>
@@ -400,43 +402,42 @@ export default function Templates() {
                 return (
                   <div
                     key={tpl.id}
-                    className="bg-[#12141c] border border-white/10 hover:border-red-600/50 rounded-2xl p-6 flex flex-col justify-between transition-all hover:shadow-2xl hover:shadow-red-950/40 group space-y-6"
+                    className="bg-[#13151f] border-2 border-white/20 hover:border-red-500 rounded-2xl p-6 flex flex-col justify-between transition-all shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#ef4444] group space-y-6"
                   >
                     <div className="space-y-4">
                       {/* Category & Badge */}
                       <div className="flex items-start justify-between">
-                        <span className="px-2.5 py-1 bg-red-950/70 text-red-300 border border-red-800/50 rounded-lg text-[10px] font-bold uppercase tracking-wider">
+                        <span className="px-2.5 py-1 bg-yellow-400 text-black border-2 border-black rounded-lg text-[10px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_#ef4444]">
                           {tpl.category}
                         </span>
-                        <span className="text-[10px] font-mono text-gray-400 bg-white/5 px-2 py-0.5 rounded border border-white/5">
+                        <span className="text-[10px] font-mono font-bold text-gray-300 bg-[#090a0f] px-2.5 py-1 rounded border-2 border-white/10">
                           {tpl.pageCount} Page
                         </span>
                       </div>
 
                       {/* Title & Desc */}
                       <div>
-                        <h3 className="text-base font-bold text-white group-hover:text-red-400 transition-colors">
+                        <h3 className="text-base font-black text-white group-hover:text-yellow-400 transition-colors uppercase">
                           {tpl.name}
                         </h3>
-                        <p className="text-xs text-gray-400 line-clamp-3 mt-1.5 leading-relaxed">
+                        <p className="text-xs text-gray-300 line-clamp-3 mt-1.5 leading-relaxed font-medium">
                           {tpl.description}
                         </p>
                       </div>
 
                       {/* Roles */}
-                      <div className="space-y-1.5 pt-2 border-t border-white/5">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">
+                      <div className="space-y-1.5 pt-2 border-t-2 border-white/10">
+                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider block">
                           Included Signer Roles:
                         </span>
                         <div className="flex flex-wrap gap-1.5">
                           {tpl.roles.map((r, i) => (
                             <span
                               key={i}
-                              className="px-2 py-0.5 rounded text-[10px] font-bold border"
+                              className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider border-2 border-black shadow-[1px_1px_0px_0px_#000]"
                               style={{
-                                backgroundColor: `${r.color}20`,
-                                borderColor: `${r.color}60`,
-                                color: r.color,
+                                backgroundColor: r.color,
+                                color: "#000000",
                               }}
                             >
                               {r.name}
@@ -447,14 +448,14 @@ export default function Templates() {
                     </div>
 
                     {/* Action buttons */}
-                    <div className="pt-4 border-t border-white/10 space-y-2">
+                    <div className="pt-4 border-t-2 border-white/10 space-y-2">
                       <button
                         onClick={() => handleImportPrebuilt(tpl.id, true)}
                         disabled={isImporting}
-                        className="w-full py-2.5 px-4 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-md shadow-red-950/50 border border-red-500/30 transition-all flex items-center justify-center gap-2"
+                        className="w-full py-2.5 px-4 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#facc15] hover:shadow-[4px_4px_0px_0px_#fff] border-2 border-black transition-all flex items-center justify-center gap-2"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
                         <span>{isImporting ? "Preparing Template..." : "Use Now (Fast Fill)"}</span>
                       </button>
@@ -462,10 +463,10 @@ export default function Templates() {
                       <button
                         onClick={() => handleImportPrebuilt(tpl.id, false)}
                         disabled={isImporting}
-                        className="w-full py-2 px-3 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white rounded-xl text-xs font-semibold border border-white/10 transition-colors flex items-center justify-center gap-1.5"
+                        className="w-full py-2 px-3 bg-[#1e2235] hover:bg-[#282d47] text-gray-200 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] transition-all flex items-center justify-center gap-1.5"
                       >
-                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        <svg className="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
                         <span>Copy to My Templates</span>
                       </button>
@@ -476,17 +477,18 @@ export default function Templates() {
             </div>
           </div>
         )}
+
       </main>
 
       {/* Create Custom Template Modal */}
       {isCreateModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-[#12141c] border border-white/10 rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-2xl my-8">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
-              <h3 className="text-xl font-display font-bold text-white">Create Custom Template</h3>
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-[#13151f] border-2 border-white/20 rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-[8px_8px_0px_0px_#ef4444] my-8">
+            <div className="flex items-center justify-between border-b-2 border-white/10 pb-4">
+              <h3 className="text-xl font-black text-white uppercase">Create Custom Template</h3>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="text-gray-400 hover:text-white"
+                className="text-gray-400 hover:text-white font-black text-lg"
               >
                 ✕
               </button>
@@ -495,7 +497,7 @@ export default function Templates() {
             <form onSubmit={handleCreateTemplate} className="space-y-5">
               {/* PDF Upload */}
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-300 mb-2">
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-300 mb-2">
                   1. Source PDF Document
                 </label>
                 <input
@@ -503,13 +505,13 @@ export default function Templates() {
                   accept="application/pdf"
                   required
                   onChange={(e) => setTemplateFile(e.target.files[0])}
-                  className="w-full text-xs text-gray-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-red-600 file:text-white hover:file:bg-red-700 cursor-pointer"
+                  className="w-full text-xs text-gray-300 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-2 file:border-black file:text-xs file:font-black file:uppercase file:tracking-wider file:bg-red-600 file:text-white hover:file:bg-red-500 cursor-pointer"
                 />
               </div>
 
               {/* Template Name */}
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-300 mb-2">
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-300 mb-2">
                   2. Template Name
                 </label>
                 <input
@@ -518,13 +520,13 @@ export default function Templates() {
                   placeholder="e.g. Standard Non-Disclosure Agreement (NDA)"
                   value={templateName}
                   onChange={(e) => setTemplateName(e.target.value)}
-                  className="w-full p-3 bg-[#08090d] border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-red-500"
+                  className="w-full p-3 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-yellow-400 font-medium"
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-xs font-bold uppercase text-gray-300 mb-2">
+                <label className="block text-xs font-black uppercase tracking-wider text-gray-300 mb-2">
                   3. Description / Use Case
                 </label>
                 <textarea
@@ -532,20 +534,20 @@ export default function Templates() {
                   placeholder="e.g. Mutual confidentiality agreement for contractors and partners."
                   value={templateDesc}
                   onChange={(e) => setTemplateDesc(e.target.value)}
-                  className="w-full p-3 bg-[#08090d] border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-red-500"
+                  className="w-full p-3 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-yellow-400 font-medium"
                 />
               </div>
 
               {/* Template Roles */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold uppercase text-gray-300">
+                  <label className="text-xs font-black uppercase tracking-wider text-gray-300">
                     4. Signer Roles (Placeholders)
                   </label>
                   <button
                     type="button"
                     onClick={addRole}
-                    className="text-xs text-red-400 hover:text-red-300 font-bold"
+                    className="text-xs text-yellow-400 hover:text-yellow-300 font-black uppercase tracking-wider"
                   >
                     + Add Role
                   </button>
@@ -555,7 +557,7 @@ export default function Templates() {
                   {roles.map((r, idx) => (
                     <div key={r.id} className="flex items-center gap-2">
                       <span
-                        className="w-6 h-6 rounded-md text-white font-bold text-[10px] flex items-center justify-center shrink-0"
+                        className="w-7 h-7 rounded-lg text-black font-black text-xs flex items-center justify-center shrink-0 border-2 border-black"
                         style={{ backgroundColor: r.color }}
                       >
                         #{idx + 1}
@@ -566,13 +568,13 @@ export default function Templates() {
                         value={r.name}
                         onChange={(e) => updateRole(r.id, e.target.value)}
                         placeholder="e.g. Client, Manager, Landlord"
-                        className="flex-1 px-3 py-2 bg-[#08090d] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-red-500"
+                        className="flex-1 px-3 py-2 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white text-xs focus:outline-none focus:border-yellow-400 font-medium"
                       />
                       {roles.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeRole(r.id)}
-                          className="text-gray-500 hover:text-red-400 p-1 text-xs"
+                          className="text-gray-400 hover:text-red-400 p-1 text-xs font-black"
                         >
                           ✕
                         </button>
@@ -582,18 +584,18 @@ export default function Templates() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-white/10 flex justify-end gap-3">
+              <div className="pt-4 border-t-2 border-white/10 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold"
+                  className="px-4 py-2.5 bg-[#1e2235] hover:bg-[#282d47] text-white rounded-xl text-xs font-black uppercase tracking-wider border-2 border-white/20 shadow-[2px_2px_0px_0px_#000]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isCreating}
-                  className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-lg shadow-red-950/50 border border-red-500/30"
+                  className="px-6 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#facc15] border-2 border-black"
                 >
                   {isCreating ? "Uploading Template..." : "Save & Place Fields →"}
                 </button>
@@ -602,6 +604,7 @@ export default function Templates() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
