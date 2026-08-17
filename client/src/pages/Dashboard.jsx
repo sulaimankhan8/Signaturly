@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import toast, { Toaster } from "react-hot-toast";
 import { fetchMyPdfsApi, deletePdfApi, fetchPdfAuditApi } from "../api/pdf.api";
+import { remindRecipientApi, fetchDocumentDetailsApi } from "../api/send.api";
 import Navbar from "../components/Navbar";
+
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -17,6 +19,10 @@ export default function Dashboard() {
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isAuditLoading, setIsAuditLoading] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [recipientsDoc, setRecipientsDoc] = useState(null);
+  const [isRecipientsModalOpen, setIsRecipientsModalOpen] = useState(false);
+  const [isRecipientsLoading, setIsRecipientsLoading] = useState(false);
+  const [remindingRecipientId, setRemindingRecipientId] = useState(null);
 
   const loadDocuments = async () => {
     try {
@@ -41,7 +47,7 @@ export default function Dashboard() {
     try {
       setDeletingId(id);
       await deletePdfApi(id);
-      setDocuments((prev) => prev.filter((doc) => doc._id !== id));
+      setDocuments((prev) => prev.filter((doc) => doc._id !== id && doc.id !== id));
       toast.success("Document deleted successfully");
     } catch (err) {
       console.error("Delete document error:", err);
@@ -66,29 +72,100 @@ export default function Dashboard() {
     }
   };
 
+  const handleOpenRecipients = async (id) => {
+    try {
+      setIsRecipientsLoading(true);
+      setIsRecipientsModalOpen(true);
+      const data = await fetchDocumentDetailsApi(id);
+      setRecipientsDoc(data);
+    } catch (err) {
+      console.error("Fetch document details error:", err);
+      toast.error("Failed to load signers list");
+      setIsRecipientsModalOpen(false);
+    } finally {
+      setIsRecipientsLoading(false);
+    }
+  };
+
+  const handleSendReminder = async (recipientId) => {
+    try {
+      setRemindingRecipientId(recipientId);
+      await remindRecipientApi(recipientId);
+      toast.success("Reminder email dispatched to signer!");
+      if (recipientsDoc?._id) {
+        const updated = await fetchDocumentDetailsApi(recipientsDoc._id);
+        setRecipientsDoc(updated);
+      }
+    } catch (err) {
+      console.error("Reminder send error:", err);
+      toast.error(err.response?.data?.message || "Failed to dispatch reminder");
+    } finally {
+      setRemindingRecipientId(null);
+    }
+  };
+
+
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
       const matchesSearch = doc.originalFileName
         ?.toLowerCase()
         .includes(searchQuery.toLowerCase());
 
-      const matchesStatus =
-        statusFilter === "all"
-          ? true
-          : statusFilter === "signed"
-          ? doc.status === "signed"
-          : doc.status !== "signed";
+      if (!matchesSearch) return false;
 
-      return matchesSearch && matchesStatus;
+      if (statusFilter === "all") return true;
+      if (statusFilter === "signed") return doc.status === "signed";
+      if (statusFilter === "pending") return doc.status === "pending" || doc.status === "partially_signed";
+      if (statusFilter === "draft") return doc.status === "draft" || doc.status === "uploaded";
+      if (statusFilter === "declined") return doc.status === "declined" || doc.status === "voided";
+
+      return true;
     });
   }, [documents, searchQuery, statusFilter]);
 
   const stats = useMemo(() => {
     const total = documents.length;
     const signed = documents.filter((d) => d.status === "signed").length;
-    const pending = total - signed;
-    return { total, signed, pending };
+    const pending = documents.filter((d) => d.status === "pending" || d.status === "partially_signed").length;
+    const drafts = documents.filter((d) => d.status === "draft" || d.status === "uploaded").length;
+    return { total, signed, pending, drafts };
   }, [documents]);
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case "signed":
+        return (
+          <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg border bg-emerald-950/60 text-emerald-300 border-emerald-800/50">
+            ✓ Signed & Completed
+          </span>
+        );
+      case "pending":
+      case "partially_signed":
+        return (
+          <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg border bg-blue-950/60 text-blue-300 border-blue-800/50">
+            ⏳ In Progress (Sent)
+          </span>
+        );
+      case "declined":
+        return (
+          <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg border bg-red-950/60 text-red-300 border-red-800/50">
+            ✕ Declined
+          </span>
+        );
+      case "voided":
+        return (
+          <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg border bg-gray-900 text-gray-400 border-gray-700">
+            Voided
+          </span>
+        );
+      default:
+        return (
+          <span className="px-2.5 py-1 text-[11px] font-bold rounded-lg border bg-amber-950/60 text-amber-300 border-amber-800/50">
+            Draft
+          </span>
+        );
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans selection:bg-red-600 selection:text-white">
@@ -102,16 +179,16 @@ export default function Dashboard() {
             <h1 className="text-3xl sm:text-4xl font-display font-extrabold tracking-tight text-white flex items-center gap-3">
               Document Vault
             </h1>
-            <p className="text-gray-400 text-sm mt-1">
-              Welcome back, <span className="text-red-400 font-bold">{user?.name || user?.email}</span>. Manage and e-sign your documents easily.
+            <p className="text-gray-400 text-xs sm:text-sm mt-1">
+              Welcome back, <span className="text-red-400 font-bold">{user?.name || user?.email}</span>. Manage agreements, track signers, and execute e-signatures.
             </p>
           </div>
 
           <button
             onClick={() => navigate("/upload")}
-            className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold rounded-xl shadow-lg shadow-red-900/30 transition-all hover:scale-[1.02] active:scale-95 border border-red-500/30"
+            className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold rounded-xl shadow-lg shadow-red-900/30 transition-all hover:scale-[1.02] active:scale-95 border border-red-500/30 text-xs"
           >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
             </svg>
             Upload Document
@@ -119,7 +196,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           <div className="bg-[#12141c] backdrop-blur-md border border-white/10 rounded-2xl p-5 flex items-center space-x-4 shadow-xl">
             <div className="w-12 h-12 rounded-xl bg-red-950/60 border border-red-800/40 text-red-400 flex items-center justify-center shadow-inner">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,8 +204,20 @@ export default function Dashboard() {
               </svg>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Documents</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Total Documents</p>
               <p className="text-2xl font-display font-bold text-white mt-0.5">{stats.total}</p>
+            </div>
+          </div>
+
+          <div className="bg-[#12141c] backdrop-blur-md border border-white/10 rounded-2xl p-5 flex items-center space-x-4 shadow-xl">
+            <div className="w-12 h-12 rounded-xl bg-blue-950/60 border border-blue-800/40 text-blue-400 flex items-center justify-center shadow-inner">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">In Progress</p>
+              <p className="text-2xl font-display font-bold text-blue-400 mt-0.5">{stats.pending}</p>
             </div>
           </div>
 
@@ -139,7 +228,7 @@ export default function Dashboard() {
               </svg>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Signed & Completed</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Completed</p>
               <p className="text-2xl font-display font-bold text-emerald-400 mt-0.5">{stats.signed}</p>
             </div>
           </div>
@@ -147,12 +236,12 @@ export default function Dashboard() {
           <div className="bg-[#12141c] backdrop-blur-md border border-white/10 rounded-2xl p-5 flex items-center space-x-4 shadow-xl">
             <div className="w-12 h-12 rounded-xl bg-amber-950/60 border border-amber-800/40 text-amber-400 flex items-center justify-center shadow-inner">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Draft / Pending</p>
-              <p className="text-2xl font-display font-bold text-amber-400 mt-0.5">{stats.pending}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Drafts</p>
+              <p className="text-2xl font-display font-bold text-amber-400 mt-0.5">{stats.drafts}</p>
             </div>
           </div>
         </div>
@@ -163,7 +252,7 @@ export default function Dashboard() {
           <div className="relative w-full md:w-80">
             <input
               type="text"
-              placeholder="Search documents..."
+              placeholder="Search documents by title..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-[#08090d] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-500 text-xs font-medium"
@@ -179,18 +268,24 @@ export default function Dashboard() {
           </div>
 
           {/* Filter Tabs */}
-          <div className="flex bg-[#08090d] p-1 rounded-xl border border-white/10 w-full md:w-auto">
-            {["all", "signed", "draft"].map((tab) => (
+          <div className="flex bg-[#08090d] p-1 rounded-xl border border-white/10 w-full md:w-auto overflow-x-auto">
+            {[
+              { id: "all", label: "All Docs" },
+              { id: "pending", label: "In Progress" },
+              { id: "signed", label: "Completed" },
+              { id: "draft", label: "Drafts" },
+              { id: "declined", label: "Declined/Void" },
+            ].map((tab) => (
               <button
-                key={tab}
-                onClick={() => setStatusFilter(tab)}
-                className={`flex-1 md:flex-none px-5 py-2 text-xs font-bold rounded-lg capitalize transition-all ${
-                  statusFilter === tab
+                key={tab.id}
+                onClick={() => setStatusFilter(tab.id)}
+                className={`px-4 py-2 text-xs font-bold rounded-lg whitespace-nowrap transition-all ${
+                  statusFilter === tab.id
                     ? "bg-gradient-to-r from-red-600 to-red-800 text-white shadow-md border border-red-500/30"
                     : "text-gray-400 hover:text-white"
                 }`}
               >
-                {tab === "draft" ? "Drafts" : tab}
+                {tab.label}
               </button>
             ))}
           </div>
@@ -200,7 +295,7 @@ export default function Dashboard() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20">
             <div className="w-12 h-12 border-4 border-white/10 border-t-red-600 rounded-full animate-spin mb-4" />
-            <p className="text-gray-400 text-sm font-medium">Fetching documents...</p>
+            <p className="text-gray-400 text-xs font-medium">Fetching documents...</p>
           </div>
         ) : filteredDocuments.length === 0 ? (
           <div className="text-center py-20 bg-[#12141c] rounded-3xl border border-white/10 p-8 shadow-2xl">
@@ -209,11 +304,11 @@ export default function Dashboard() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <h3 className="text-xl font-display font-bold text-white mb-2">No documents found</h3>
+            <h3 className="text-lg font-display font-bold text-white mb-1">No documents found</h3>
             <p className="text-gray-400 text-xs max-w-md mx-auto mb-6">
               {searchQuery
                 ? "No documents matched your search term."
-                : "You haven't uploaded any documents yet. Get started by uploading your first PDF!"}
+                : "You haven't uploaded any documents yet. Get started by uploading a PDF!"}
             </p>
             <button
               onClick={() => navigate("/upload")}
@@ -225,6 +320,7 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredDocuments.map((doc) => {
+              const docId = doc._id || doc.id;
               const isSigned = doc.status === "signed";
               const createdDate = new Date(doc.createdAt).toLocaleDateString(undefined, {
                 year: "numeric",
@@ -234,8 +330,8 @@ export default function Dashboard() {
 
               return (
                 <div
-                  key={doc._id}
-                  className="bg-[#12141c] border border-white/10 hover:border-red-600/50 rounded-2xl p-5 flex flex-col justify-between transition-all hover:shadow-2xl hover:shadow-red-950/40 group relative overflow-hidden"
+                  key={docId}
+                  className="bg-[#12141c] border border-white/10 hover:border-red-600/50 rounded-2xl p-5 flex flex-col justify-between transition-all hover:shadow-2xl hover:shadow-red-950/40 group relative overflow-hidden space-y-5"
                 >
                   <div className="space-y-4">
                     {/* Top Row: PDF Icon & Status Badge */}
@@ -243,15 +339,7 @@ export default function Dashboard() {
                       <div className="w-12 h-12 bg-red-950/70 border border-red-800/40 text-red-400 rounded-xl flex items-center justify-center font-display font-bold text-sm shadow-inner">
                         PDF
                       </div>
-                      <span
-                        className={`px-3 py-1 text-[11px] font-bold rounded-lg border ${
-                          isSigned
-                            ? "bg-emerald-950/60 text-emerald-300 border-emerald-800/50"
-                            : "bg-amber-950/60 text-amber-300 border-amber-800/50"
-                        }`}
-                      >
-                        {isSigned ? "✓ Signed" : "Draft"}
-                      </span>
+                      {getStatusBadge(doc.status)}
                     </div>
 
                     {/* Title & Metadata */}
@@ -271,18 +359,33 @@ export default function Dashboard() {
                   </div>
 
                   {/* Actions Bar */}
-                  <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-between gap-2">
+                  <div className="pt-4 border-t border-white/10 flex items-center justify-between gap-2">
+                    {/* Direct Self-Sign or Editor */}
                     <button
-                      onClick={() => navigate(`/editor/${doc._id}`)}
-                      className="flex-1 py-2.5 px-3 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-red-950/50 border border-red-500/30"
+                      onClick={() => navigate(`/editor/${docId}`)}
+                      className="py-2.5 px-3 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold text-xs rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-red-950/50 border border-red-500/30"
+                      title="Self Sign Document"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                       </svg>
-                      {isSigned ? "Re-sign" : "Sign"}
+                      <span>Sign</span>
                     </button>
 
-                    {isSigned && (
+                    {/* Send for multi-signature */}
+                    <button
+                      onClick={() => navigate(`/send/${docId}`)}
+                      className="py-2.5 px-3 bg-white/5 hover:bg-white/15 text-gray-200 hover:text-white border border-white/10 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                      title="Send to Multiple Recipients"
+                    >
+                      <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      <span>Send</span>
+                    </button>
+
+                    {/* Download Signed PDF */}
+                    {isSigned && doc.signedUrl && (
                       <a
                         href={`${import.meta.env.VITE_API_BASE_URL}${doc.signedUrl}`}
                         target="_blank"
@@ -296,21 +399,32 @@ export default function Dashboard() {
                       </a>
                     )}
 
-                    {isSigned && (
-                      <button
-                        onClick={() => handleOpenAudit(doc._id)}
-                        className="p-2.5 bg-blue-950/70 hover:bg-blue-900 text-blue-300 rounded-xl text-xs font-bold border border-blue-800/50 transition-colors"
-                        title="View Cryptographic Audit Trail"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                      </button>
-                    )}
-
+                    {/* View Audit Trail */}
                     <button
-                      onClick={() => handleDelete(doc._id, doc.originalFileName)}
-                      disabled={deletingId === doc._id}
+                      onClick={() => handleOpenAudit(docId)}
+                      className="p-2.5 bg-blue-950/70 hover:bg-blue-900 text-blue-300 rounded-xl text-xs font-bold border border-blue-800/50 transition-colors"
+                      title="View Cryptographic Audit Trail"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                    </button>
+
+                    {/* Track Signers & Remind */}
+                    <button
+                      onClick={() => handleOpenRecipients(docId)}
+                      className="p-2.5 bg-purple-950/70 hover:bg-purple-900 text-purple-300 rounded-xl text-xs font-bold border border-purple-800/50 transition-colors"
+                      title="Track Signers & Send Reminders"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                      </svg>
+                    </button>
+
+                    {/* Delete */}
+                    <button
+                      onClick={() => handleDelete(docId, doc.originalFileName)}
+                      disabled={deletingId === docId}
                       className="p-2.5 bg-red-950/50 hover:bg-red-900/80 text-red-300 hover:text-white rounded-xl text-xs font-bold border border-red-800/40 transition-colors disabled:opacity-50"
                       title="Delete Document"
                     >
@@ -325,6 +439,102 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Signers & Reminder Modal */}
+      {isRecipientsModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-[#12141c] border border-white/10 rounded-3xl max-w-2xl w-full p-6 space-y-6 shadow-2xl relative">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <h3 className="text-lg font-display font-bold text-white flex items-center gap-2">
+                <span className="text-purple-400">👥</span>
+                Signer Roster & Real-Time Status
+              </h3>
+              <button
+                onClick={() => setIsRecipientsModalOpen(false)}
+                className="text-gray-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {isRecipientsLoading ? (
+              <div className="py-12 flex justify-center">
+                <div className="w-10 h-10 border-4 border-white/10 border-t-purple-600 rounded-full animate-spin" />
+              </div>
+            ) : recipientsDoc ? (
+              <div className="space-y-4 text-xs text-gray-300 max-h-[60vh] overflow-y-auto pr-1">
+                <div className="bg-[#08090d] p-4 rounded-xl space-y-1 border border-white/10">
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Document</p>
+                  <p className="text-white font-semibold text-sm">{recipientsDoc.originalFileName}</p>
+                </div>
+
+                <div className="space-y-3">
+                  {(recipientsDoc.recipients || []).length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">No recipients assigned yet.</p>
+                  ) : (
+                    recipientsDoc.recipients.map((rec) => {
+                      const isSigned = rec.status === "signed";
+                      return (
+                        <div
+                          key={rec._id}
+                          className="bg-[#08090d] p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-white/10"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className="w-2.5 h-2.5 rounded-full"
+                                style={{ backgroundColor: rec.color || "#ef4444" }}
+                              />
+                              <span className="font-bold text-white text-sm">{rec.name}</span>
+                              <span className="text-gray-400 text-xs">({rec.email})</span>
+                            </div>
+                            <div className="text-[11px] text-gray-500 mt-1 flex items-center gap-3">
+                              <span>Role: <strong className="text-gray-300">{rec.role || "Signer"}</strong></span>
+                              <span>•</span>
+                              <span>
+                                Status:{" "}
+                                <strong className={isSigned ? "text-emerald-400" : "text-amber-400"}>
+                                  {rec.status?.toUpperCase()}
+                                </strong>
+                              </span>
+                              {rec.lastRemindedAt && (
+                                <>
+                                  <span>•</span>
+                                  <span>Reminded: {new Date(rec.lastRemindedAt).toLocaleDateString()}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {!isSigned && (
+                            <button
+                              disabled={remindingRecipientId === rec._id}
+                              onClick={() => handleSendReminder(rec._id)}
+                              className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 disabled:opacity-50 text-white rounded-lg font-bold text-xs shadow transition flex items-center justify-center gap-1.5 self-start sm:self-auto"
+                            >
+                              {remindingRecipientId === rec._id ? "Sending..." : "⚡ Send Reminder"}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="pt-4 border-t border-white/10 flex justify-end">
+              <button
+                onClick={() => setIsRecipientsModalOpen(false)}
+                className="px-5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Audit Trail Modal */}
       {isAuditModalOpen && (
@@ -356,41 +566,73 @@ export default function Dashboard() {
                   <p className="text-white font-semibold text-sm">{selectedAudit.pdf?.originalFileName}</p>
                 </div>
 
-                {selectedAudit.auditLogs?.map((log, index) => (
-                  <div key={log._id || index} className="bg-[#08090d] p-4 rounded-xl space-y-3 border border-white/10">
-                    <div className="flex items-center justify-between text-xs text-red-400 font-bold">
-                      <span>Signature Entry #{selectedAudit.auditLogs.length - index}</span>
-                      <span className="text-gray-400 font-mono text-[11px]">{new Date(log.signedAt).toLocaleString()}</span>
-                    </div>
+                {selectedAudit.auditLogs?.length === 0 ? (
+                  <p className="text-gray-500 text-center py-6">No audit records logged yet.</p>
+                ) : (
+                  selectedAudit.auditLogs?.map((log, index) => (
+                    <div key={log._id || index} className="bg-[#08090d] p-4 rounded-xl space-y-2.5 border border-white/10">
+                      <div className="flex items-center justify-between text-xs font-bold">
+                        <span className="text-red-400 capitalize">{log.event || "Signature"} Entry</span>
+                        <span className="text-gray-400 font-mono text-[11px]">{new Date(log.signedAt || log.createdAt).toLocaleString()}</span>
+                      </div>
 
-                    <div>
-                      <p className="text-[10px] text-gray-400 font-mono uppercase">Original Document Hash (SHA-256):</p>
-                      <p className="text-xs font-mono bg-black/60 p-2 rounded-lg text-emerald-300 break-all border border-emerald-950">
-                        {log.originalHash}
-                      </p>
-                    </div>
+                      {log.actorName && (
+                        <p className="text-xs text-gray-300">
+                          Actor: <strong className="text-white">{log.actorName}</strong> ({log.actorEmail})
+                        </p>
+                      )}
 
-                    <div>
-                      <p className="text-[10px] text-gray-400 font-mono uppercase">Signed Document Hash (SHA-256):</p>
-                      <p className="text-xs font-mono bg-black/60 p-2 rounded-lg text-red-400 break-all border border-red-950">
-                        {log.signedHash}
-                      </p>
-                    </div>
+                      {log.description && (
+                        <p className="text-xs text-gray-400 italic">"{log.description}"</p>
+                      )}
 
-                    <div>
-                      <p className="text-[11px] text-gray-400">Total Fields Embedded: <span className="font-bold text-white">{log.fieldsMeta?.length || 0}</span></p>
+                      {log.originalHash && (
+                        <div>
+                          <p className="text-[10px] text-gray-400 font-mono uppercase">Original Document Hash (SHA-256):</p>
+                          <p className="text-xs font-mono bg-black/60 p-2 rounded-lg text-emerald-300 break-all border border-emerald-950">
+                            {log.originalHash}
+                          </p>
+                        </div>
+                      )}
+
+                      {log.signedHash && (
+                        <div>
+                          <p className="text-[10px] text-gray-400 font-mono uppercase">Signed Document Hash (SHA-256):</p>
+                          <p className="text-xs font-mono bg-black/60 p-2 rounded-lg text-red-400 break-all border border-red-950">
+                            {log.signedHash}
+                          </p>
+                        </div>
+                      )}
+
+                      {log.ipAddress && (
+                        <p className="text-[10px] font-mono text-gray-500">IP: {log.ipAddress}</p>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             ) : (
               <p className="text-gray-400 text-xs">No audit trail records found.</p>
             )}
 
-            <div className="pt-4 border-t border-white/10 flex justify-end">
+            <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+              {selectedAudit?.pdf?._id && (
+                <a
+                  href={`${import.meta.env.VITE_API_BASE_URL}/api/pdf/${selectedAudit.pdf._id}/audit-certificate`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  <span>Download Audit Certificate (PDF)</span>
+                </a>
+              )}
+
               <button
                 onClick={() => setIsAuditModalOpen(false)}
-                className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-colors"
+                className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-colors ml-auto"
               >
                 Close
               </button>

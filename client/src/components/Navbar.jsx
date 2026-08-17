@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
-import { logout } from "../store/authSlice";
+import { performLogout } from "../store/authActions";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -10,16 +10,21 @@ export default function Navbar() {
   const user = useSelector((state) => state.auth.user);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate("/login");
+  const handleLogout = async () => {
+    await dispatch(performLogout());
+    navigate("/");
   };
+
 
   const navLinks = [
     { label: "Dashboard", path: "/dashboard" },
     { label: "Upload PDF", path: "/upload" },
+    { label: "Templates", path: "/templates" },
+    { label: "Bulk Send", path: "/templates/bulk" },
     { label: "Signature Studio", path: "/signature-remover" },
+    { label: "Settings", path: "/settings" },
   ];
+
 
   return (
     <header className="sticky top-0 z-50 bg-[#08090d]/90 backdrop-blur-xl border-b border-white/10">
@@ -47,12 +52,12 @@ export default function Navbar() {
         {/* Desktop Center Links */}
         <nav className="hidden md:flex items-center space-x-1 bg-white/5 p-1 rounded-2xl border border-white/5">
           {navLinks.map((link) => {
-            const isActive = location.pathname === link.path;
+            const isActive = location.pathname === link.path || location.pathname.startsWith(`${link.path}/`);
             return (
               <button
                 key={link.path}
                 onClick={() => navigate(link.path)}
-                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all ${
+                className={`px-3.5 py-2 text-xs font-bold rounded-xl transition-all ${
                   isActive
                     ? "bg-gradient-to-r from-red-600 to-red-800 text-white shadow-md shadow-red-900/40 border border-red-500/30"
                     : "text-gray-400 hover:text-white hover:bg-white/5"
@@ -66,7 +71,11 @@ export default function Navbar() {
 
         {/* User & Logout & Mobile Drawer Toggle */}
         <div className="flex items-center space-x-3">
-          <div className="hidden sm:flex items-center space-x-2 text-xs text-gray-300 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
+          <div
+            onClick={() => navigate("/settings")}
+            className="hidden sm:flex items-center space-x-2 text-xs text-gray-300 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 cursor-pointer transition-colors"
+            title="Manage Profile & Settings"
+          >
             <div className="w-6 h-6 rounded-lg bg-red-600 text-white flex items-center justify-center text-xs font-bold uppercase shadow">
               {(user?.name || user?.email || "U")[0]}
             </div>
@@ -104,7 +113,13 @@ export default function Navbar() {
       {/* Mobile Drawer Navigation */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#0f1118] border-b border-white/10 px-4 py-4 space-y-3">
-          <div className="flex items-center space-x-2 text-xs text-gray-300 bg-white/5 p-3 rounded-xl border border-white/10 mb-2">
+          <div
+            onClick={() => {
+              navigate("/settings");
+              setMobileMenuOpen(false);
+            }}
+            className="flex items-center space-x-2 text-xs text-gray-300 bg-white/5 p-3 rounded-xl border border-white/10 mb-2 cursor-pointer"
+          >
             <div className="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center text-sm font-bold uppercase">
               {(user?.name || user?.email || "U")[0]}
             </div>
@@ -116,7 +131,7 @@ export default function Navbar() {
 
           <div className="space-y-1">
             {navLinks.map((link) => {
-              const isActive = location.pathname === link.path;
+              const isActive = location.pathname === link.path || location.pathname.startsWith(`${link.path}/`);
               return (
                 <button
                   key={link.path}

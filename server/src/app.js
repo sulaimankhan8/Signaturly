@@ -7,6 +7,8 @@ import { errorMiddleware } from "./middlewares/error.middleware.js";
 import { env } from "./config/env.js";
 import path from "path";
 
+import { serveProtectedFile } from "./middlewares/file.middleware.js";
+
 const app = express();
 
 // Increase JSON and URL-encoded body limit to 50MB for high-res base64 signature payloads
@@ -21,10 +23,7 @@ app.use(
   })
 );
 
-app.use(
-  "/uploads",
-  express.static(path.resolve("uploads"))
-);
+app.use("/uploads", serveProtectedFile);
 
 app.use("/api", routes);
 app.use(errorMiddleware);

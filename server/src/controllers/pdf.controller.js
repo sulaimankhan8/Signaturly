@@ -110,3 +110,14 @@ export const getPdfAuditController = asyncHandler(async (req, res) => {
 
   res.status(200).json(new ApiResponse({ pdf, auditLogs }, "Audit trail retrieved"));
 });
+
+export const getAuditCertificatePdfController = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { generateAuditCertificatePdf } = await import("../services/auditCertificate.service.js");
+  
+  const pdfBuffer = await generateAuditCertificatePdf(id, req.user.id);
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="Audit-Certificate-${id}.pdf"`);
+  res.send(pdfBuffer);
+});

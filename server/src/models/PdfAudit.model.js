@@ -12,22 +12,59 @@ const pdfAuditSchema = new mongoose.Schema(
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+    },
+
+    recipientId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Recipient",
+    },
+
+    event: {
+      type: String,
+      enum: [
+        "created",
+        "sent",
+        "viewed",
+        "signed",
+        "declined",
+        "voided",
+        "downloaded",
+        "expired",
+      ],
+      default: "signed",
+    },
+
+    actorName: {
+      type: String,
+    },
+
+    actorEmail: {
+      type: String,
     },
 
     originalHash: {
       type: String,
-      required: true,
     },
 
     signedHash: {
       type: String,
-      required: true,
     },
 
     fieldsMeta: {
       type: Array,
-      required: true,
+      default: [],
+    },
+
+    description: {
+      type: String,
+    },
+
+    ipAddress: {
+      type: String,
+    },
+
+    userAgent: {
+      type: String,
     },
 
     signedAt: {
@@ -38,7 +75,4 @@ const pdfAuditSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export const PdfAudit = mongoose.model(
-  "PdfAudit",
-  pdfAuditSchema
-);
+export const PdfAudit = mongoose.model("PdfAudit", pdfAuditSchema);

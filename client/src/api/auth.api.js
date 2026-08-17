@@ -27,3 +27,8 @@ export const getMe = async (accessToken) => {
 
   return res.data?.data?.user;
 };
+
+export const logoutApi = async () => {
+  const res = await API.post("/auth/logout");
+  return res.data;
+};

@@ -1,5 +1,5 @@
 import { setCredentials, logout } from "./authSlice";
-import { refreshToken, getMe } from "../api/auth.api";
+import { refreshToken, getMe, logoutApi } from "../api/auth.api";
 
 // 🔄 Runs on app load to restore session
 export const hydrateAuth = () => async (dispatch) => {
@@ -24,3 +24,15 @@ export const hydrateAuth = () => async (dispatch) => {
     dispatch(logout());
   }
 };
+
+// 🚪 Full logout: clears server-side HTTP-only cookie and Redux state
+export const performLogout = () => async (dispatch) => {
+  try {
+    await logoutApi();
+  } catch (err) {
+    console.warn("Logout API warning:", err);
+  } finally {
+    dispatch(logout());
+  }
+};
+

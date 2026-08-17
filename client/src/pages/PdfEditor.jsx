@@ -4,7 +4,7 @@ import toast, { Toaster } from "react-hot-toast";
 import PdfViewer from "../components/PdfViewer";
 import FieldPalette from "../components/FieldPalette";
 import DraggableField from "../components/DraggableField";
-import SignatureUpload from "../components/SignatureUpload";
+import SignatureManager from "../components/SignatureManager";
 import API from "../api/axios";
 import { useSelector } from "react-redux";
 
@@ -60,8 +60,8 @@ export default function PdfEditor() {
       page: currentPage,
       xPercent: 0.2,
       yPercent: 0.2,
-      widthPercent: type === "radio" ? 0.05 : (type === "signature" ? 0.3 : 0.25),
-      heightPercent: type === "radio" ? 0.04 : (type === "signature" ? 0.12 : 0.06),
+      widthPercent: type === "radio" || type === "checkbox" ? 0.05 : (type === "signature" ? 0.3 : 0.25),
+      heightPercent: type === "radio" || type === "checkbox" ? 0.04 : (type === "signature" ? 0.12 : 0.06),
       value: type === "date" ? new Date().toLocaleDateString() : "",
       checked: false,
       signatureUrl: type === "signature" ? signatureUrl : "",
@@ -86,7 +86,7 @@ export default function PdfEditor() {
     try {
       setIsSigning(true);
 
-      const hasEmptyTextFields = fields.some((f) => f.type === "text" && !f.value.trim());
+      const hasEmptyTextFields = fields.some((f) => f.type === "text" && !f.value?.trim());
       if (hasEmptyTextFields) {
         toast.error("Please fill in all text fields before signing.");
         setIsSigning(false);
@@ -99,7 +99,7 @@ export default function PdfEditor() {
       );
 
       if (hasSignatureFields && hasMissingSignature) {
-        toast.error("Please select or draw a signature asset before signing.");
+        toast.error("Please draw, type, or upload a signature asset before signing.");
         setIsSigning(false);
         return;
       }
@@ -177,9 +177,16 @@ export default function PdfEditor() {
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-3">
-            <div className="hidden md:flex items-center space-x-2 text-xs text-gray-300 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
-              <span className="font-semibold">{user?.name || user?.email}</span>
-            </div>
+            <button
+              onClick={() => navigate(`/send/${pdfId}`)}
+              className="px-3.5 py-2 bg-white/5 hover:bg-white/10 text-gray-200 hover:text-white border border-white/10 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+              title="Send document to multiple recipients"
+            >
+              <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
+              <span>Send for Signature</span>
+            </button>
 
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -209,25 +216,25 @@ export default function PdfEditor() {
               <FieldPalette onAdd={addField} />
             </div>
 
-            {/* Signature Upload */}
+            {/* Signature Studio Asset Manager */}
             <div className="bg-[#08090d] rounded-2xl p-4 border border-white/10 shadow-lg">
               <h3 className="text-white font-display font-bold text-xs uppercase tracking-wider mb-3 flex items-center">
                 <svg className="w-4 h-4 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                 </svg>
-                Signature Asset
+                Signature Studio
               </h3>
-              <SignatureUpload
+              <SignatureManager
+                defaultSignatureUrl={signatureUrl}
                 onUploaded={(url) => {
                   setSignatureUrl(url);
                   setFields((prev) =>
                     prev.map((f) =>
-                      f.type === "signature"
+                      f.type === "signature" || f.type === "initials"
                         ? { ...f, signatureUrl: url }
                         : f
                     )
                   );
-                  toast.success("Signature attached to fields");
                 }}
               />
             </div>

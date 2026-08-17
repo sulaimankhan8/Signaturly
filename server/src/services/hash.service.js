@@ -1,7 +1,11 @@
-import crypto from 'crypto';
+import crypto from "crypto";
+import fs from "fs";
 
-export const sha256FromBuffer  = (Buffer) => {
+export const sha256FromBuffer = (buffer) => {
+  return crypto.createHash("sha256").update(buffer).digest("hex");
+};
 
-    //console.log("Hashing buffer data :", data);
-  return crypto.createHash('sha256').update(Buffer).digest('hex');
-}
+export const calculateFileHash = async (filePath) => {
+  const fileBuffer = await fs.promises.readFile(filePath);
+  return sha256FromBuffer(fileBuffer);
+};

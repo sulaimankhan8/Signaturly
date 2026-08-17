@@ -49,16 +49,23 @@ const getImageBuffer = async (url) => {
   return null;
 };
 
-export const signPdf = async ({ pdfId, userId, fields }) => {
-  console.log("signPdf called", { pdfId, userId, fieldsCount: fields?.length });
+export const signPdf = async ({
+  pdfId,
+  userId = null,
+  recipientId = null,
+  actorName = "User",
+  actorEmail = "",
+  fields = [],
+  ipAddress = "",
+  userAgent = "",
+  isFinalCompletion = true,
+}) => {
+  console.log("signPdf called", { pdfId, userId, recipientId, fieldsCount: fields?.length });
 
   const pdfMeta = await Pdf.findById(pdfId);
   if (!pdfMeta) throw new ApiError(404, "PDF not found");
-  if (pdfMeta.userId.toString() !== userId) {
-    throw new ApiError(403, "Not your document");
-  }
 
-  // Check if a previously signed version exists — if so, burn ON TOP of previously signed PDF!
+  // Check if a previously signed version exists — burn ON TOP of previously signed PDF!
   const signedPath = pdfMeta.storagePath.replace(/\.pdf$/i, "-signed.pdf");
   const inputPath = fs.existsSync(signedPath) ? signedPath : pdfMeta.storagePath;
 
@@ -106,12 +113,14 @@ export const signPdf = async ({ pdfId, userId, fields }) => {
         const padLeft = 8 * (pw / 612);
         const textValue = (field.value || "").replace(/[^\x00-\x7F]/g, "");
 
-        page.drawText(textValue, {
-          x: x + padLeft,
-          y: y + height / 2 - fontSize * 0.35,
-          size: Math.max(8, fontSize),
-          color: rgb(0, 0, 0),
-        });
+        if (textValue) {
+          page.drawText(textValue, {
+            x: x + padLeft,
+            y: y + height / 2 - fontSize * 0.35,
+            size: Math.max(8, fontSize),
+            color: rgb(0, 0, 0),
+          });
+        }
         break;
       }
 
@@ -133,14 +142,15 @@ export const signPdf = async ({ pdfId, userId, fields }) => {
       }
 
       case "signature": {
-        if (!field.signatureUrl) {
-          console.warn("Signature field missing signatureUrl:", field.id);
+        const signatureAsset = field.signatureUrl || field.value;
+        if (!signatureAsset) {
+          console.warn("Full signature field missing image asset:", field.id);
           break;
         }
 
-        const imageBuffer = await getImageBuffer(field.signatureUrl);
+        const imageBuffer = await getImageBuffer(signatureAsset);
         if (!imageBuffer || imageBuffer.length === 0) {
-          console.error("Failed to retrieve image buffer for signatureUrl:", field.signatureUrl?.slice(0, 60));
+          console.error("Failed to retrieve image buffer for signature field:", field.id);
           break;
         }
 
@@ -151,12 +161,12 @@ export const signPdf = async ({ pdfId, userId, fields }) => {
           try {
             image = await pdfDoc.embedJpg(imageBuffer);
           } catch (jpgErr) {
-            console.error("Failed to embed signature image as PNG or JPG:", jpgErr.message);
+            console.error("Failed to embed signature as PNG or JPG:", jpgErr.message);
           }
         }
 
         if (!image) {
-          console.error("Signature image could not be embedded into PDF for field:", field.id);
+          console.error("Signature image could not be embedded for field:", field.id);
           break;
         }
 
@@ -171,8 +181,82 @@ export const signPdf = async ({ pdfId, userId, fields }) => {
           width: drawW,
           height: drawH,
         });
+        break;
+      }
 
-        console.log("Signature successfully burned into PDF:", { drawW, drawH });
+      case "initials": {
+        const initialsAsset = field.signatureUrl || field.value;
+        if (!initialsAsset) {
+          console.warn("Initials field missing image asset:", field.id);
+          break;
+        }
+
+        const imageBuffer = await getImageBuffer(initialsAsset);
+        if (!imageBuffer || imageBuffer.length === 0) {
+          console.error("Failed to retrieve image buffer for initials field:", field.id);
+          break;
+        }
+
+        let image = null;
+        try {
+          image = await pdfDoc.embedPng(imageBuffer);
+        } catch (pngErr) {
+          try {
+            image = await pdfDoc.embedJpg(imageBuffer);
+          } catch (jpgErr) {
+            console.error("Failed to embed initials as PNG or JPG:", jpgErr.message);
+          }
+        }
+
+        if (!image) {
+          console.error("Initials image could not be embedded for field:", field.id);
+          break;
+        }
+
+        const imgDims = image.scale(1);
+        const scale = Math.min(width / imgDims.width, height / imgDims.height);
+        const drawW = imgDims.width * scale;
+        const drawH = imgDims.height * scale;
+
+        page.drawImage(image, {
+          x: x + (width - drawW) / 2,
+          y: y + (height - drawH) / 2,
+          width: drawW,
+          height: drawH,
+        });
+        break;
+      }
+
+      case "checkbox": {
+        const size = Math.min(width, height) * 0.7;
+        const startX = x + (width - size) / 2;
+        const startY = y + (height - size) / 2;
+
+        page.drawRectangle({
+          x: startX,
+          y: startY,
+          width: size,
+          height: size,
+          borderWidth: 1.5,
+          color: rgb(1, 1, 1),
+          borderColor: rgb(0, 0, 0),
+        });
+
+        if (field.checked || field.value === "true" || field.value === true) {
+          // Draw checkmark lines or cross
+          page.drawLine({
+            start: { x: startX + size * 0.2, y: startY + size * 0.5 },
+            end: { x: startX + size * 0.45, y: startY + size * 0.2 },
+            thickness: 2,
+            color: rgb(0, 0, 0),
+          });
+          page.drawLine({
+            start: { x: startX + size * 0.45, y: startY + size * 0.2 },
+            end: { x: startX + size * 0.85, y: startY + size * 0.8 },
+            thickness: 2,
+            color: rgb(0, 0, 0),
+          });
+        }
         break;
       }
 
@@ -194,7 +278,7 @@ export const signPdf = async ({ pdfId, userId, fields }) => {
           borderColor: rgb(0, 0, 0),
         });
 
-        if (field.checked) {
+        if (field.checked || field.value === "true" || field.value === true) {
           page.drawCircle({
             x: centerX,
             y: centerY,
@@ -210,25 +294,36 @@ export const signPdf = async ({ pdfId, userId, fields }) => {
     }
   }
 
-  // Save the signed PDF
+  // Save the modified PDF
   const signedBytes = await pdfDoc.save();
   const signedHash = sha256FromBuffer(signedBytes);
 
   fs.writeFileSync(signedPath, signedBytes);
   console.log("signed file written to", signedPath);
 
-  // Create audit trail record
+  // Create audit trail entry
   await PdfAudit.create({
     pdfId,
-    userId,
+    userId: userId || pdfMeta.userId,
+    recipientId,
+    event: "signed",
+    actorName,
+    actorEmail,
     originalHash,
     signedHash,
     fieldsMeta: fields,
+    description: `${actorName} completed required fields and placed digital signature.`,
+    ipAddress,
+    userAgent,
+    signedAt: new Date(),
   });
 
-  // Update PDF status
-  pdfMeta.status = "signed";
-  await pdfMeta.save();
+  if (isFinalCompletion) {
+    pdfMeta.status = "signed";
+  } else {
+    pdfMeta.status = "partially_signed";
+  }
 
+  await pdfMeta.save();
   return signedPath;
 };
