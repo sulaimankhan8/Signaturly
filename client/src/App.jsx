@@ -18,9 +18,13 @@ import ResetPassword from "./pages/ResetPassword";
 import BulkSend from "./pages/BulkSend";
 import Landing from "./pages/Landing";
 import FontTestLab from "./pages/FontTestLab";
+import UserGuide from "./pages/UserGuide";
+import PublicVerify from "./pages/PublicVerify";
+import AdminDashboard from "./pages/AdminDashboard";
 import { hydrateAuth } from "./store/authActions";
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
+
 
 export default function App() {
   const dispatch = useDispatch();
@@ -51,11 +55,17 @@ export default function App() {
         <Route path="/send/:pdfId" element={<SendDocument />} />
         <Route path="/assign/:pdfId" element={<AssignFields />} />
         <Route path="/sign/:token" element={<SigningPage />} />
+        <Route path="/verify" element={<PublicVerify />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
         {/* Isolated Font Testing Suite (Accessible by direct URL only) */}
         <Route path="/test" element={<FontTestLab />} />
+        {/* Comprehensive Interactive User Guide (Accessible at /userguide) */}
+        <Route path="/userguide" element={<UserGuide />} />
       </Routes>
     </BrowserRouter>
   );
 }
+
+
 
 

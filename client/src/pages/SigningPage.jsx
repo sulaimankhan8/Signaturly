@@ -9,12 +9,14 @@ import {
   declinePublicSigningApi,
 } from "../api/signing.api";
 import toast, { Toaster } from "react-hot-toast";
+import { OtpVerificationModal } from "../components/OtpVerificationModal";
 
 export default function SigningPage() {
   const { token } = useParams();
 
   const [session, setSession] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOtpVerified, setIsOtpVerified] = useState(false);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -34,6 +36,7 @@ export default function SigningPage() {
   const [activeInitialsUrl, setActiveInitialsUrl] = useState(
     localStorage.getItem("signaturly_default_initials") || ""
   );
+
 
   const isFieldMine = useCallback((f) => {
     if (!session?.recipient) return false;
@@ -289,6 +292,19 @@ export default function SigningPage() {
       </div>
     );
   }
+
+  // Pre-Canvas OTP Verification Modal Safeguard
+  if (!isOtpVerified) {
+    return (
+      <OtpVerificationModal
+        token={token}
+        recipientEmail={session?.recipient?.email}
+        documentTitle={session?.document?.originalFileName}
+        onVerified={() => setIsOtpVerified(true)}
+      />
+    );
+  }
+
 
   const pdfUrl = `${import.meta.env.VITE_API_BASE_URL}${session?.document.pdfUrl}`;
 

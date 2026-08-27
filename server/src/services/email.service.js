@@ -185,3 +185,26 @@ export const sendReminderEmail = async ({ recipient, pdf, sender, customMessage 
   });
 };
 
+export const sendOtpEmail = async ({ email, otp, pdfTitle = "Document" }) => {
+  const content = `
+    <h2 style="color:#ffffff; margin-top:0; font-size:20px;">Identity Verification Code</h2>
+    <p style="color:#9ca3af; font-size:14px; line-height:1.6;">
+      You are about to access and e-sign <strong style="color:#ffffff;">${pdfTitle}</strong>. Use the 6-digit verification code below to confirm your identity:
+    </p>
+
+    <div class="card" style="text-align:center; padding:24px; border-color: rgba(239,68,68,0.4);">
+      <div style="font-size:11px; color:#f87171; text-transform:uppercase; font-weight:bold; letter-spacing:1px;">Security Verification Code</div>
+      <div style="font-size:36px; color:#ffffff; font-weight:800; letter-spacing:6px; margin-top:8px; font-family:monospace;">${otp}</div>
+      <div style="font-size:12px; color:#9ca3af; margin-top:8px;">Valid for 10 minutes. Do not share this code.</div>
+    </div>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: `[${otp}] Your Identity Verification Code for "${pdfTitle}"`,
+    html: emailWrapper(content, "Pre-Sign Authentication"),
+    text: `Your Signaturly Pro identity verification code for "${pdfTitle}" is: ${otp} (Valid for 10 minutes).`,
+  });
+};
+
+
