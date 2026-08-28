@@ -3,11 +3,11 @@ import { env } from "./env.js";
 
 export const connectDB = async ()=> {
     try{
-        const connect = await mongoose.connect(env.mongoUri);
+        const connect = await mongoose.connect(env.mongoUri, { serverSelectionTimeoutMS: 5000 });
         console.log("gg mongodb conneccted");
         
     }catch(err){
-        console.error("iie mongodb wa disconnected");
+        console.error("iie mongodb wa disconnected", err);
         process.exit(1);
     }
 }

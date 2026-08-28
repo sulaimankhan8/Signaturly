@@ -130,7 +130,7 @@ export default function SigningPage() {
 
   const handleFieldClick = (field) => {
     if (!isFieldMine(field)) {
-      toast("This field is assigned to another signer", { icon: "ℹ️" });
+      toast("This field is assigned to another signer");
       return;
     }
 
@@ -286,7 +286,7 @@ export default function SigningPage() {
           <div className="bg-[#08090d] p-4 rounded-xl border border-white/10 text-xs text-gray-300 text-left space-y-1">
             <p className="text-[10px] uppercase font-bold text-gray-500">Executed Agreement</p>
             <p className="text-white font-semibold">{session?.document.originalFileName}</p>
-            <p className="text-[11px] text-emerald-400 mt-1 font-mono">✓ Sealed at {new Date().toLocaleString()}</p>
+            <p className="text-[11px] text-emerald-400 mt-1 font-mono">Sealed at {new Date().toLocaleString()}</p>
           </div>
         </div>
       </div>
@@ -402,7 +402,7 @@ export default function SigningPage() {
                     #{idx + 1} {f.type} (Page {f.page})
                   </span>
                   <span className={`text-[10px] font-bold ${f.signatureUrl || f.value ? "text-emerald-400" : "text-amber-400"}`}>
-                    {f.signatureUrl || f.value ? "✓ Filled" : "Pending"}
+                    {f.signatureUrl || f.value ? "Filled" : "Pending"}
                   </span>
                 </div>
               ))}

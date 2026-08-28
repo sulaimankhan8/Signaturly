@@ -64,7 +64,7 @@ export default function SignatureUpload({ onUploaded }) {
             className="max-h-20 object-contain"
             alt="Signature preview"
           />
-          <span className="text-[10px] text-green-600 font-semibold mt-1">✓ Signature Attached</span>
+          <span className="text-[10px] text-green-600 font-semibold mt-1">Signature Attached</span>
         </div>
       )}
     </div>

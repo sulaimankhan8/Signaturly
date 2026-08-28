@@ -27,9 +27,12 @@ export default function SignaturePad({ onConfirm, defaultColor = "#000000" }) {
 
   const getPos = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
+    const touch = e.touches ? e.touches[0] : e;
+    const clientX = touch.clientX ?? e.clientX ?? 0;
+    const clientY = touch.clientY ?? e.clientY ?? 0;
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      x: clientX - rect.left,
+      y: clientY - rect.top,
       p: e.pressure || 0.5,
       color,
       width: strokeWidth,

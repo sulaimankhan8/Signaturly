@@ -136,7 +136,7 @@ export default function Dashboard() {
       case "signed":
         return (
           <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-emerald-500 text-black shadow-[2px_2px_0px_0px_#fff]">
-            ✓ Signed & Sealed
+            Signed & Sealed
           </span>
         );
       case "pending":
@@ -197,7 +197,7 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
           <div className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-5 flex items-center space-x-4 shadow-[4px_4px_0px_0px_#ef4444]">
             <div className="w-12 h-12 rounded-xl bg-red-600 text-white border-2 border-black flex items-center justify-center font-black shadow-[2px_2px_0px_0px_#000]">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -514,7 +514,7 @@ export default function Dashboard() {
                               onClick={() => handleSendReminder(rec._id)}
                               className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 disabled:opacity-50 text-white rounded-lg font-bold text-xs shadow transition flex items-center justify-center gap-1.5 self-start sm:self-auto"
                             >
-                              {remindingRecipientId === rec._id ? "Sending..." : "⚡ Send Reminder"}
+                              {remindingRecipientId === rec._id ? "Sending..." : "Send Reminder"}
                             </button>
                           )}
                         </div>

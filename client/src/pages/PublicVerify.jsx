@@ -42,10 +42,15 @@ export default function PublicVerify() {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <div style={styles.badge}>🛡️ PUBLIC DOCUMENT VERIFICATION PORTAL</div>
+        <div style={styles.badge}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 6 }}>
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          PUBLIC DOCUMENT VERIFICATION PORTAL
+        </div>
         <h1 style={styles.title}>Verify Document Integrity</h1>
         <p style={styles.subtitle}>
-          Upload an executed PDF agreement or paste its SHA-256 cryptographic hash to test its legal authenticity against the Signaturly Pro immutable ledger.
+          Upload an executed PDF contract or paste its SHA-256 hash to test its legal authenticity against the Signaturly Pro immutable ledger.
         </p>
       </div>
 
@@ -60,7 +65,14 @@ export default function PublicVerify() {
               id="pdfUpload"
             />
             <label htmlFor="pdfUpload" style={styles.fileLabel}>
-              {file ? `📄 ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)` : "📁 Click or drag PDF contract here to verify"}
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.8" style={{ marginBottom: 10 }}>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="12" y1="18" x2="12" y2="12" />
+                <line x1="9" y1="15" x2="12" y2="12" />
+                <line x1="15" y1="15" x2="12" y2="12" />
+              </svg>
+              <div>{file ? `${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)` : "Click or drag PDF contract here to verify"}</div>
             </label>
           </div>
 
@@ -76,7 +88,11 @@ export default function PublicVerify() {
           />
 
           <button type="submit" disabled={loading} style={styles.submitBtn}>
-            {loading ? "Computing SHA-256 Digest & Ledger Lookup..." : "🔍 Verify Document Authenticity"}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8 }}>
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            {loading ? "Computing SHA-256 Digest & Ledger Lookup..." : "Verify Document Authenticity"}
           </button>
         </form>
 
@@ -85,14 +101,25 @@ export default function PublicVerify() {
         {result && (
           <div style={styles.resultContainer}>
             <div style={result.isAuthentic ? styles.successHeader : styles.failureHeader}>
-              <div style={{ fontSize: "28px", marginRight: "12px" }}>
-                {result.isAuthentic ? "✅" : "⚠️"}
+              <div style={styles.iconContainer}>
+                {result.isAuthentic ? (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2.5">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg>
+                ) : (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.5">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                )}
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: "18px" }}>
+                <h3 style={{ margin: 0, fontSize: "17px", fontWeight: "700" }}>
                   {result.isAuthentic ? "Document Authenticity Verified" : "Document Verification Failed / Tampered"}
                 </h3>
-                <p style={{ margin: "4px 0 0 0", fontSize: "12px", opacity: 0.8 }}>
+                <p style={{ margin: "4px 0 0 0", fontSize: "12.5px", opacity: 0.85 }}>
                   {result.isAuthentic
                     ? "The cryptographic hash matches an executed contract in our immutable ledger and the Merkle chain is intact."
                     : result.reason || "Hash mismatch or unrecognized document."}
@@ -122,13 +149,13 @@ export default function PublicVerify() {
             )}
 
             {result.signers && result.signers.length > 0 && (
-              <div style={{ marginTop: "20px" }}>
+              <div style={{ marginTop: "24px" }}>
                 <h4 style={styles.sectionHeader}>Authenticated Signers Attribution</h4>
                 <div style={styles.signersList}>
                   {result.signers.map((s, i) => (
                     <div key={i} style={styles.signerCard}>
-                      <div>
-                        <strong style={{ color: "#fff" }}>{s.name}</strong> ({s.email})
+                      <div style={{ fontWeight: "600", color: "#ffffff" }}>
+                        {s.name} <span style={{ color: "#9ca3af", fontWeight: "normal" }}>({s.email})</span>
                       </div>
                       <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "4px" }}>
                         IP: {s.ipAddress} | Auth: {s.authMethod} | Status: {s.status?.toUpperCase()}
@@ -139,9 +166,7 @@ export default function PublicVerify() {
               </div>
             )}
 
-            <div style={styles.legalFooter}>
-              {result.legalStanding}
-            </div>
+            <div style={styles.legalFooter}>{result.legalStanding}</div>
           </div>
         )}
       </div>
@@ -152,53 +177,55 @@ export default function PublicVerify() {
 const styles = {
   container: {
     minHeight: "100vh",
-    backgroundColor: "#08090d",
+    backgroundColor: "#080a0f",
     color: "#e5e7eb",
-    padding: "40px 20px",
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    padding: "50px 20px",
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif",
   },
   header: {
     textAlign: "center",
     maxWidth: "700px",
-    margin: "0 auto 30px auto",
+    margin: "0 auto 36px auto",
   },
   badge: {
-    fontSize: "11px",
+    display: "inline-flex",
+    alignItems: "center",
+    fontSize: "10.5px",
     fontWeight: "800",
     letterSpacing: "1.5px",
     color: "#ef4444",
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    backgroundColor: "rgba(239, 68, 68, 0.08)",
     border: "1px solid rgba(239, 68, 68, 0.25)",
     padding: "6px 14px",
     borderRadius: "20px",
-    display: "inline-block",
-    marginBottom: "12px",
+    marginBottom: "14px",
   },
   title: {
-    fontSize: "32px",
+    fontSize: "34px",
     fontWeight: "800",
     color: "#ffffff",
-    margin: "0 0 10px 0",
-    letterSpacing: "-0.5px",
+    margin: "0 0 12px 0",
+    letterSpacing: "-0.6px",
   },
   subtitle: {
-    fontSize: "14px",
+    fontSize: "14.5px",
     color: "#9ca3af",
     lineHeight: "1.6",
+    margin: 0,
   },
   card: {
     maxWidth: "750px",
     margin: "0 auto",
-    backgroundColor: "#12141c",
+    backgroundColor: "#111420",
     border: "1px solid rgba(255, 255, 255, 0.08)",
-    borderRadius: "20px",
-    padding: "32px",
-    boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
+    borderRadius: "22px",
+    padding: "36px",
+    boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
   },
   dropzone: {
-    border: "2px dashed rgba(239, 68, 68, 0.4)",
-    borderRadius: "14px",
-    padding: "30px",
+    border: "2px dashed rgba(239, 68, 68, 0.35)",
+    borderRadius: "16px",
+    padding: "36px 20px",
     textAlign: "center",
     backgroundColor: "rgba(239, 68, 68, 0.02)",
     cursor: "pointer",
@@ -208,16 +235,19 @@ const styles = {
     display: "none",
   },
   fileLabel: {
-    fontSize: "15px",
+    fontSize: "14.5px",
     fontWeight: "600",
     color: "#fca5a5",
     cursor: "pointer",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
   },
   divider: {
     textAlign: "center",
-    margin: "20px 0",
+    margin: "24px 0",
     color: "#6b7280",
-    fontSize: "12px",
+    fontSize: "11px",
     fontWeight: "700",
     letterSpacing: "1px",
   },
@@ -226,13 +256,14 @@ const styles = {
     fontSize: "11px",
     fontWeight: "700",
     textTransform: "uppercase",
+    letterSpacing: "0.5px",
     color: "#9ca3af",
-    marginBottom: "6px",
+    marginBottom: "8px",
   },
   textInput: {
     width: "100%",
-    padding: "12px 16px",
-    backgroundColor: "#08090d",
+    padding: "13px 16px",
+    backgroundColor: "#080a0f",
     border: "1px solid rgba(255, 255, 255, 0.1)",
     borderRadius: "10px",
     color: "#ffffff",
@@ -243,8 +274,11 @@ const styles = {
   },
   submitBtn: {
     width: "100%",
-    marginTop: "20px",
-    padding: "14px",
+    marginTop: "24px",
+    padding: "15px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     background: "linear-gradient(135deg, #dc2626, #991b1b)",
     border: "none",
     borderRadius: "12px",
@@ -252,7 +286,8 @@ const styles = {
     fontWeight: "700",
     fontSize: "15px",
     cursor: "pointer",
-    boxShadow: "0 4px 20px rgba(220, 38, 38, 0.4)",
+    boxShadow: "0 4px 22px rgba(220, 38, 38, 0.45)",
+    transition: "opacity 0.2s ease",
   },
   errorBanner: {
     marginTop: "20px",
@@ -264,38 +299,43 @@ const styles = {
     fontSize: "13px",
   },
   resultContainer: {
-    marginTop: "30px",
-    paddingTop: "24px",
+    marginTop: "32px",
+    paddingTop: "28px",
     borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+  },
+  iconContainer: {
+    marginRight: "14px",
+    display: "flex",
+    alignItems: "center",
   },
   successHeader: {
     display: "flex",
     alignItems: "center",
-    backgroundColor: "rgba(16, 185, 129, 0.1)",
-    border: "1px solid rgba(16, 185, 129, 0.3)",
-    borderRadius: "12px",
-    padding: "16px 20px",
+    backgroundColor: "rgba(16, 185, 129, 0.08)",
+    border: "1px solid rgba(16, 185, 129, 0.25)",
+    borderRadius: "14px",
+    padding: "18px 22px",
     color: "#34d399",
   },
   failureHeader: {
     display: "flex",
     alignItems: "center",
-    backgroundColor: "rgba(239, 68, 68, 0.1)",
-    border: "1px solid rgba(239, 68, 68, 0.3)",
-    borderRadius: "12px",
-    padding: "16px 20px",
+    backgroundColor: "rgba(239, 68, 68, 0.08)",
+    border: "1px solid rgba(239, 68, 68, 0.25)",
+    borderRadius: "14px",
+    padding: "18px 22px",
     color: "#f87171",
   },
   metaGrid: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
     gap: "12px",
-    marginTop: "20px",
+    marginTop: "22px",
   },
   metaItem: {
-    backgroundColor: "#08090d",
-    padding: "12px",
-    borderRadius: "8px",
+    backgroundColor: "#080a0f",
+    padding: "14px",
+    borderRadius: "10px",
     border: "1px solid rgba(255,255,255,0.05)",
   },
   metaLabel: {
@@ -321,11 +361,12 @@ const styles = {
     display: "block",
   },
   sectionHeader: {
-    fontSize: "13px",
+    fontSize: "12px",
     fontWeight: "700",
     color: "#9ca3af",
     textTransform: "uppercase",
-    margin: "0 0 10px 0",
+    letterSpacing: "0.5px",
+    margin: "0 0 12px 0",
   },
   signersList: {
     display: "flex",
@@ -333,21 +374,21 @@ const styles = {
     gap: "8px",
   },
   signerCard: {
-    backgroundColor: "#08090d",
-    padding: "10px 14px",
-    borderRadius: "8px",
+    backgroundColor: "#080a0f",
+    padding: "12px 16px",
+    borderRadius: "10px",
     border: "1px solid rgba(255,255,255,0.06)",
     fontSize: "13px",
   },
   legalFooter: {
-    marginTop: "20px",
-    padding: "12px",
+    marginTop: "24px",
+    padding: "14px",
     backgroundColor: "rgba(255,255,255,0.02)",
     border: "1px solid rgba(255,255,255,0.05)",
-    borderRadius: "8px",
+    borderRadius: "10px",
     fontSize: "11px",
     color: "#9ca3af",
-    lineHeight: "1.4",
+    lineHeight: "1.45",
     textAlign: "center",
   },
 };

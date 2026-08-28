@@ -33,17 +33,29 @@ const Landing = () => {
   return (
     <div className="min-h-screen bg-[#090a0f] text-gray-100 selection:bg-yellow-400 selection:text-black font-sans antialiased">
       {/* Neo-Brutalist Top Ticker Bar */}
-      <div className="bg-yellow-400 text-black border-b-2 border-black py-1.5 px-4 overflow-hidden font-mono font-black text-xs uppercase tracking-wider flex items-center justify-between">
-        <div className="flex items-center gap-4 animate-pulse">
-          <span>⚡ INDIA IT ACT 2000 SECTION 10A COMPLIANT</span>
+      <div className="bg-yellow-400 text-black border-b-2 border-black py-2 px-4 overflow-hidden font-mono font-black text-xs uppercase tracking-wider flex items-center justify-between">
+        <div className="flex items-center gap-6 overflow-x-auto whitespace-nowrap scrollbar-none py-0.5">
+          <span className="flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+            INDIA IT ACT 2000 SECTION 10A COMPLIANT
+          </span>
           <span>•</span>
-          <span>🔒 256-BIT SHA-256 CHECKSUMS</span>
+          <span className="flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+            256-BIT SHA-256 CHECKSUMS
+          </span>
           <span>•</span>
-          <span>✍️ VERIFIED E-SIGN BADGES</span>
+          <span className="flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
+            VERIFIED E-SIGN BADGES
+          </span>
           <span>•</span>
-          <span>🚀 BULK CSV DISPATCH ACTIVE</span>
+          <span className="flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+            BULK CSV DISPATCH ACTIVE
+          </span>
         </div>
-        <div className="hidden sm:flex items-center gap-2">
+        <div className="hidden lg:flex items-center gap-2 flex-shrink-0 ml-4">
           <span className="w-2.5 h-2.5 bg-red-600 border border-black rounded-full" />
           <span className="text-[10px] font-bold">SYSTEM OPERATIONAL</span>
         </div>
@@ -80,11 +92,11 @@ const Landing = () => {
           </nav>
 
           {/* Action CTAs */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {user ? (
               <button
                 onClick={() => navigate("/dashboard")}
-                className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl text-xs border-2 border-black shadow-[3px_3px_0px_0px_#ffffff] hover:shadow-[5px_5px_0px_0px_#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 transition-all"
+                className="px-4 py-2 sm:px-5 sm:py-2.5 bg-red-600 hover:bg-red-500 text-white font-black rounded-xl text-xs border-2 border-black shadow-[3px_3px_0px_0px_#ffffff] hover:shadow-[5px_5px_0px_0px_#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 transition-all"
               >
                 Open Dashboard →
               </button>
@@ -92,13 +104,13 @@ const Landing = () => {
               <>
                 <Link
                   to="/login"
-                  className="px-4 py-2 text-xs font-black uppercase tracking-wider text-gray-300 hover:text-white transition"
+                  className="px-2.5 py-1.5 sm:px-4 sm:py-2 text-[11px] sm:text-xs font-black uppercase tracking-wider text-gray-300 hover:text-white transition"
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/register"
-                  className="px-5 py-2.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black uppercase tracking-wider rounded-xl text-xs border-2 border-black shadow-[3px_3px_0px_0px_#ef4444] hover:shadow-[5px_5px_0px_0px_#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 transition-all"
+                  className="px-3.5 py-2 sm:px-5 sm:py-2.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black uppercase tracking-wider rounded-xl text-[11px] sm:text-xs border-2 border-black shadow-[3px_3px_0px_0px_#ef4444] hover:shadow-[5px_5px_0px_0px_#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 transition-all whitespace-nowrap"
                 >
                   Get Started Free
                 </Link>
@@ -109,7 +121,7 @@ const Landing = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-16 pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <section className="relative pt-12 sm:pt-16 pb-20 sm:pb-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
         {/* Neo Brutalist Background Grid Pattern */}
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:16px_16px]" />
 
@@ -120,8 +132,13 @@ const Landing = () => {
             <span>ENTERPRISE GRADE E-SIGNATURE SYSTEM</span>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight leading-[1.08] uppercase">
-            Sign Agreements <span className="bg-red-600 text-white px-3 py-1 border-2 border-white inline-block shadow-[4px_4px_0px_0px_#facc15] rotate-1">10x Faster</span> with Full Legal Non-Repudiation.
+          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight text-white uppercase leading-none">
+            Sign Agreements <br />
+            <span className="inline-block bg-gradient-to-r from-red-600 to-red-800 text-white px-3 py-1 rounded-xl border-4 border-white shadow-[6px_6px_0px_0px_#facc15] my-2 transform rotate-1">
+              10X Faster
+            </span>{" "}
+            With <br />
+            Full Legal Non-Repudiation.
           </h1>
 
           <p className="text-gray-300 text-base sm:text-lg max-w-2xl mx-auto font-medium leading-relaxed">
@@ -145,20 +162,23 @@ const Landing = () => {
               className="w-full sm:w-auto px-8 py-4 bg-[#151722] hover:bg-[#1f2233] text-white font-black uppercase tracking-wider rounded-2xl border-2 border-white/30 shadow-[4px_4px_0px_0px_#ef4444] hover:shadow-[6px_6px_0px_0px_#ef4444] hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 transition-all text-sm flex items-center justify-center gap-2"
             >
               <span>Explore Prebuilt Templates</span>
-              <span className="text-yellow-400">⚡</span>
+              <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
             </Link>
           </div>
 
           {/* Sticker Badges */}
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-4 text-xs font-black">
-            <span className="px-3 py-1 bg-[#151722] border-2 border-emerald-500 text-emerald-400 rounded-lg shadow-[2px_2px_0px_0px_#000]">
-              ✓ FREE FOREVER TIER
+          <div className="pt-4 flex flex-wrap items-center justify-center gap-3 text-xs font-black">
+            <span className="px-3 py-1 bg-[#151722] border-2 border-emerald-500 text-emerald-400 rounded-lg shadow-[2px_2px_0px_0px_#000] inline-flex items-center gap-1.5">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+              FREE FOREVER TIER
             </span>
-            <span className="px-3 py-1 bg-[#151722] border-2 border-purple-500 text-purple-400 rounded-lg shadow-[2px_2px_0px_0px_#000]">
-              ★ 5 PREBUILT CONTRACTS
+            <span className="px-3 py-1 bg-[#151722] border-2 border-purple-500 text-purple-400 rounded-lg shadow-[2px_2px_0px_0px_#000] inline-flex items-center gap-1.5">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>
+              5 PREBUILT CONTRACTS
             </span>
-            <span className="px-3 py-1 bg-[#151722] border-2 border-yellow-500 text-yellow-400 rounded-lg shadow-[2px_2px_0px_0px_#000]">
-              🔒 SHA-256 AUDIT CERTIFICATES
+            <span className="px-3 py-1 bg-[#151722] border-2 border-yellow-500 text-yellow-400 rounded-lg shadow-[2px_2px_0px_0px_#000] inline-flex items-center gap-1.5">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+              SHA-256 AUDIT CERTIFICATES
             </span>
           </div>
 
@@ -166,12 +186,12 @@ const Landing = () => {
           <div className="mt-14 relative max-w-4xl mx-auto rounded-3xl p-3 bg-[#151722] border-2 border-white/30 shadow-[8px_8px_0px_0px_#ef4444]">
             <div className="bg-[#0b0c10] rounded-2xl overflow-hidden border-2 border-white/20 p-6 sm:p-8 text-left space-y-6">
               {/* Window Header */}
-              <div className="flex items-center justify-between border-b-2 border-white/10 pb-4">
+              <div className="flex items-center justify-between border-b-2 border-white/10 pb-4 flex-wrap gap-2">
                 <div className="flex items-center gap-3">
                   <div className="w-3.5 h-3.5 rounded-full bg-red-500 border border-black" />
                   <div className="w-3.5 h-3.5 rounded-full bg-yellow-400 border border-black" />
                   <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 border border-black" />
-                  <span className="text-xs text-yellow-400 font-mono font-bold ml-2">MUTUAL_NON_DISCLOSURE_AGREEMENT.pdf</span>
+                  <span className="text-xs text-yellow-400 font-mono font-bold ml-2 truncate max-w-[200px] sm:max-w-none">MUTUAL_NON_DISCLOSURE_AGREEMENT.pdf</span>
                 </div>
                 <span className="px-3 py-1 rounded bg-emerald-500 text-black font-black uppercase text-[10px] border-2 border-black shadow-[2px_2px_0px_0px_#fff]">
                   ● EXECUTED & SEALED
@@ -191,7 +211,7 @@ const Landing = () => {
                 {/* Party 1: Verified E-Sign Stamp */}
                 <div className="p-4 rounded-xl bg-[#151722] border-2 border-red-500 shadow-[4px_4px_0px_0px_#ef4444] flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-red-600 text-white border-2 border-black flex items-center justify-center font-black text-xl shadow-[2px_2px_0px_0px_#000]">
-                    ★
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
                   </div>
                   <div>
                     <div className="text-xs font-black text-white uppercase">Alex Morgan (CTO)</div>
@@ -236,7 +256,7 @@ const Landing = () => {
             {/* Feature 1 */}
             <div className="p-6 rounded-2xl bg-[#151722] border-2 border-white/20 shadow-[5px_5px_0px_0px_#ef4444] hover:shadow-[7px_7px_0px_0px_#ef4444] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all">
               <div className="w-12 h-12 rounded-xl bg-red-600 text-white border-2 border-black flex items-center justify-center text-xl mb-4 font-black shadow-[2px_2px_0px_0px_#000]">
-                ✍️
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" /></svg>
               </div>
               <h3 className="text-lg font-black text-white mb-2 uppercase">Verified E-Sign & Initials</h3>
               <p className="text-xs text-gray-300 leading-relaxed font-medium">
@@ -247,7 +267,7 @@ const Landing = () => {
             {/* Feature 2 */}
             <div className="p-6 rounded-2xl bg-[#151722] border-2 border-white/20 shadow-[5px_5px_0px_0px_#a855f7] hover:shadow-[7px_7px_0px_0px_#a855f7] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all">
               <div className="w-12 h-12 rounded-xl bg-purple-600 text-white border-2 border-black flex items-center justify-center text-xl mb-4 font-black shadow-[2px_2px_0px_0px_#000]">
-                📑
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
               </div>
               <h3 className="text-lg font-black text-white mb-2 uppercase">Reusable Templates & Fast Fill</h3>
               <p className="text-xs text-gray-300 leading-relaxed font-medium">
@@ -258,7 +278,7 @@ const Landing = () => {
             {/* Feature 3 */}
             <div className="p-6 rounded-2xl bg-[#151722] border-2 border-white/20 shadow-[5px_5px_0px_0px_#22c55e] hover:shadow-[7px_7px_0px_0px_#22c55e] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all">
               <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white border-2 border-black flex items-center justify-center text-xl mb-4 font-black shadow-[2px_2px_0px_0px_#000]">
-                ⚡
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
               </div>
               <h3 className="text-lg font-black text-white mb-2 uppercase">CSV Bulk Sending</h3>
               <p className="text-xs text-gray-300 leading-relaxed font-medium">
@@ -269,7 +289,7 @@ const Landing = () => {
             {/* Feature 4 */}
             <div className="p-6 rounded-2xl bg-[#151722] border-2 border-white/20 shadow-[5px_5px_0px_0px_#facc15] hover:shadow-[7px_7px_0px_0px_#facc15] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all">
               <div className="w-12 h-12 rounded-xl bg-yellow-400 text-black border-2 border-black flex items-center justify-center text-xl mb-4 font-black shadow-[2px_2px_0px_0px_#000]">
-                ⏰
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
               </div>
               <h3 className="text-lg font-black text-white mb-2 uppercase">Automated Reminders</h3>
               <p className="text-xs text-gray-300 leading-relaxed font-medium">
@@ -280,7 +300,7 @@ const Landing = () => {
             {/* Feature 5 */}
             <div className="p-6 rounded-2xl bg-[#151722] border-2 border-white/20 shadow-[5px_5px_0px_0px_#3b82f6] hover:shadow-[7px_7px_0px_0px_#3b82f6] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all">
               <div className="w-12 h-12 rounded-xl bg-blue-600 text-white border-2 border-black flex items-center justify-center text-xl mb-4 font-black shadow-[2px_2px_0px_0px_#000]">
-                🛡️
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
               </div>
               <h3 className="text-lg font-black text-white mb-2 uppercase">Audit Certificates</h3>
               <p className="text-xs text-gray-300 leading-relaxed font-medium">
@@ -291,7 +311,7 @@ const Landing = () => {
             {/* Feature 6 */}
             <div className="p-6 rounded-2xl bg-[#151722] border-2 border-white/20 shadow-[5px_5px_0px_0px_#f43f5e] hover:shadow-[7px_7px_0px_0px_#f43f5e] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all">
               <div className="w-12 h-12 rounded-xl bg-rose-600 text-white border-2 border-black flex items-center justify-center text-xl mb-4 font-black shadow-[2px_2px_0px_0px_#000]">
-                👥
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
               </div>
               <h3 className="text-lg font-black text-white mb-2 uppercase">Sequential Workflows</h3>
               <p className="text-xs text-gray-300 leading-relaxed font-medium">
@@ -359,18 +379,18 @@ const Landing = () => {
             <p className="text-gray-300 text-sm leading-relaxed font-medium">
               Every document signed on Signaturly Pro satisfies electronic contract formation rules with cryptographic integrity safeguards:
             </p>
-            <ul className="space-y-2.5 text-xs text-gray-200 font-bold">
-              <li className="flex items-center gap-2">
-                <span className="text-yellow-400 text-sm">▶</span>
-                <strong>Section 10A India Information Technology Act 2000</strong> (Validity of contracts formed through electronic means).
+            <ul className="space-y-3 text-xs text-gray-200 font-bold">
+              <li className="flex items-start gap-2.5">
+                <svg className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+                <span><strong>Section 10A India Information Technology Act 2000</strong> (Validity of contracts formed through electronic means).</span>
               </li>
-              <li className="flex items-center gap-2">
-                <span className="text-yellow-400 text-sm">▶</span>
-                <strong>US ESIGN Act (15 U.S.C. § 7001)</strong> & Uniform Electronic Transactions Act (UETA).
+              <li className="flex items-start gap-2.5">
+                <svg className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+                <span><strong>US ESIGN Act (15 U.S.C. § 7001)</strong> & Uniform Electronic Transactions Act (UETA).</span>
               </li>
-              <li className="flex items-center gap-2">
-                <span className="text-yellow-400 text-sm">▶</span>
-                <strong>EU eIDAS Regulation (No 910/2014)</strong> for electronic signature validity.
+              <li className="flex items-start gap-2.5">
+                <svg className="w-4 h-4 text-yellow-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+                <span><strong>EU eIDAS Regulation (No 910/2014)</strong> for electronic signature validity.</span>
               </li>
             </ul>
           </div>
@@ -421,10 +441,22 @@ const Landing = () => {
                   <span className="text-xs text-gray-400 font-bold"> / forever</span>
                 </div>
                 <ul className="space-y-3 text-xs text-gray-300 font-bold">
-                  <li className="flex items-center gap-2">✓ 3 Signature requests per month</li>
-                  <li className="flex items-center gap-2">✓ 5 Prebuilt legal templates</li>
-                  <li className="flex items-center gap-2">✓ Verified signature pad</li>
-                  <li className="flex items-center gap-2">✓ Basic audit logs</li>
+                  <li className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    3 Signature requests per month
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    5 Prebuilt legal templates
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    Verified signature pad
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    Basic audit logs
+                  </li>
                 </ul>
               </div>
               <Link
@@ -438,7 +470,7 @@ const Landing = () => {
             {/* Pro Plan (Highlighted Neo-Brutalist) */}
             <div className="p-8 rounded-3xl bg-[#191c2b] border-4 border-yellow-400 shadow-[8px_8px_0px_0px_#ef4444] flex flex-col justify-between relative transform -translate-y-2">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded bg-red-600 text-white text-[11px] font-black uppercase tracking-wider border-2 border-black shadow-[2px_2px_0px_0px_#fff]">
-                ★ MOST POPULAR
+                MOST POPULAR
               </div>
               <div>
                 <span className="px-2.5 py-1 bg-yellow-400/20 text-yellow-300 text-[10px] font-black uppercase tracking-wider rounded border border-yellow-400/40">
@@ -450,12 +482,30 @@ const Landing = () => {
                   <span className="text-xs text-gray-400 font-bold"> / month</span>
                 </div>
                 <ul className="space-y-3 text-xs text-gray-200 font-bold">
-                  <li className="flex items-center gap-2 text-yellow-400">✓ Unlimited document signatures</li>
-                  <li className="flex items-center gap-2">✓ Unlimited custom reusable templates</li>
-                  <li className="flex items-center gap-2">✓ CSV Bulk Sending engine</li>
-                  <li className="flex items-center gap-2">✓ Verified E-Sign Badge & Monogram Initials</li>
-                  <li className="flex items-center gap-2">✓ Automated signer reminders & expiration</li>
-                  <li className="flex items-center gap-2">✓ Standalone Cryptographic PDF Certificates</li>
+                  <li className="flex items-center gap-2 text-yellow-400">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    Unlimited document signatures
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    Unlimited custom reusable templates
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    CSV Bulk Sending engine
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    Verified E-Sign Badge & Monogram Initials
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    Automated signer reminders & expiration
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    Standalone Cryptographic PDF Certificates
+                  </li>
                 </ul>
               </div>
               <Link
@@ -478,10 +528,22 @@ const Landing = () => {
                   <span className="text-xs text-gray-400 font-bold"> / month</span>
                 </div>
                 <ul className="space-y-3 text-xs text-gray-300 font-bold">
-                  <li className="flex items-center gap-2">✓ Everything in Professional</li>
-                  <li className="flex items-center gap-2">✓ Custom email branding & white-label</li>
-                  <li className="flex items-center gap-2">✓ High-volume batch API access</li>
-                  <li className="flex items-center gap-2">✓ Dedicated account manager & SLA</li>
+                  <li className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    Everything in Professional
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    Custom email branding & white-label
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    High-volume batch API access
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
+                    Dedicated account manager & SLA
+                  </li>
                 </ul>
               </div>
               <Link
@@ -529,7 +591,7 @@ const Landing = () => {
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t-2 border-white/20 bg-[#090a0f] text-gray-400 text-xs">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2 font-bold">
-            <span className="text-white text-sm font-black">Signatur<span className="text-red-500">ly</span>PRO</span>
+            <span className="text-white text-sm font-black">Signatur<span className="text-red-500">ly</span> PRO</span>
             <span>— The Non-Repudiation E-Signature Standard.</span>
           </div>
 

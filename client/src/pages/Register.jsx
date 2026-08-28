@@ -16,7 +16,7 @@ export default function Register() {
     setIsLoading(true);
 
     try {
-      await registerApi({ name, email, password });
+      await registerApi({ name: name.trim(), email: email.trim().toLowerCase(), password });
       toast.success("Account created! Please sign in.");
       navigate("/login");
     } catch (err) {

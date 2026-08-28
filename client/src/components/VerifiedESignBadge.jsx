@@ -93,7 +93,7 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
 
       ctx.font = "bold 13px sans-serif";
       ctx.fillStyle = "#475569";
-      ctx.fillText(`✓ Legally binding electronic signature of ${text} (${dateStr})`, 40, 155);
+      ctx.fillText(`Legally binding electronic signature of ${text} (${dateStr})`, 40, 155);
     }
 
     return canvas.toDataURL("image/png");

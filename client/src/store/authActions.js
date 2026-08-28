@@ -1,7 +1,7 @@
 import { setCredentials, logout } from "./authSlice";
 import { refreshToken, getMe, logoutApi } from "../api/auth.api";
 
-// 🔄 Runs on app load to restore session
+// Runs on app load to restore session
 export const hydrateAuth = () => async (dispatch) => {
   try {
     const accessToken = await refreshToken();
@@ -20,12 +20,12 @@ export const hydrateAuth = () => async (dispatch) => {
       })
     );
   } catch (err) {
-    console.error("❌ Auth hydration failed:", err);
+    console.error("Auth hydration failed:", err);
     dispatch(logout());
   }
 };
 
-// 🚪 Full logout: clears server-side HTTP-only cookie and Redux state
+// Full logout: clears server-side HTTP-only cookie and Redux state
 export const performLogout = () => async (dispatch) => {
   try {
     await logoutApi();

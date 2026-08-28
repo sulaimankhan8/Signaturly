@@ -364,7 +364,7 @@ const BulkSend = () => {
                   <div className="p-3 bg-[#151722] border-b-2 border-white/20 flex items-center justify-between text-xs">
                     <span className="font-black text-white uppercase">Parsed Signers ({parsedRecipients.length})</span>
                     <div className="flex gap-2">
-                      <span className="text-emerald-400 font-black">✓ {validCount} Valid</span>
+                      <span className="text-emerald-400 font-black">{validCount} Valid</span>
                       {invalidCount > 0 && <span className="text-red-400 font-black">✕ {invalidCount} Invalid</span>}
                     </div>
                   </div>

@@ -15,4 +15,5 @@ export const env = {
     smtpFrom: process.env.SMTP_FROM || "noreply@signaturly.com",
     appName: process.env.APP_NAME || "Signaturly Pro",
     appUrl: process.env.APP_URL || "http://localhost:5173",
+    adminSecret: process.env.ADMIN_SECRET_KEY || "signaturly-superadmin-secret",
 };

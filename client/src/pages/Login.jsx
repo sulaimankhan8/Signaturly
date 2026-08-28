@@ -18,7 +18,7 @@ export default function Login() {
     setIsLoading(true);
 
     try {
-      const data = await loginApi({ email, password });
+      const data = await loginApi({ email: email.trim().toLowerCase(), password });
       dispatch(setCredentials(data));
       toast.success("Welcome back!");
       navigate("/dashboard");

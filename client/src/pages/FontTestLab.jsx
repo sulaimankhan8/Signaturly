@@ -182,7 +182,7 @@ export default function FontTestLab() {
 
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-emerald-500 text-black shadow-[2px_2px_0px_0px_#fff]">
-                  ✓ Signed & Sealed
+                  Signed & Sealed
                 </span>
                 <button className="py-2 px-3 bg-red-600 text-white font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_#facc15]">
                   Sign Document

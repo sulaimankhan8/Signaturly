@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import { RecipientOtp } from "../models/RecipientOtp.model.js";
 import { sendOtpEmail } from "./email.service.js";
 

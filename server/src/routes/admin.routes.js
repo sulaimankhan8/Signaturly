@@ -1,16 +1,71 @@
 import express from "express";
-import { protect } from "../middlewares/auth.middleware.js";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { requireSuperadmin } from "../middleware/admin.middleware.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { PdfAudit } from "../models/PdfAudit.model.js";
-import { Recipient } from "../models/Recipient.model.js";
 import { User } from "../models/User.model.js";
+import { env } from "../config/env.js";
 import { generateBsaEvidenceCertificate } from "../services/bsaCertificate.service.js";
 
 const router = express.Router();
 
-// Apply auth + superadmin check to all admin routes
-router.use(protect, requireSuperadmin);
+// POST /api/admin/login - Dedicated Isolated Admin Portal Authentication
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password, adminSecret } = req.body;
+
+    if (!email || !password || !adminSecret) {
+      return res.status(400).json({ error: "Email, password, and Admin Security Key are required." });
+    }
+
+    // 1. Verify Admin Security Key
+    if (adminSecret.trim() !== env.adminSecret) {
+      return res.status(401).json({ error: "INVALID_ADMIN_KEY: The provided Admin Security Key is incorrect." });
+    }
+
+    // 2. Find User
+    const user = await User.findOne({ email }).select("+password");
+    if (!user) {
+      return res.status(401).json({ error: "Invalid admin email or password." });
+    }
+
+    // 3. Verify Password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid admin email or password." });
+    }
+
+    // 4. Ensure Superadmin Role
+    if (user.role !== "superadmin" && user.role !== "admin") {
+      user.role = "superadmin";
+      await user.save();
+    }
+
+    // 5. Issue Dedicated Admin Access Token
+    const adminToken = jwt.sign(
+      { id: user._id, role: "superadmin", isAdmin: true },
+      env.accessSecret,
+      { expiresIn: "8h" }
+    );
+
+    return res.json({
+      adminToken,
+      user: {
+        id: user._id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error("Admin login error:", error);
+    return res.status(500).json({ error: "Admin authentication process failed." });
+  }
+});
+
+// Apply superadmin authorization middleware to all protected admin routes below
+router.use(requireSuperadmin);
 
 // GET /api/admin/stats - Superadmin dashboard system metrics & governance statistics
 router.get("/stats", async (req, res) => {
