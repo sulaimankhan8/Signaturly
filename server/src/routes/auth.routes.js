@@ -5,6 +5,7 @@ import {
   logout,
   refreshAccessToken,
   getMe,
+  acceptTerms,
   forgotPassword,
   resetPassword,
 } from "../controllers/auth.controller.js";
@@ -17,6 +18,7 @@ router.post("/login", login);
 router.post("/logout", logout);
 router.post("/refresh-token", refreshAccessToken);
 router.get("/me", protect, getMe);
+router.post("/accept-terms", protect, acceptTerms);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 

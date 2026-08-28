@@ -31,4 +31,10 @@ export const getMe = async (accessToken) => {
 export const logoutApi = async () => {
   const res = await API.post("/auth/logout");
   return res.data;
+};
+
+export const acceptTermsApi = async (token) => {
+  const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+  const res = await API.post("/auth/accept-terms", {}, config);
+  return res.data?.data;
 };

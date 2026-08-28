@@ -17,8 +17,14 @@ const authSlice = createSlice({
       state.user = null;
       state.accessToken = null;
     },
+    setTermsAccepted(state, action) {
+      if (state.user) {
+        state.user.termsAccepted = true;
+        state.user.termsAcceptedAt = action.payload?.termsAcceptedAt || new Date().toISOString();
+      }
+    },
   },
 });
 
-export const { setCredentials, logout } = authSlice.actions;
+export const { setCredentials, logout, setTermsAccepted } = authSlice.actions;
 export default authSlice.reducer;

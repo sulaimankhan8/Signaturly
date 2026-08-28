@@ -27,6 +27,8 @@ import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 
 
+import TermsConsentModal from "./components/TermsConsentModal";
+
 export default function App() {
   const dispatch = useDispatch();
 
@@ -37,6 +39,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <TermsConsentModal />
       <Routes>
         <Route path="/" element={<HomeRedirect />} />
         <Route path="/landing" element={<Landing />} />

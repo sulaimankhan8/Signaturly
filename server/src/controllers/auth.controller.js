@@ -28,7 +28,14 @@ export const login = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse({
         accessToken,
-        user: { id: user._id, email: user.email, name: user.name, role: user.role },
+        user: { 
+          id: user._id, 
+          email: user.email, 
+          name: user.name, 
+          role: user.role,
+          termsAccepted: user.termsAccepted || false,
+          termsAcceptedAt: user.termsAcceptedAt || null,
+        },
       })
     );
 });
@@ -60,8 +67,36 @@ export const getMe = asyncHandler(async (req, res) => {
   res.status(200).json(
     new ApiResponse({
       user: req.user,
-      id: req.user._id,
+      id: req.user._id || req.user.id,
     })
+  );
+});
+
+export const acceptTerms = asyncHandler(async (req, res) => {
+  const userId = req.user?._id || req.user?.id;
+  if (!userId) {
+    throw new ApiError(401, "Authentication required");
+  }
+
+  const clientIp = req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "127.0.0.1";
+  
+  const updatedUser = await User.findByIdAndUpdate(
+    userId,
+    {
+      termsAccepted: true,
+      termsAcceptedAt: new Date(),
+      termsVersion: "1.0.0",
+      termsIpAddress: clientIp,
+    },
+    { new: true }
+  );
+
+  res.status(200).json(
+    new ApiResponse({
+      termsAccepted: updatedUser.termsAccepted,
+      termsAcceptedAt: updatedUser.termsAcceptedAt,
+      termsVersion: updatedUser.termsVersion,
+    }, "Terms and Conditions accepted successfully.")
   );
 });
 

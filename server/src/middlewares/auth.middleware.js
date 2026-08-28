@@ -22,10 +22,12 @@ export const protect = async (req, res, next) => {
     }
 
     req.user = {
+      _id: user._id.toString(),
       id: user._id.toString(),
       email: user.email,
       role: user.role,
       name: user.name,
+      termsAccepted: user.termsAccepted || false,
     };
 
     next();

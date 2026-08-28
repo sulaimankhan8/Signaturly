@@ -32,6 +32,21 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: "user"
     },
+
+    termsAccepted:{
+        type: Boolean,
+        default: false,
+    },
+    termsAcceptedAt:{
+        type: Date,
+    },
+    termsVersion:{
+        type: String,
+        default: "1.0.0",
+    },
+    termsIpAddress:{
+        type: String,
+    },
 },{ timestamps: true   });
 
 userSchema.pre("save", async function () {
