@@ -1,12 +1,11 @@
 import { Template } from "../models/Template.model.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { ApiError } from "../utils/ApiError.js";
-import { ensureDir, writeFile } from "../utils/file.utils.js";
 import { sha256FromBuffer } from "./hash.service.js";
 import { sendDocumentToRecipients } from "./send.service.js";
 import { PREBUILT_TEMPLATES_DEFINITIONS, ensurePrebuiltPdfsExist } from "./prebuiltTemplates.service.js";
-import fs from "fs";
 import path from "path";
+import { saveFile, readFile, fileExists } from "./storage.service.js";
 
 export const createTemplate = async ({
   userId,
@@ -22,11 +21,10 @@ export const createTemplate = async ({
   let pageCount = 1;
 
   if (file) {
-    const uploadDir = path.join("uploads", "templates", userId.toString());
-    ensureDir(uploadDir);
-    const fileName = `${Date.now()}-${file.originalname}`;
-    sourcePdfPath = path.join(uploadDir, fileName);
-    writeFile(sourcePdfPath, file.buffer);
+    const sanitizedName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const fileName = `${Date.now()}-${sanitizedName}`;
+    const relativeKey = `templates/${userId.toString()}/${fileName}`;
+    sourcePdfPath = await saveFile(relativeKey, file.buffer, "application/pdf");
     originalFileName = file.originalname;
 
     const { PDFDocument } = await import("pdf-lib");
@@ -111,18 +109,20 @@ export const importPrebuiltTemplateToUser = async (prebuiltId, userId) => {
   const def = PREBUILT_TEMPLATES_DEFINITIONS.find((t) => t.id === prebuiltId);
   if (!def) throw new ApiError(404, "Prebuilt template not found");
 
-  const prebuiltPath = path.join("uploads", "templates", "prebuilt", def.fileName);
-  if (!fs.existsSync(prebuiltPath)) {
-    const buffer = await def.generateDoc();
-    writeFile(prebuiltPath, buffer);
+  const prebuiltKey = `templates/prebuilt/${def.fileName}`;
+  let buffer;
+  const exists = await fileExists(prebuiltKey);
+  if (!exists) {
+    buffer = await def.generateDoc();
+    await saveFile(prebuiltKey, buffer, "application/pdf");
+  } else {
+    buffer = await readFile(prebuiltKey);
   }
 
-  // Copy to user's templates directory
-  const userTemplateDir = path.join("uploads", "templates", userId.toString());
-  ensureDir(userTemplateDir);
+  // Copy to user's templates
   const targetFileName = `${Date.now()}-${def.fileName}`;
-  const targetPath = path.join(userTemplateDir, targetFileName);
-  fs.copyFileSync(prebuiltPath, targetPath);
+  const targetKey = `templates/${userId.toString()}/${targetFileName}`;
+  const targetPath = await saveFile(targetKey, buffer, "application/pdf");
 
   const template = await Template.create({
     userId,
@@ -152,19 +152,18 @@ export const instantiateDocumentFromTemplate = async ({
   if (!template) throw new ApiError(404, "Template not found");
   if (template.userId.toString() !== userId) throw new ApiError(403, "Unauthorized");
 
-  if (!fs.existsSync(template.sourcePdfPath)) {
+  const isMissing = !(await fileExists(template.sourcePdfPath));
+  if (isMissing) {
     throw new ApiError(404, "Template source PDF file is missing");
   }
 
-  // 1. Copy template PDF buffer to new user document storage path
-  const sourceBuffer = fs.readFileSync(template.sourcePdfPath);
+  // 1. Read template PDF buffer and save to new user document storage path
+  const sourceBuffer = await readFile(template.sourcePdfPath);
   const originalHash = sha256FromBuffer(sourceBuffer);
 
-  const uploadDir = path.join("uploads", userId.toString());
-  ensureDir(uploadDir);
   const newFileName = `${Date.now()}-${template.originalFileName}`;
-  const newStoragePath = path.join(uploadDir, newFileName);
-  writeFile(newStoragePath, sourceBuffer);
+  const newRelativeKey = `${userId.toString()}/${newFileName}`;
+  const newStoragePath = await saveFile(newRelativeKey, sourceBuffer, "application/pdf");
 
   // 2. Create new Pdf document record
   const newPdf = await Pdf.create({
@@ -198,39 +197,21 @@ export const instantiateDocumentFromTemplate = async ({
     throw new ApiError(400, "Please assign at least one signer to a template role");
   }
 
-  // 4. Map template fields
-  for (const field of template.fields) {
-    const role = template.roles.find((r) => r.id === field.roleId || r.name === field.roleName);
-    const signer = role ? (roleSignersMap[role.id] || roleSignersMap[role.name]) : null;
-
-    instantiatedFields.push({
-      ...field,
-      id: crypto.randomUUID(),
-      recipientName: signer?.name || role?.name || "Signer",
-      recipientEmail: signer?.email || "",
-      recipientColor: role?.color || "#3b82f6",
-    });
-  }
-
-  // 5. Dispatch document
+  // 4. Send document to recipients
   const sendResult = await sendDocumentToRecipients({
     pdfId: newPdf._id,
     userId,
     recipientsData,
-    fieldsData: instantiatedFields,
+    fields: template.fields,
+    signingOrder,
     message,
     expiresAt,
-    signingOrder,
     ipAddress,
     userAgent,
   });
 
-  // Increment usage count
-  template.usageCount += 1;
-  await template.save();
-
   return {
-    pdfId: newPdf._id,
-    ...sendResult,
+    pdf: sendResult.pdf,
+    recipients: sendResult.recipients,
   };
 };

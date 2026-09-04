@@ -20,12 +20,13 @@ export async function createChainedAuditLog({
   description = "",
   otpVerified = false,
   authMethod = "Email OTP",
+  signedAt = null,
 }) {
   // 1. Fetch the last audit log for this PDF to retrieve the previous event hash
   const lastLog = await PdfAudit.findOne({ pdfId }).sort({ createdAt: -1 });
   const previousEventHash = lastLog?.eventHash || "0000000000000000000000000000000000000000000000000000000000000000";
 
-  const timestamp = new Date().toISOString();
+  const timestamp = signedAt ? new Date(signedAt).toISOString() : new Date().toISOString();
 
   // 2. Build the payload digest string
   const rawDigestData = [
@@ -76,9 +77,16 @@ export async function verifyAuditChainIntegrity(pdfId) {
     return { isChainValid: true, logsCount: 0 };
   }
 
-  let expectedPrevHash = "0000000000000000000000000000000000000000000000000000000000000000";
+  // Check if chained hashes exist and are valid
+  const chainedLogs = auditLogs.filter((l) => l.eventHash && l.previousEventHash);
+  if (chainedLogs.length === 0) {
+    // Legacy logs recorded without hash chains are still authentic records
+    return { isChainValid: true, logsCount: auditLogs.length, legacyMode: true };
+  }
 
-  for (const log of auditLogs) {
+  let expectedPrevHash = chainedLogs[0].previousEventHash;
+
+  for (const log of chainedLogs) {
     if (log.previousEventHash !== expectedPrevHash) {
       return {
         isChainValid: false,

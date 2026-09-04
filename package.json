@@ -1,0 +1,24 @@
+{
+  "name": "signaturly-pro-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Signaturly Pro Enterprise Platform - Local Development & Production Orchestration",
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "dev:admin": "npm --prefix admin run dev",
+    "build:client": "npm --prefix client run build",
+    "build:admin": "npm --prefix admin run build",
+    "build:all": "npm run build:client && npm run build:admin",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
+  },
+  "keywords": [
+    "esignature",
+    "digital-signatures",
+    "pdf-signing",
+    "audit-trail"
+  ]
+}

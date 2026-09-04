@@ -1,18 +1,35 @@
-import React, { useState } from "react";
-import axios from "axios";
+import React, { useState, useEffect } from "react";
+import API from "../api/axios";
 
-export function OtpVerificationModal({ token, recipientEmail, documentTitle, onVerified }) {
-  const [otp, setOtp] = useState("");
+export function OtpVerificationModal({
+  token,
+  recipientEmail,
+  documentTitle,
+  authType = "otp",
+  onVerified,
+}) {
+  const isPasscode = authType === "passcode";
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [sentMessage, setSentMessage] = useState(null);
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    let timer;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
 
   const handleSendCode = async () => {
     try {
       setLoading(true);
       setError(null);
-      await axios.post("/api/sign/otp/send", { token });
+      await API.post("/sign/otp/send", { token });
       setSentMessage(`Verification code sent to ${recipientEmail}`);
+      setCountdown(60);
     } catch (err) {
       setError(err.response?.data?.error || "Failed to send verification code");
     } finally {
@@ -22,7 +39,12 @@ export function OtpVerificationModal({ token, recipientEmail, documentTitle, onV
 
   const handleVerify = async (e) => {
     e.preventDefault();
-    if (otp.trim().length !== 6) {
+    if (!code.trim()) {
+      setError(isPasscode ? "Please enter the document access passcode." : "Please enter the 6-digit verification code.");
+      return;
+    }
+
+    if (!isPasscode && code.trim().length !== 6) {
       setError("Please enter the full 6-digit verification code.");
       return;
     }
@@ -30,38 +52,55 @@ export function OtpVerificationModal({ token, recipientEmail, documentTitle, onV
     try {
       setLoading(true);
       setError(null);
-      const res = await axios.post("/api/sign/otp/verify", { token, otp: otp.trim() });
-      if (res.data.success) {
-        onVerified();
+
+      if (isPasscode) {
+        const res = await API.post("/sign/otp/verify-passcode", { token, passcode: code.trim() });
+        if (res.data?.success || res.status === 200) {
+          onVerified();
+        }
+      } else {
+        const res = await API.post("/sign/otp/verify", { token, otp: code.trim() });
+        if (res.data?.success || res.status === 200) {
+          onVerified();
+        }
       }
     } catch (err) {
-      setError(err.response?.data?.error || "Verification failed. Check your code.");
+      setError(
+        err.response?.data?.error ||
+          (isPasscode ? "Invalid access passcode. Please check with the sender." : "Verification failed. Check your code.")
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.modalCard}>
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[9999] flex items-center justify-center p-4 selection:bg-red-600 selection:text-white">
+      <div className="bg-[#111420] border border-red-500/20 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 text-gray-200 font-sans">
+        
         {/* Header Badge */}
-        <div style={styles.headerBadge}>
-          <svg style={styles.badgeIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <div className="inline-flex items-center gap-1.5 text-[10px] font-extrabold tracking-widest text-red-400 bg-red-500/10 border border-red-500/20 px-3 py-1 rounded-full uppercase">
+          <svg className="w-3.5 h-3.5 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-          <span>PRE-SIGN IDENTITY AUTHENTICATION</span>
+          <span>{isPasscode ? "Passcode Protected Document" : "Pre-Sign 2FA Authentication"}</span>
         </div>
 
-        <h2 style={styles.title}>Identity Verification Required</h2>
-        <p style={styles.subtitle}>
-          To enforce non-repudiation and legal compliance under Section 10A of the IT Act, verify your email before opening{" "}
-          <strong style={{ color: "#ffffff" }}>{documentTitle || "this document"}</strong>.
-        </p>
+        <div>
+          <h2 className="text-xl sm:text-2xl font-display font-bold text-white tracking-tight">
+            {isPasscode ? "Enter Access Passcode" : "Identity Verification Required"}
+          </h2>
+          <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+            {isPasscode
+              ? `The sender has protected "${documentTitle || "this document"}" with a private access code.`
+              : `To comply with digital signature verification standards, verify your email before opening "${documentTitle || "this document"}".`}
+          </p>
+        </div>
 
         {sentMessage && (
-          <div style={styles.successBox}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: 8, flexShrink: 0 }}>
+          <div className="flex items-center bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3.5 py-2.5 rounded-xl text-xs">
+            <svg className="w-4 h-4 mr-2 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polyline points="20 6 9 17 4 12" />
             </svg>
             <span>{sentMessage}</span>
@@ -69,8 +108,8 @@ export function OtpVerificationModal({ token, recipientEmail, documentTitle, onV
         )}
 
         {error && (
-          <div style={styles.errorBox}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 8, flexShrink: 0 }}>
+          <div className="flex items-center bg-red-500/10 border border-red-500/20 text-red-400 px-3.5 py-2.5 rounded-xl text-xs">
+            <svg className="w-4 h-4 mr-2 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -79,211 +118,79 @@ export function OtpVerificationModal({ token, recipientEmail, documentTitle, onV
           </div>
         )}
 
-        <form onSubmit={handleVerify} style={{ width: "100%", marginTop: "18px" }}>
-          <label style={styles.label}>Recipient Email</label>
-          <div style={styles.inputWrapper}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2" style={styles.inputIcon}>
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-              <polyline points="22,6 12,13 2,6" />
-            </svg>
-            <input type="text" value={recipientEmail || ""} disabled style={styles.disabledInput} />
+        <form onSubmit={handleVerify} className="space-y-4">
+          <div>
+            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
+              Signer Email
+            </label>
+            <input
+              type="text"
+              value={recipientEmail || ""}
+              disabled
+              className="w-full px-3.5 py-2.5 bg-[#090b12] border border-white/10 rounded-xl text-gray-400 text-xs cursor-not-allowed"
+            />
           </div>
 
-          <label style={styles.label}>6-Digit Security Code</label>
-          <input
-            type="text"
-            maxLength={6}
-            placeholder="000000"
-            value={otp}
-            onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-            style={styles.otpInput}
-            autoFocus
-          />
+          <div>
+            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
+              {isPasscode ? "Document Passcode" : "6-Digit Verification Code"}
+            </label>
+            {isPasscode ? (
+              <input
+                type="password"
+                placeholder="Enter passcode"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                autoFocus
+                className="w-full px-4 py-3 bg-[#090b12] border border-white/20 focus:border-red-500 rounded-xl text-white text-sm outline-none transition-colors"
+              />
+            ) : (
+              <input
+                type="text"
+                maxLength={6}
+                placeholder="000000"
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                autoFocus
+                className="w-full px-4 py-3 bg-[#090b12] border border-red-500/40 focus:border-red-500 rounded-xl text-white text-2xl font-bold tracking-[8px] text-center outline-none shadow-lg shadow-red-950/20"
+              />
+            )}
+          </div>
 
-          <div style={styles.btnRow}>
-            <button type="button" onClick={handleSendCode} disabled={loading} style={styles.resendBtn}>
-              {loading ? "Sending..." : "Request Code"}
-            </button>
-            <button type="submit" disabled={loading || otp.length !== 6} style={styles.verifyBtn}>
-              {loading ? "Verifying..." : "Verify & Unlock Canvas"}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginLeft: 6 }}>
-                <path d="M5 12h14" />
-                <path d="M12 5l7 7-7 7" />
+          <div className="flex gap-2.5 pt-2">
+            {!isPasscode && (
+              <button
+                type="button"
+                onClick={handleSendCode}
+                disabled={loading || countdown > 0}
+                className="flex-1 py-3 px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 disabled:opacity-40 rounded-xl text-xs font-semibold transition-colors"
+              >
+                {loading
+                  ? "Sending..."
+                  : countdown > 0
+                  ? `Resend (${countdown}s)`
+                  : "Request Code"}
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={loading || (!isPasscode && code.length !== 6) || (isPasscode && !code.trim())}
+              className={`${
+                isPasscode ? "w-full" : "flex-[2]"
+              } py-3 px-4 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-950/50 border border-red-500/30 transition-all flex items-center justify-center gap-1.5`}
+            >
+              <span>{loading ? "Verifying..." : "Verify & Unlock Canvas"}</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
             </button>
           </div>
         </form>
 
-        <div style={styles.legalNotice}>
-          Statutory Compliance Notice: Excludes non-SES documents (Wills, Power of Attorney, Trust Deeds, Real Estate Deeds).
+        <div className="pt-3 border-t border-white/5 text-[10px] text-gray-500 text-center">
+          Statutory Compliance Notice: Cryptographic verification log is timestamped and recorded in the audit trail.
         </div>
       </div>
     </div>
   );
 }
-
-const styles = {
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    backgroundColor: "rgba(6, 8, 14, 0.88)",
-    backdropFilter: "blur(14px)",
-    zIndex: 9999,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "20px",
-  },
-  modalCard: {
-    backgroundColor: "#111420",
-    border: "1px solid rgba(239, 68, 68, 0.25)",
-    borderRadius: "20px",
-    padding: "36px",
-    maxWidth: "460px",
-    width: "100%",
-    boxShadow: "0 25px 60px rgba(0,0,0,0.8), 0 0 40px rgba(239, 68, 68, 0.12)",
-    color: "#e5e7eb",
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif",
-  },
-  headerBadge: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "6px",
-    fontSize: "10px",
-    fontWeight: "800",
-    letterSpacing: "1px",
-    color: "#f87171",
-    backgroundColor: "rgba(239, 68, 68, 0.08)",
-    border: "1px solid rgba(239, 68, 68, 0.2)",
-    padding: "5px 12px",
-    borderRadius: "20px",
-    marginBottom: "16px",
-  },
-  badgeIcon: {
-    width: "12px",
-    height: "12px",
-    color: "#f87171",
-  },
-  title: {
-    fontSize: "23px",
-    fontWeight: "700",
-    color: "#ffffff",
-    margin: "0 0 8px 0",
-    letterSpacing: "-0.4px",
-  },
-  subtitle: {
-    fontSize: "13px",
-    color: "#9ca3af",
-    lineHeight: "1.55",
-    margin: 0,
-  },
-  label: {
-    display: "block",
-    fontSize: "11px",
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: "0.5px",
-    color: "#9ca3af",
-    marginTop: "18px",
-    marginBottom: "6px",
-  },
-  inputWrapper: {
-    position: "relative",
-    display: "flex",
-    alignItems: "center",
-  },
-  inputIcon: {
-    position: "absolute",
-    left: "14px",
-  },
-  disabledInput: {
-    width: "100%",
-    padding: "12px 14px 12px 40px",
-    backgroundColor: "#090b12",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "10px",
-    color: "#9ca3af",
-    fontSize: "13px",
-    outline: "none",
-    boxSizing: "border-box",
-  },
-  otpInput: {
-    width: "100%",
-    padding: "14px",
-    backgroundColor: "#090b12",
-    border: "1px solid rgba(239, 68, 68, 0.4)",
-    borderRadius: "12px",
-    color: "#ffffff",
-    fontSize: "24px",
-    fontWeight: "800",
-    letterSpacing: "8px",
-    textAlign: "center",
-    outline: "none",
-    boxShadow: "0 0 20px rgba(239, 68, 68, 0.12)",
-    boxSizing: "border-box",
-  },
-  btnRow: {
-    display: "flex",
-    gap: "10px",
-    marginTop: "22px",
-  },
-  resendBtn: {
-    flex: 1,
-    padding: "13px",
-    backgroundColor: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    borderRadius: "10px",
-    color: "#d1d5db",
-    fontWeight: "600",
-    cursor: "pointer",
-    fontSize: "13px",
-    transition: "background-color 0.2s ease",
-  },
-  verifyBtn: {
-    flex: 2,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "13px",
-    background: "linear-gradient(135deg, #dc2626, #991b1b)",
-    border: "none",
-    borderRadius: "10px",
-    color: "#ffffff",
-    fontWeight: "700",
-    cursor: "pointer",
-    fontSize: "13.5px",
-    boxShadow: "0 4px 18px rgba(220, 38, 38, 0.45)",
-    transition: "opacity 0.2s ease",
-  },
-  successBox: {
-    display: "flex",
-    alignItems: "center",
-    backgroundColor: "rgba(16, 185, 129, 0.08)",
-    border: "1px solid rgba(16, 185, 129, 0.25)",
-    color: "#34d399",
-    padding: "12px 14px",
-    borderRadius: "10px",
-    fontSize: "12.5px",
-    marginTop: "14px",
-  },
-  errorBox: {
-    display: "flex",
-    alignItems: "center",
-    backgroundColor: "rgba(239, 68, 68, 0.08)",
-    border: "1px solid rgba(239, 68, 68, 0.25)",
-    color: "#f87171",
-    padding: "12px 14px",
-    borderRadius: "10px",
-    fontSize: "12.5px",
-    marginTop: "14px",
-  },
-  legalNotice: {
-    marginTop: "22px",
-    paddingTop: "16px",
-    borderTop: "1px solid rgba(255,255,255,0.06)",
-    fontSize: "10px",
-    color: "#6b7280",
-    lineHeight: "1.45",
-    textAlign: "center",
-  },
-};

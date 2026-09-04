@@ -1,4 +1,5 @@
 import express from "express";
+import bcrypt from "bcrypt";
 import { Recipient } from "../models/Recipient.model.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { generateAndSendOtp, verifyOtp } from "../services/otp.service.js";
@@ -47,10 +48,47 @@ router.post("/verify", async (req, res) => {
       return res.status(400).json({ error: result.reason });
     }
 
+    recipient.authVerified = true;
+    await recipient.save();
+
     return res.json({ success: true, message: "Identity verified successfully" });
   } catch (error) {
     console.error("Error verifying OTP:", error);
     return res.status(500).json({ error: "Failed to verify identity code" });
+  }
+});
+
+// POST /api/sign/otp/verify-passcode - Verify sender-set passcode
+router.post("/verify-passcode", async (req, res) => {
+  try {
+    const { token, passcode } = req.body;
+    if (!token || !passcode) {
+      return res.status(400).json({ error: "Token and passcode are required" });
+    }
+
+    const recipient = await Recipient.findOne({ token });
+    if (!recipient) {
+      return res.status(404).json({ error: "Signer recipient record not found" });
+    }
+
+    if (!recipient.passcodeHash) {
+      recipient.authVerified = true;
+      await recipient.save();
+      return res.json({ success: true, message: "No passcode required" });
+    }
+
+    const isMatch = await bcrypt.compare(passcode.trim(), recipient.passcodeHash);
+    if (!isMatch) {
+      return res.status(400).json({ error: "Invalid access passcode. Please check with the document sender." });
+    }
+
+    recipient.authVerified = true;
+    await recipient.save();
+
+    return res.json({ success: true, message: "Passcode verified successfully" });
+  } catch (error) {
+    console.error("Error verifying passcode:", error);
+    return res.status(500).json({ error: "Failed to verify access passcode" });
   }
 });
 

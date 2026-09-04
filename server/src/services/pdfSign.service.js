@@ -6,7 +6,10 @@ import { percentToPdfCoords } from "./coordinate.service.js";
 import { sha256FromBuffer } from "./hash.service.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { PdfAudit } from "../models/PdfAudit.model.js";
+import { Recipient } from "../models/Recipient.model.js";
 import { ApiError } from "../utils/ApiError.js";
+import { readFile, fileExists, saveFile } from "./storage.service.js";
+import { createChainedAuditLog } from "./auditLedger.service.js";
 
 const getImageBuffer = async (url) => {
   if (!url) return null;
@@ -21,12 +24,10 @@ const getImageBuffer = async (url) => {
       return Buffer.from(base64Data, "base64");
     }
 
-    // 2. Relative upload URL (/uploads/...)
+    // 2. Relative upload URL (/uploads/...) or direct key
     if (url.startsWith("/uploads/")) {
-      const relativePath = path.join(".", url);
-      if (fs.existsSync(relativePath)) {
-        return fs.readFileSync(relativePath);
-      }
+      const relativeKey = url.replace(/^\/uploads\//, "");
+      return await readFile(relativeKey);
     }
 
     // 3. Remote HTTP/HTTPS URL
@@ -38,10 +39,8 @@ const getImageBuffer = async (url) => {
       return Buffer.from(res.data);
     }
 
-    // 4. Direct disk file path
-    if (fs.existsSync(url)) {
-      return fs.readFileSync(url);
-    }
+    // 4. Direct disk or storage path
+    return await readFile(url);
   } catch (err) {
     console.error("Error loading signature image buffer:", err.message);
   }
@@ -65,19 +64,19 @@ export const signPdf = async ({
   const pdfMeta = await Pdf.findById(pdfId);
   if (!pdfMeta) throw new ApiError(404, "PDF not found");
 
+  const fileName = path.basename(pdfMeta.storagePath);
+  const relativeKey = `${pdfMeta.userId}/${fileName}`;
+  const signedKey = relativeKey.replace(/\.pdf$/i, "-signed.pdf");
+
   // Check if a previously signed version exists — burn ON TOP of previously signed PDF!
-  const signedPath = pdfMeta.storagePath.replace(/\.pdf$/i, "-signed.pdf");
-  const inputPath = fs.existsSync(signedPath) ? signedPath : pdfMeta.storagePath;
+  const hasSigned = await fileExists(signedKey);
+  const inputKey = hasSigned ? signedKey : relativeKey;
 
-  if (!fs.existsSync(inputPath)) {
-    throw new ApiError(404, "PDF source file not found on disk");
-  }
-
-  const originalBuffer = fs.readFileSync(inputPath);
+  const originalBuffer = await readFile(inputKey);
   const originalHash = sha256FromBuffer(originalBuffer);
 
   const pdfDoc = await PDFDocument.load(originalBuffer, { ignoreEncryption: true });
-  console.log("PDF loaded with", pdfDoc.getPageCount(), "pages from", inputPath);
+  console.log("PDF loaded with", pdfDoc.getPageCount(), "pages from storage key:", inputKey);
 
   // Process each field
   for (const field of fields) {
@@ -298,11 +297,30 @@ export const signPdf = async ({
   const signedBytes = await pdfDoc.save();
   const signedHash = sha256FromBuffer(signedBytes);
 
-  fs.writeFileSync(signedPath, signedBytes);
-  console.log("signed file written to", signedPath);
+  const signedPath = await saveFile(signedKey, Buffer.from(signedBytes), "application/pdf");
+  console.log("signed file saved to", signedPath);
 
-  // Create audit trail entry
-  await PdfAudit.create({
+  let authMethod = "Email Token (SES)";
+  let otpVerified = false;
+
+  if (recipientId) {
+    const rec = await Recipient.findById(recipientId);
+    if (rec) {
+      if (rec.authType === "otp") {
+        authMethod = "Email OTP (2FA Verified)";
+        otpVerified = true;
+      } else if (rec.authType === "passcode") {
+        authMethod = "Access Passcode (Verified)";
+        otpVerified = true;
+      } else {
+        authMethod = "Email Token (Direct SES)";
+        otpVerified = false;
+      }
+    }
+  }
+
+  // Create cryptographically chained audit trail entry
+  await createChainedAuditLog({
     pdfId,
     userId: userId || pdfMeta.userId,
     recipientId,
@@ -312,9 +330,11 @@ export const signPdf = async ({
     originalHash,
     signedHash,
     fieldsMeta: fields,
-    description: `${actorName} completed required fields and placed digital signature.`,
+    description: `${actorName} completed required fields and placed digital signature (${authMethod}).`,
     ipAddress,
     userAgent,
+    otpVerified,
+    authMethod,
     signedAt: new Date(),
   });
 

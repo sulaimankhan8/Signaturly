@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { adminApi, getAdminBaseUrl } from "../api/admin.api.js";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ export default function AdminDashboard() {
     const adminToken = localStorage.getItem("signaturly_admin_token");
 
     if (!adminToken) {
-      navigate("/admin/login");
+      navigate("/login");
       return;
     }
 
@@ -27,14 +27,10 @@ export default function AdminDashboard() {
       setLoading(true);
       setError(null);
 
-      const config = {
-        headers: { Authorization: `Bearer ${adminToken}` },
-      };
-
       const [statsRes, docsRes, logsRes] = await Promise.all([
-        axios.get("/api/admin/stats", config),
-        axios.get("/api/admin/documents", config),
-        axios.get("/api/admin/audit-logs", config),
+        adminApi.get("/admin/stats"),
+        adminApi.get("/admin/documents"),
+        adminApi.get("/admin/audit-logs"),
       ]);
 
       setStats(statsRes.data.systemMetrics);
@@ -43,7 +39,7 @@ export default function AdminDashboard() {
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
         localStorage.removeItem("signaturly_admin_token");
-        navigate("/admin/login");
+        navigate("/login");
         return;
       }
       setError(err.response?.data?.error || "Failed to load admin dashboard. Ensure you have Superadmin privileges.");
@@ -54,12 +50,13 @@ export default function AdminDashboard() {
 
   const handleAdminLogout = () => {
     localStorage.removeItem("signaturly_admin_token");
-    navigate("/admin/login");
+    navigate("/login");
   };
 
   const handleDownloadBsaCert = (docId) => {
     const adminToken = localStorage.getItem("signaturly_admin_token");
-    window.open(`/api/admin/documents/${docId}/bsa-certificate?token=${adminToken}`, "_blank");
+    const baseUrl = getAdminBaseUrl();
+    window.open(`${baseUrl}/admin/documents/${docId}/bsa-certificate?token=${adminToken}`, "_blank");
   };
 
   if (loading) {
@@ -85,7 +82,7 @@ export default function AdminDashboard() {
         </div>
         <h2 style={{ color: "#f87171", margin: "14px 0 0 0", fontSize: "20px", fontWeight: "700" }}>Superadmin Access Denied</h2>
         <p style={{ color: "#9ca3af", marginTop: "8px", maxWidth: "450px", fontSize: "13px", lineHeight: "1.5" }}>{error}</p>
-        <button onClick={() => navigate("/admin/login")} style={styles.loginBtn}>
+        <button onClick={() => navigate("/login")} style={styles.loginBtn}>
           Return to Admin Login Portal →
         </button>
       </div>
@@ -107,6 +104,30 @@ export default function AdminDashboard() {
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
+          <a
+            href="http://localhost:5173/verify"
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              padding: "7px 14px",
+              backgroundColor: "rgba(239, 68, 68, 0.15)",
+              border: "1px solid rgba(239, 68, 68, 0.4)",
+              borderRadius: "10px",
+              color: "#f87171",
+              fontSize: "12px",
+              fontWeight: "700",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Verify Ledger Portal ↗
+          </a>
+
           <div style={styles.statusChip}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2" style={{ marginRight: 6 }}>
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
@@ -356,12 +377,6 @@ const styles = {
     fontWeight: "600",
     cursor: "pointer",
   },
-  topBar: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "32px",
-  },
   badge: {
     display: "inline-flex",
     alignItems: "center",
@@ -388,12 +403,6 @@ const styles = {
     fontSize: "12px",
     fontWeight: "700",
   },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
-    gap: "20px",
-    marginBottom: "32px",
-  },
   card: {
     backgroundColor: "#111420",
     border: "1px solid rgba(255, 255, 255, 0.08)",
@@ -417,11 +426,6 @@ const styles = {
     fontWeight: "800",
     color: "#ffffff",
     marginTop: "8px",
-  },
-  tabRow: {
-    display: "flex",
-    gap: "10px",
-    marginBottom: "20px",
   },
   tab: {
     display: "inline-flex",

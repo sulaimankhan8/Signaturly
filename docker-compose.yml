@@ -1,0 +1,32 @@
+version: "3.8"
+
+services:
+  # ==============================================================================
+  # SIGNATURLY PRO - BACKEND API SERVICE
+  # ==============================================================================
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: signaturly-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./server/.env
+    environment:
+      - PORT=5000
+      - NODE_ENV=production
+    volumes:
+      # Persistent host volume for PDF document storage and signatures
+      - ./uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/templates/public"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+networks:
+  default:
+    name: signaturly-network

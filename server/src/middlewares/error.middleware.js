@@ -1,7 +1,10 @@
 export const errorMiddleware = (err, req, res, next) => {
-  console.error("🔥 Error:", err);
-
   const statusCode = err.statusCode || 500;
+
+  // Only log full stack traces for unhandled 5xx server errors
+  if (statusCode >= 500) {
+    console.error(`🔥 [500 Internal Error] ${req.method} ${req.originalUrl}:`, err);
+  }
 
   res.status(statusCode).json({
     success: false,
@@ -12,4 +15,3 @@ export const errorMiddleware = (err, req, res, next) => {
     errors: err.errors || [],
   });
 };
-

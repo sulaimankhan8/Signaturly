@@ -16,4 +16,8 @@ export const env = {
     appName: process.env.APP_NAME || "Signaturly Pro",
     appUrl: process.env.APP_URL || "http://localhost:5173",
     adminSecret: process.env.ADMIN_SECRET_KEY || "signaturly-superadmin-secret",
+    storageProvider: process.env.STORAGE_PROVIDER || "local",
+    gcpProjectId: process.env.GCP_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT,
+    gcsBucketName: process.env.GCS_BUCKET_NAME || "signaturly-prod-vault-storage",
+    gcsSignedUrlExpires: parseInt(process.env.GCS_SIGNED_URL_EXPIRES) || 900,
 };

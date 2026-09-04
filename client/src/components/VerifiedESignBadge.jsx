@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 
 export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", defaultEmail = "" }) {
-  const [name, setName] = useState(defaultName);
+  const [name, setName] = useState(defaultName || "Signer");
   const [styleType, setStyleType] = useState("modern-badge"); // modern-badge | formal-stamp | cursive-badge
   const [color, setColor] = useState("#0f172a");
+  const [previewUrl, setPreviewUrl] = useState("");
 
-  const generateBadgeDataUrl = () => {
-    const text = name.trim() || "Authorized Signer";
+  const generateBadgeDataUrl = (signerName = name, style = styleType, strokeColor = color) => {
+    const text = signerName.trim() || "Authorized Signer";
     const canvas = document.createElement("canvas");
     canvas.width = 650;
     canvas.height = 200;
@@ -17,12 +18,11 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
 
     const now = new Date();
     const dateStr = now.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-    const hash = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const hash = "VERIFIED";
 
-    if (styleType === "modern-badge") {
-      // Modern Legal E-Signature Stamp (DocuSign/Signaturly Style)
-      // Rounded Card Background
-      ctx.fillStyle = "rgba(248, 250, 252, 0.95)";
+    if (style === "modern-badge") {
+      // 1. DocuSign / Signaturly Modern Legal Card
+      ctx.fillStyle = "rgba(248, 250, 252, 0.98)";
       ctx.strokeStyle = "#cbd5e1";
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -36,71 +36,89 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
       ctx.roundRect(10, 10, 14, 180, [16, 0, 0, 16]);
       ctx.fill();
 
-      // Verified Header
-      ctx.font = "bold 16px sans-serif";
+      // Header
+      ctx.font = "bold 15px sans-serif";
       ctx.fillStyle = "#64748b";
+      ctx.textAlign = "left";
       ctx.fillText("DIGITALLY VERIFIED E-SIGNATURE", 40, 42);
 
-      // Signer Name in Cursive Calligraphy
+      // Cursive Signature
       ctx.font = "bold 52px 'Dancing Script', 'Brush Script MT', cursive, sans-serif";
-      ctx.fillStyle = color;
+      ctx.fillStyle = strokeColor;
       ctx.fillText(text, 40, 108);
 
-      // Security Metadata Line
-      ctx.font = "14px monospace";
+      // Metadata Footer
+      ctx.font = "13px monospace";
       ctx.fillStyle = "#475569";
       ctx.fillText(`ID: SEC-${hash} • Sealed: ${dateStr} • IT Act/ESIGN Compliant`, 40, 155);
 
-    } else if (styleType === "formal-stamp") {
-      // Formal Legal Execution Stamp
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 4;
+    } else if (style === "formal-stamp") {
+      // 2. Formal Legal Execution Double-Border Notary Stamp
+      ctx.fillStyle = "rgba(255, 255, 255, 0.98)";
       ctx.beginPath();
-      ctx.roundRect(10, 10, 630, 180, 12);
+      ctx.roundRect(8, 8, 634, 184, 14);
+      ctx.fill();
+
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.roundRect(12, 12, 626, 176, 12);
       ctx.stroke();
 
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = strokeColor;
+      ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.roundRect(18, 18, 614, 164, 8);
       ctx.stroke();
 
-      ctx.font = "bold 18px sans-serif";
-      ctx.fillStyle = color;
+      ctx.font = "bold 16px sans-serif";
+      ctx.fillStyle = strokeColor;
       ctx.textAlign = "center";
-      ctx.fillText("OFFICIALLY SIGNED & EXECUTED", 325, 48);
+      ctx.fillText("★ OFFICIALLY SIGNED & EXECUTED ★", 325, 48);
 
-      ctx.font = "bold 44px 'Dancing Script', cursive, sans-serif";
+      ctx.font = "bold 48px 'Dancing Script', cursive, sans-serif";
       ctx.fillText(text, 325, 110);
 
       ctx.font = "bold 13px sans-serif";
-      ctx.fillStyle = "#64748b";
-      ctx.fillText(`AUTHENTICATED ELECTRONIC SIGNATURE • ${dateStr}`, 325, 155);
+      ctx.fillStyle = "#475569";
+      ctx.fillText(`AUTHENTICATED ELECTRONIC SEAL • ${dateStr}`, 325, 155);
 
     } else {
-      // Cursive with underline and legal verification seal
-      ctx.font = "bold 64px 'Great Vibes', 'Dancing Script', cursive, sans-serif";
-      ctx.fillStyle = color;
-      ctx.fillText(text, 40, 100);
+      // 3. Cursive Calligraphy with Underline Seal
+      ctx.fillStyle = "rgba(255, 255, 255, 0.98)";
+      ctx.beginPath();
+      ctx.roundRect(8, 8, 634, 184, 14);
+      ctx.fill();
+
+      ctx.textAlign = "left";
+      ctx.font = "bold 58px 'Dancing Script', 'Great Vibes', cursive, sans-serif";
+      ctx.fillStyle = strokeColor;
+      ctx.fillText(text, 40, 95);
 
       // Signature line
       ctx.strokeStyle = "#94a3b8";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(40, 125);
-      ctx.lineTo(600, 125);
+      ctx.moveTo(40, 120);
+      ctx.lineTo(600, 120);
       ctx.stroke();
 
       ctx.font = "bold 13px sans-serif";
       ctx.fillStyle = "#475569";
-      ctx.fillText(`Legally binding electronic signature of ${text} (${dateStr})`, 40, 155);
+      ctx.fillText(`Legally verified electronic signature of ${text} • ${dateStr}`, 40, 152);
     }
 
     return canvas.toDataURL("image/png");
   };
 
+  // Update preview whenever name, style, or color changes
+  useEffect(() => {
+    const url = generateBadgeDataUrl(name, styleType, color);
+    setPreviewUrl(url);
+  }, [name, styleType, color]);
+
   const handleConfirm = () => {
-    const dataUrl = generateBadgeDataUrl();
+    const dataUrl = generateBadgeDataUrl(name, styleType, color);
     if (dataUrl) {
       onConfirm(dataUrl);
       toast.success("Verified E-Signature Badge applied!");
@@ -135,7 +153,7 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
               onClick={() => setStyleType(s.id)}
               className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
                 styleType === s.id
-                  ? "bg-white/15 text-white shadow border border-white/20"
+                  ? "bg-red-600 text-white shadow border border-red-500/40"
                   : "text-gray-400 hover:text-white"
               }`}
             >
@@ -162,27 +180,15 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
         </div>
       </div>
 
-      {/* Live Badge Preview */}
-      <div className="border border-white/10 rounded-2xl p-3 bg-white flex items-center justify-center min-h-[110px] overflow-hidden shadow-inner">
-        <div className="w-full text-center">
-          <div className="inline-block p-3 rounded-xl border border-gray-300 bg-slate-50 shadow-sm max-w-full text-left">
-            <p className="text-[9px] font-mono uppercase font-bold text-gray-500 tracking-wider">
-              {styleType === "formal-stamp" ? "OFFICIALLY SIGNED & EXECUTED" : "DIGITALLY VERIFIED E-SIGNATURE"}
-            </p>
-            <p
-              className="text-2xl font-bold my-1 truncate"
-              style={{
-                fontFamily: "'Dancing Script', 'Brush Script MT', cursive",
-                color,
-              }}
-            >
-              {name || "Authorized Signer"}
-            </p>
-            <p className="text-[9px] font-mono text-gray-600">
-              ID: SEC-VERIFIED • Sealed: {new Date().toLocaleDateString()} • Compliant
-            </p>
-          </div>
-        </div>
+      {/* Live WYSIWYG Badge Preview */}
+      <div className="border border-white/10 rounded-2xl p-2 bg-slate-950/80 flex items-center justify-center min-h-[105px] overflow-hidden shadow-inner">
+        {previewUrl && (
+          <img
+            src={previewUrl}
+            alt="Signature Preview"
+            className="max-h-[95px] w-auto object-contain rounded-lg shadow-sm"
+          />
+        )}
       </div>
 
       <button

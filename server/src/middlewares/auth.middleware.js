@@ -5,12 +5,19 @@ import { env } from "../config/env.js";
 
 export const protect = async (req, res, next) => {
   const authHeader = req.headers.authorization;
+  let token = null;
 
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    throw new ApiError(401, "Not authorized, token missing");
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    token = authHeader.split(" ")[1];
+  } else if (req.query?.token) {
+    token = req.query.token;
+  } else if (req.cookies?.accessToken) {
+    token = req.cookies.accessToken;
   }
 
-  const token = authHeader.split(" ")[1];
+  if (!token) {
+    throw new ApiError(401, "Not authorized, token missing");
+  }
 
   try {
     const decoded = jwt.verify(token, env.accessSecret);

@@ -82,7 +82,8 @@ export default function PdfEditor() {
   };
 
   const signPdf = async () => {
-    let toastId = null;
+    if (isSigning) return;
+
     try {
       setIsSigning(true);
 
@@ -99,7 +100,7 @@ export default function PdfEditor() {
       );
 
       if (hasSignatureFields && hasMissingSignature) {
-        toast.error("Please draw, type, or upload a signature asset before signing.");
+        toast.error("Please draw, type, or adopt a signature asset before signing.");
         setIsSigning(false);
         return;
       }
@@ -108,20 +109,14 @@ export default function PdfEditor() {
         f.type === "signature" ? { ...f, signatureUrl: f.signatureUrl || signatureUrl } : f
       );
 
-      toastId = toast.loading("Embedding e-signatures & generating PDF...");
-      const response = await API.post("/pdf/sign", { pdfId, fields: fieldsWithSignature });
+      toast.loading("Embedding e-signatures & generating PDF...", { id: "sign-pdf" });
+      await API.post("/pdf/sign", { pdfId, fields: fieldsWithSignature });
 
-      if (toastId) toast.dismiss(toastId);
-      toast.success("PDF signed and saved successfully!");
-
-      const url = `${import.meta.env.VITE_API_BASE_URL}${response.data.data.signedPdfUrl}`;
-      window.open(url, "_blank", "noopener,noreferrer");
-
-      setTimeout(() => navigate("/dashboard"), 1200);
+      toast.success("PDF signed and saved successfully!", { id: "sign-pdf" });
+      setTimeout(() => navigate("/dashboard"), 1000);
     } catch (error) {
-      if (toastId) toast.dismiss(toastId);
       console.error("Error signing PDF:", error);
-      toast.error(error.response?.data?.message || "Error signing PDF. Please try again.");
+      toast.error(error.response?.data?.message || "Error signing PDF. Please try again.", { id: "sign-pdf" });
     } finally {
       setIsSigning(false);
     }

@@ -7,6 +7,8 @@ import { sendSigningRequestEmail, sendCompletionEmail, sendDeclineEmail } from "
 import { signPdf } from "./pdfSign.service.js";
 import path from "path";
 
+import bcrypt from "bcrypt";
+
 const RECIPIENT_COLORS = [
   "#3b82f6", // Blue
   "#8b5cf6", // Purple
@@ -34,6 +36,13 @@ export const createRecipientsForDoc = async ({ pdfId, recipientsData }) => {
 
     const token = uuidv4();
     const color = r.color || RECIPIENT_COLORS[i % RECIPIENT_COLORS.length];
+    const authType = r.authType && ["otp", "passcode"].includes(r.authType) ? r.authType : "none";
+
+    let passcodeHash = null;
+    if (authType === "passcode" && r.passcode) {
+      const salt = await bcrypt.genSalt(10);
+      passcodeHash = await bcrypt.hash(r.passcode.trim(), salt);
+    }
 
     const recipient = await Recipient.create({
       pdfId,
@@ -44,6 +53,9 @@ export const createRecipientsForDoc = async ({ pdfId, recipientsData }) => {
       token,
       color,
       status: "pending",
+      authType,
+      passcodeHash,
+      authVerified: authType === "none",
     });
 
     recipients.push(recipient);

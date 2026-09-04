@@ -1,0 +1,68 @@
+name: Deploy Backend to Google Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'server/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: project-9aac115a-73f9-4e8a-9a7
+  REGION: us-central1
+  SERVICE_NAME: signaturly-api
+  REPOSITORY_NAME: signaturly-repo
+  IMAGE_NAME: signaturly-api
+
+jobs:
+  deploy:
+    name: Build & Deploy to Cloud Run
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔐 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: ⚙️ Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: 🐳 Configure Docker for GCP Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: 🏗️ Build Docker Image
+        run: |
+          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}"
+          docker build \
+            -t "${IMAGE_TAG}:${{ github.sha }}" \
+            -t "${IMAGE_TAG}:latest" \
+            ./server
+
+      - name: 🚀 Push Docker Image to Artifact Registry
+        run: |
+          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}"
+          docker push "${IMAGE_TAG}:${{ github.sha }}"
+          docker push "${IMAGE_TAG}:latest"
+
+      - name: 🌐 Deploy to Google Cloud Run
+        run: |
+          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image "$IMAGE_TAG" \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --port 5000 \
+            --min-instances 0 \
+            --max-instances 1 \
+            --memory 512Mi \
+            --set-env-vars="NODE_ENV=production,PORT=5000,CORS_ORIGIN=https://signaturly.vercel.app,https://signaturly-admin.vercel.app,https://app.yourdomain.com,https://admin.yourdomain.com"

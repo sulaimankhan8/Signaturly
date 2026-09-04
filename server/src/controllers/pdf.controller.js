@@ -4,25 +4,30 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { PdfAudit } from "../models/PdfAudit.model.js";
+import { Recipient } from "../models/Recipient.model.js";
 import path from "path";
-import fs from "fs";
+import { fileExists, deleteFile, getFileUrl } from "../services/storage.service.js";
 
 export const uploadPdfController = asyncHandler(async (req, res) => {
-  console.log("uploadPdfController called", { userId: req.user?.id, fileOriginalName: req.file?.originalname });
   const pdf = await uplodedPdf({
     file: req.file,
     userId: req.user.id,
   });
 
-  console.log("uplodedPdf result", { id: pdf._id, originalFileName: pdf.originalFileName, pageCount: pdf.pageCount, storagePath: pdf.storagePath });
+  const fileName = path.basename(pdf.storagePath);
+  const relativeKey = `${pdf.userId}/${fileName}`;
+  const fileUrl = await getFileUrl(relativeKey);
 
   res.status(201).json(
-    new ApiResponse({
-      id: pdf._id,
-      originalFileName: pdf.originalFileName,
-      pageCount: pdf.pageCount,
-      url: `/uploads/${pdf.userId}/${path.basename(pdf.storagePath)}`
-    }, "PDF uploaded successfully")
+    new ApiResponse(
+      {
+        id: pdf._id,
+        originalFileName: pdf.originalFileName,
+        pageCount: pdf.pageCount,
+        url: fileUrl,
+      },
+      "PDF uploaded successfully"
+    )
   );
 });
 
@@ -30,26 +35,30 @@ export const getMyPdfsController = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const pdfs = await Pdf.find({ userId }).sort({ createdAt: -1 });
 
-  const formattedPdfs = pdfs.map((pdf) => {
-    const fileName = path.basename(pdf.storagePath);
-    const originalUrl = `/uploads/${pdf.userId}/${fileName}`;
-    const signedFileName = fileName.replace(/\.pdf$/i, "-signed.pdf");
-    const signedPath = pdf.storagePath.replace(/\.pdf$/i, "-signed.pdf");
-    const signedUrl = fs.existsSync(signedPath) ? `/uploads/${pdf.userId}/${signedFileName}` : null;
+  const formattedPdfs = await Promise.all(
+    pdfs.map(async (pdf) => {
+      const fileName = path.basename(pdf.storagePath);
+      const relativeKey = `${pdf.userId}/${fileName}`;
+      const signedKey = relativeKey.replace(/\.pdf$/i, "-signed.pdf");
 
-    return {
-      _id: pdf._id,
-      id: pdf._id,
-      originalFileName: pdf.originalFileName,
-      pageCount: pdf.pageCount,
-      status: pdf.status,
-      createdAt: pdf.createdAt,
-      updatedAt: pdf.updatedAt,
-      originalUrl,
-      signedUrl,
-      originalHash: pdf.originalHash,
-    };
-  });
+      const originalUrl = await getFileUrl(relativeKey);
+      const isSignedPresent = await fileExists(signedKey);
+      const signedUrl = isSignedPresent ? await getFileUrl(signedKey) : null;
+
+      return {
+        _id: pdf._id,
+        id: pdf._id,
+        originalFileName: pdf.originalFileName,
+        pageCount: pdf.pageCount,
+        status: pdf.status,
+        createdAt: pdf.createdAt,
+        updatedAt: pdf.updatedAt,
+        originalUrl,
+        signedUrl,
+        originalHash: pdf.originalHash,
+      };
+    })
+  );
 
   res.status(200).json(new ApiResponse(formattedPdfs, "User documents fetched successfully"));
 });
@@ -68,27 +77,18 @@ export const deletePdfController = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Not authorized to delete this document");
   }
 
-  // Delete files from disk if they exist
-  if (fs.existsSync(pdf.storagePath)) {
-    try {
-      fs.unlinkSync(pdf.storagePath);
-    } catch (e) {
-      console.error("Failed to delete original PDF file:", e);
-    }
-  }
+  const fileName = path.basename(pdf.storagePath);
+  const relativeKey = `${pdf.userId}/${fileName}`;
+  const signedKey = relativeKey.replace(/\.pdf$/i, "-signed.pdf");
 
-  const signedPath = pdf.storagePath.replace(/\.pdf$/i, "-signed.pdf");
-  if (fs.existsSync(signedPath)) {
-    try {
-      fs.unlinkSync(signedPath);
-    } catch (e) {
-      console.error("Failed to delete signed PDF file:", e);
-    }
-  }
+  // Delete from storage adapter (GCS or Local)
+  await deleteFile(relativeKey);
+  await deleteFile(signedKey);
 
   // Delete DB records
   await Pdf.findByIdAndDelete(id);
   await PdfAudit.deleteMany({ pdfId: id });
+  await Recipient.deleteMany({ pdfId: id });
 
   res.status(200).json(new ApiResponse({ id }, "Document deleted successfully"));
 });
@@ -114,7 +114,7 @@ export const getPdfAuditController = asyncHandler(async (req, res) => {
 export const getAuditCertificatePdfController = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { generateAuditCertificatePdf } = await import("../services/auditCertificate.service.js");
-  
+
   const pdfBuffer = await generateAuditCertificatePdf(id, req.user.id);
 
   res.setHeader("Content-Type", "application/pdf");

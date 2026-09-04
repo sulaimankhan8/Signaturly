@@ -22,6 +22,8 @@ export default function SendDocument() {
       email: "",
       role: "signer",
       color: RECIPIENT_PALETTE[0].color,
+      authType: "none",
+      passcode: "",
     },
   ]);
 
@@ -50,6 +52,8 @@ export default function SendDocument() {
         email: "",
         role: "signer",
         color: RECIPIENT_PALETTE[nextColorIdx].color,
+        authType: "none",
+        passcode: "",
       },
     ]);
   };
@@ -87,6 +91,10 @@ export default function SendDocument() {
       }
       if (!r.email.trim() || !r.email.includes("@")) {
         toast.error(`Please provide a valid email for Recipient #${i + 1}`);
+        return;
+      }
+      if (r.authType === "passcode" && !r.passcode?.trim()) {
+        toast.error(`Please provide an access passcode for Recipient #${i + 1}`);
         return;
       }
     }
@@ -236,7 +244,7 @@ export default function SendDocument() {
                 </div>
 
                 {/* Role */}
-                <div className="w-full sm:w-32">
+                <div className="w-full sm:w-28">
                   <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
                     Role
                   </label>
@@ -250,6 +258,44 @@ export default function SendDocument() {
                     <option value="approver">Approver</option>
                   </select>
                 </div>
+
+                {/* Authentication Security Tier */}
+                <div className="w-full sm:w-44">
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1 flex items-center justify-between">
+                    <span>Security</span>
+                    {recipient.authType !== "none" && (
+                      <span className="text-[9px] text-red-400 font-bold uppercase tracking-wider">2FA</span>
+                    )}
+                  </label>
+                  <select
+                    value={recipient.authType || "none"}
+                    onChange={(e) => updateRecipient(recipient.id, { authType: e.target.value })}
+                    className={`w-full px-3 py-2 bg-[#12141c] border rounded-xl text-white text-xs focus:outline-none ${
+                      recipient.authType !== "none" ? "border-red-500/50 bg-red-950/20" : "border-white/10 focus:border-red-500"
+                    }`}
+                  >
+                    <option value="none">⚡ Standard (Direct Link)</option>
+                    <option value="otp">✉️ Email OTP (6-Digit)</option>
+                    <option value="passcode">🔑 Access Passcode</option>
+                  </select>
+                </div>
+
+                {/* Conditional Passcode Input */}
+                {recipient.authType === "passcode" && (
+                  <div className="w-full sm:w-36">
+                    <label className="block text-[10px] uppercase font-bold text-red-400 mb-1">
+                      Set Passcode
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 123456"
+                      value={recipient.passcode || ""}
+                      onChange={(e) => updateRecipient(recipient.id, { passcode: e.target.value })}
+                      className="w-full px-3 py-2 bg-[#12141c] border border-red-500/40 rounded-xl text-white text-xs focus:outline-none focus:border-red-500 font-mono"
+                    />
+                  </div>
+                )}
 
                 {/* Remove */}
                 {recipients.length > 1 && (

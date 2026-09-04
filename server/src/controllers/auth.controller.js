@@ -47,10 +47,18 @@ export const refreshAccessToken = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Refresh token missing");
   }
 
-  const decoded = jwt.verify(refreshToken, env.refreshSecret);
+  let decoded;
+  try {
+    decoded = jwt.verify(refreshToken, env.refreshSecret);
+  } catch (err) {
+    res.clearCookie("refreshToken");
+    throw new ApiError(401, "Invalid or expired refresh token");
+  }
+
   const user = await User.findById(decoded.id).select("+refreshToken");
 
   if (!user || user.refreshToken !== refreshToken) {
+    res.clearCookie("refreshToken");
     throw new ApiError(401, "Refresh token mismatch");
   }
 

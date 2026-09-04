@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import toast, { Toaster } from "react-hot-toast";
 import { fetchMyPdfsApi, deletePdfApi, fetchPdfAuditApi } from "../api/pdf.api";
 import { remindRecipientApi, fetchDocumentDetailsApi } from "../api/send.api";
+import API from "../api/axios";
 import Navbar from "../components/Navbar";
 
 
@@ -41,14 +42,44 @@ export default function Dashboard() {
     loadDocuments();
   }, []);
 
+  const handleVoid = async (id, title) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to legally VOID and cancel "${title}"?\n\n• All recipient signing links will be revoked immediately.\n• A cancellation email will be dispatched to signers.\n• A "Voided" event is logged in the tamper-evident audit ledger.\n• The document will be kept in your "Declined/Void" archive for compliance.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setDeletingId(id);
+      await API.post(`/send/${id}/void`);
+      toast.success("Document legally voided and revoked");
+      setDocuments((prev) =>
+        prev.map((doc) => (doc._id === id || doc.id === id ? { ...doc, status: "voided" } : doc))
+      );
+    } catch (err) {
+      console.error("Void document error:", err);
+      toast.error(err.response?.data?.message || "Failed to void document");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const handleDelete = async (id, title) => {
-    if (!window.confirm(`Are you sure you want to delete "${title}"?`)) return;
+    if (
+      !window.confirm(
+        `Delete "${title}" from your workspace?\n\n• Permanently purges the PDF file from cloud storage.\n• Removes this document record from your dashboard.`
+      )
+    ) {
+      return;
+    }
 
     try {
       setDeletingId(id);
       await deletePdfApi(id);
       setDocuments((prev) => prev.filter((doc) => doc._id !== id && doc.id !== id));
-      toast.success("Document deleted successfully");
+      toast.success("Document purged from workspace");
     } catch (err) {
       console.error("Delete document error:", err);
       toast.error(err.response?.data?.message || "Failed to delete document");
@@ -101,6 +132,32 @@ export default function Dashboard() {
       toast.error(err.response?.data?.message || "Failed to dispatch reminder");
     } finally {
       setRemindingRecipientId(null);
+    }
+  };
+
+  const [isCertDownloading, setIsCertDownloading] = useState(false);
+  const handleDownloadCertificate = async (pdfId, originalName = "Document") => {
+    try {
+      setIsCertDownloading(true);
+      toast.loading("Generating certified audit PDF...", { id: "audit-cert" });
+      const res = await API.get(`/pdf/${pdfId}/audit-certificate`, {
+        responseType: "blob",
+      });
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `Audit-Certificate-${originalName.replace(/\.pdf$/i, "")}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success("Audit certificate downloaded successfully!", { id: "audit-cert" });
+    } catch (err) {
+      console.error("Failed to download audit certificate:", err);
+      toast.error(err.response?.data?.message || "Failed to download audit certificate", { id: "audit-cert" });
+    } finally {
+      setIsCertDownloading(false);
     }
   };
 
@@ -422,12 +479,25 @@ export default function Dashboard() {
                       </svg>
                     </button>
 
-                    {/* Delete */}
+                    {/* Void Document (Prominent button for In-Progress Envelopes) */}
+                    {(doc.status === "pending" || doc.status === "partially_signed") && (
+                      <button
+                        onClick={() => handleVoid(docId, doc.originalFileName)}
+                        disabled={deletingId === docId}
+                        className="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 rounded-xl text-xs font-black border-2 border-amber-500/40 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#f59e0b] flex items-center justify-center gap-1 transition-all disabled:opacity-50"
+                        title="Legally Void & Revoke Agreement"
+                      >
+                        <span className="text-sm">🚫</span>
+                        <span className="text-[11px] font-bold uppercase">Void</span>
+                      </button>
+                    )}
+
+                    {/* Delete / Purge Workspace */}
                     <button
                       onClick={() => handleDelete(docId, doc.originalFileName)}
                       disabled={deletingId === docId}
                       className="w-8 h-8 bg-red-950 hover:bg-red-800 text-red-400 hover:text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all disabled:opacity-50"
-                      title="Delete Document"
+                      title="Purge Document from Workspace"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -525,7 +595,21 @@ export default function Dashboard() {
               </div>
             ) : null}
 
-            <div className="pt-4 border-t border-white/10 flex justify-end">
+            <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+              {recipientsDoc && (recipientsDoc.status === "pending" || recipientsDoc.status === "partially_signed") ? (
+                <button
+                  onClick={() => {
+                    setIsRecipientsModalOpen(false);
+                    handleVoid(recipientsDoc._id, recipientsDoc.originalFileName);
+                  }}
+                  className="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-400 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow"
+                >
+                  <span>🚫</span>
+                  <span>Void & Cancel Agreement</span>
+                </button>
+              ) : (
+                <div />
+              )}
               <button
                 onClick={() => setIsRecipientsModalOpen(false)}
                 className="px-5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-colors"
@@ -619,17 +703,22 @@ export default function Dashboard() {
 
             <div className="pt-4 border-t border-white/10 flex items-center justify-between">
               {selectedAudit?.pdf?._id && (
-                <a
-                  href={`${import.meta.env.VITE_API_BASE_URL}/api/pdf/${selectedAudit.pdf._id}/audit-certificate`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow flex items-center gap-2"
+                <button
+                  type="button"
+                  disabled={isCertDownloading}
+                  onClick={() =>
+                    handleDownloadCertificate(
+                      selectedAudit.pdf._id,
+                      selectedAudit.pdf.originalFileName
+                    )
+                  }
+                  className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow flex items-center gap-2 disabled:opacity-50"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
-                  <span>Download Audit Certificate (PDF)</span>
-                </a>
+                  <span>{isCertDownloading ? "Downloading..." : "Download Audit Certificate (PDF)"}</span>
+                </button>
               )}
 
               <button

@@ -75,6 +75,10 @@ export default function SigningPage() {
 
         setFields(initialFields);
 
+        if (!data.recipient.authType || data.recipient.authType === "none" || data.recipient.authVerified) {
+          setIsOtpVerified(true);
+        }
+
         if (data.recipient.status === "signed") {
           setIsCompleted(true);
         }
@@ -293,13 +297,14 @@ export default function SigningPage() {
     );
   }
 
-  // Pre-Canvas OTP Verification Modal Safeguard
-  if (!isOtpVerified) {
+  // Pre-Canvas Authentication Safeguard (OTP or Passcode)
+  if (!isOtpVerified && session?.recipient?.authType && session?.recipient?.authType !== "none") {
     return (
       <OtpVerificationModal
         token={token}
         recipientEmail={session?.recipient?.email}
         documentTitle={session?.document?.originalFileName}
+        authType={session?.recipient?.authType}
         onVerified={() => setIsOtpVerified(true)}
       />
     );

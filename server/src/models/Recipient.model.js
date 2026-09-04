@@ -58,6 +58,19 @@ const recipientSchema = new mongoose.Schema(
     userAgent: {
       type: String,
     },
+    authType: {
+      type: String,
+      enum: ["none", "otp", "passcode"],
+      default: "none",
+    },
+    passcodeHash: {
+      type: String,
+      default: null,
+    },
+    authVerified: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

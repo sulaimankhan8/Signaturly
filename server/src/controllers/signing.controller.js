@@ -35,6 +35,8 @@ export const getPublicSigningSessionController = asyncHandler(async (req, res) =
           color: recipient.color,
           status: recipient.status,
           token: recipient.token,
+          authType: recipient.authType || "none",
+          authVerified: Boolean(recipient.authVerified),
         },
         document: {
           id: pdf._id,

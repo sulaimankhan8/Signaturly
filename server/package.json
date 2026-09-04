@@ -7,6 +7,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/server.js",
+    "dev:server": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed-admin": "node src/scripts/seed-admin.js",
     "create-admin": "node src/scripts/seed-admin.js",
@@ -17,6 +18,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@google-cloud/storage": "^8.0.1",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.8.0",

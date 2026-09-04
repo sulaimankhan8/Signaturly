@@ -20,12 +20,9 @@ import Landing from "./pages/Landing";
 import FontTestLab from "./pages/FontTestLab";
 import UserGuide from "./pages/UserGuide";
 import PublicVerify from "./pages/PublicVerify";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminLogin from "./pages/AdminLogin";
 import { hydrateAuth } from "./store/authActions";
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
-
 
 import TermsConsentModal from "./components/TermsConsentModal";
 
@@ -60,8 +57,6 @@ export default function App() {
         <Route path="/assign/:pdfId" element={<AssignFields />} />
         <Route path="/sign/:token" element={<SigningPage />} />
         <Route path="/verify" element={<PublicVerify />} />
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
         {/* Isolated Font Testing Suite (Accessible by direct URL only) */}
         <Route path="/test" element={<FontTestLab />} />
         {/* Comprehensive Interactive User Guide (Accessible at /userguide) */}

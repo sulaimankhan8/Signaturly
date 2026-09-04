@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { adminApi } from "../api/admin.api.js";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ export default function AdminLogin() {
     try {
       setLoading(true);
       setError(null);
-      const res = await axios.post("/api/admin/login", {
+      const res = await adminApi.post("/admin/login", {
         email: email.trim(),
         password,
         adminSecret: adminSecret.trim(),
@@ -28,8 +28,7 @@ export default function AdminLogin() {
 
       if (res.data.adminToken) {
         localStorage.setItem("signaturly_admin_token", res.data.adminToken);
-        axios.defaults.headers.common["Authorization"] = `Bearer ${res.data.adminToken}`;
-        navigate("/admin/dashboard");
+        navigate("/dashboard");
       }
     } catch (err) {
       setError(err.response?.data?.error || "Admin authentication failed. Verify credentials and Admin Security Key.");

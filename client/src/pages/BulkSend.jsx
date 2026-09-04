@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { fetchMyTemplatesApi, fetchTemplateDetailsApi } from "../api/template.api";
 import { bulkSendFromTemplateApi } from "../api/bulk.api";
+import Navbar from "../components/Navbar";
 
 const BulkSend = () => {
   const [searchParams] = useSearchParams();
@@ -146,8 +147,10 @@ const BulkSend = () => {
   const invalidCount = parsedRecipients.filter((r) => !r.valid).length;
 
   return (
-    <div className="min-h-screen bg-[#090a0f] text-gray-100 py-10 px-4 sm:px-8 font-sans selection:bg-yellow-400 selection:text-black">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="min-h-screen bg-[#090a0f] text-gray-100 font-sans selection:bg-yellow-400 selection:text-black">
+      <Navbar />
+
+      <div className="max-w-4xl mx-auto py-10 px-4 sm:px-8 space-y-8">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
@@ -161,16 +164,6 @@ const BulkSend = () => {
               Generate and email customized legally binding agreements to dozens of signers in one batch.
             </p>
           </div>
-
-          <button
-            onClick={() => navigate("/templates")}
-            className="px-4 py-2.5 bg-[#13151f] hover:bg-[#1f2233] text-gray-200 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] flex items-center gap-2"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            <span>Back to Templates</span>
-          </button>
         </div>
 
         {errorMsg && (
