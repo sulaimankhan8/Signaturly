@@ -15,6 +15,12 @@ env:
   SERVICE_NAME: signaturly-api
   REPOSITORY_NAME: signaturly-repo
   IMAGE_NAME: signaturly-api
+  PROJECT_NUMBER: '774331940137'
+
+# Required permissions for GitHub OIDC token generation
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   deploy:
@@ -25,10 +31,11 @@ jobs:
       - name: 📥 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🔐 Authenticate to Google Cloud
+      - name: 🔐 Authenticate to Google Cloud (Keyless Workload Identity)
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: 'projects/774331940137/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'github-actions-deployer@project-9aac115a-73f9-4e8a-9a7.iam.gserviceaccount.com'
 
       - name: ⚙️ Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -61,8 +68,7 @@ jobs:
             --platform managed \
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
-            --port 5000 \
             --min-instances 0 \
             --max-instances 1 \
             --memory 512Mi \
-            --set-env-vars="NODE_ENV=production,PORT=5000,CORS_ORIGIN=https://signaturly.vercel.app,https://signaturly-admin.vercel.app,https://app.yourdomain.com,https://admin.yourdomain.com"
+            --set-env-vars="NODE_ENV=production,CORS_ORIGIN=*,MONGO_URI=mongodb+srv://suleman111111111111111_db_user:WOCfS74qN0fbJcc8@cluster0.0e0cvkg.mongodb.net/?appName=Cluster0,JWT_ACCESS_SECRET=access_secret_123,JWT_REFRESH_SECRET=refresh_secret_456,ADMIN_SECRET_KEY=signaturly-superadmin-secret,STORAGE_PROVIDER=gcs,GCP_PROJECT_ID=project-9aac115a-73f9-4e8a-9a7,GCS_BUCKET_NAME=signaturly-vault-project-9aac115a-73f9-4e8a-9a7,GCS_SIGNED_URL_EXPIRES=900,SMTP_HOST=smtp.gmail.com,SMTP_PORT=465,SMTP_USER=suleman111111111111111@gmail.com,SMTP_PASS=vgsatqmnxjowucfs,SMTP_FROM=suleman111111111111111@gmail.com"
