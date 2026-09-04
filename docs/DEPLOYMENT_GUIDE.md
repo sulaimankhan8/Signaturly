@@ -1,41 +1,47 @@
-# 🚀 Signaturly Pro — Ultimate Cloud Deployment, Docker & GCP Master Manual
+# 🚀 Signaturly Pro — Cloud Deployment, Docker, GCP & CI/CD Master Manual
 
 ---
 
 ## 📌 Table of Contents
-1. [Cost Architecture ($0.00 / Month Roadmap)](#1-cost-architecture-000--month-roadmap)
-2. [Docker & Container Architecture Explained](#2-docker--container-architecture-explained)
-3. [GCP Serverless Backend Deployment (Cloud Run + GCS + Artifact Registry)](#3-gcp-serverless-backend-deployment-cloud-run--gcs--artifact-registry)
-4. [GitHub Actions Automated CI/CD Setup](#4-github-actions-automated-cicd-setup)
-5. [Frontend Deployments on Vercel (Customer Web App & Admin Portal)](#5-frontend-deployments-on-vercel-customer-web-app--admin-portal)
-6. [Alternative: 24/7 Free `e2-micro` VM Deployment (Docker Compose + NGINX)](#6-alternative-247-free-e2-micro-vm-deployment-docker-compose--nginx)
-7. [Environment Variables Reference (`.env.production`)](#7-environment-variables-reference-envproduction)
-8. [Disaster Recovery, Tear Down & Project Migration Guide](#8-disaster-recovery-tear-down--project-migration-guide)
+1. [Cost Architecture ($0.00 / Month Free-Tier Matrix)](#1-cost-architecture-000--month-free-tier-matrix)
+2. [Docker Deep Dive & Container Architecture Crash Course](#2-docker-deep-dive--container-architecture-crash-course)
+3. [GCP Architecture Breakdown (Cloud Run, Artifact Registry, GCS, IAM)](#3-gcp-architecture-breakdown)
+4. [Step-by-Step GCP Deployment Playbook (Every Command & Flag Explained)](#4-step-by-step-gcp-deployment-playbook)
+5. [GitHub Actions CI/CD Pipeline (Sequential Execution Breakdown)](#5-github-actions-cicd-pipeline-sequential-execution-breakdown)
+6. [Keyless Security: Workload Identity Federation (WIF) Explained](#6-keyless-security-workload-identity-federation-wif-explained)
+7. [Frontend Deployment on Vercel & SPA Routing (`vercel.json`)](#7-frontend-deployment-on-vercel--spa-routing-verceljson)
+8. [Environment Variables Reference (`.env.production`)](#8-environment-variables-reference-envproduction)
+9. [Disaster Recovery, Tear Down & Project Migration Guide](#9-disaster-recovery-tear-down--project-migration-guide)
 
 ---
 
-## 💰 1. Cost Architecture ($0.00 / Month Roadmap)
+## 💰 1. Cost Architecture ($0.00 / Month Free-Tier Matrix)
 
-Signaturly Pro is architected to leverage the **Always-Free Tiers** of Google Cloud Platform, MongoDB Atlas, and Vercel Global Edge Network.
+Signaturly Pro is engineered to run at **$0.00 / month** in production by taking full advantage of the **Always-Free Tiers** of Google Cloud Platform, MongoDB Atlas, and Vercel Global Edge Network.
 
 ### 📊 Monthly Cost Breakdown Matrix
 
-| Layer / Component | Provider & Tier | Quota & Specs | Monthly Cost |
+| Layer / Component | Provider & Tier | Quota & Specifications | Monthly Cost |
 | :--- | :--- | :--- | :---: |
-| **Backend API (`server/`)** | **GCP Cloud Run** (Serverless) | • 2,000,000 free requests/mo<br>• 360,000 GB-sec memory / 180,000 vCPU-sec<br>• Auto-scale to 0 ($0 compute when idle) | **$0.00** |
-| **Document Vault Storage** | **Google Cloud Storage (GCS)** | • 5 GB Standard Storage free in US regions<br>• 5,000 upload ops / 50,000 download ops | **$0.00** |
+| **Backend API (`server/`)** | **GCP Cloud Run** (Serverless) | • 2,000,000 free requests/mo<br>• 360,000 GB-sec memory / 180,000 vCPU-sec<br>• Scale-to-Zero ($0.00 compute when idle) | **$0.00** |
+| **Document Vault Storage** | **Google Cloud Storage (GCS)** | • 5 GB Standard Storage free in US regions (`us-central1`)<br>• 5,000 upload operations / 50,000 download ops | **$0.00** |
 | **Container Registry** | **GCP Artifact Registry** | 500 MB free storage for container images | **$0.00** |
-| **Customer App (`client/`)** | **Vercel Hobby Tier** | Global Edge CDN, 100 GB bandwidth, Auto-SSL | **$0.00** |
+| **Customer App (`client/`)** | **Vercel Hobby Tier** | Global Edge CDN, 100 GB bandwidth, Automated SSL | **$0.00** |
 | **Admin Portal (`admin/`)** | **Vercel Hobby Tier** | Isolated governance portal on Vercel CDN | **$0.00** |
 | **Database** | **MongoDB Atlas M0** | 512 MB storage, shared RAM, TLS encrypted | **$0.00** |
-| **SSL / TLS Certificates** | **Google & Vercel Managed** | Auto-renewing Let's Encrypt / Google RSA SSL | **$0.00** |
+| **SSL / TLS Certificates** | **Google & Vercel Managed** | Auto-renewing Let's Encrypt / Google RSA certificates | **$0.00** |
 | **TOTAL ESTIMATED MONTHLY BILL** | | | **$0.00 / ₹0** |
 
 ---
 
-## 🐳 2. Docker & Container Architecture Explained
+## 🐳 2. Docker Deep Dive & Container Architecture Crash Course
 
-### A. The 4 Fundamental Docker Concepts
+### A. The Core Metaphor
+* **`Dockerfile`** = The **recipe** (plain-text instructions).
+* **Docker Image** = The **baked cake** (immutable snapshot with code, runtime, and libraries).
+* **Artifact Registry** = The **cloud refrigerator** where your baked images are safely stored.
+* **Docker Container** = A **slice being eaten right now** (an active process executing in memory).
+
 ```
  [Dockerfile]  ──(build)──>  [Docker Image]  ──(push/pull)──>  [Artifact Registry]
   (Recipe)                     (Baked Template)                 (Cloud Storage)
@@ -43,246 +49,330 @@ Signaturly Pro is architected to leverage the **Always-Free Tiers** of Google Cl
                                     (run)
                                       ▼
                               [Docker Container]
-                              (Running App Process)
+                              (Running Process)
 ```
-
-1. **`Dockerfile`**: Text file containing step-by-step instructions for packaging your code, Node.js runtime, OS libraries, and dependencies.
-2. **Docker Image**: The immutable, standalone package created from the Dockerfile.
-3. **Artifact Registry**: Google Cloud's secure cloud storage for Docker images.
-4. **Docker Container**: An active, running process created from an image.
-
-### B. Multi-Stage Build & Security Optimization
-In `server/Dockerfile`, we use a **3-stage multi-stage build**:
-* **Stage 1 (`base`)**: Installs native Debian libraries (`curl`, `openssl`, `ca-certificates`) needed for cryptographic SHA-256 PDF signing and audit trails.
-* **Stage 2 (`dependencies`)**: Runs `npm ci --only=production` to install exact dependency trees.
-* **Stage 3 (`runner`)**: Copies only the production `node_modules` and source code. Runs under `USER node` (non-root) so that even in the event of an application vulnerability, container breakout is prevented.
 
 ---
 
-## ☁️ 3. GCP Serverless Backend Deployment (Cloud Run + GCS)
+### B. Multi-Stage Builds & Security Hardening
+In `server/Dockerfile`, we use a **3-stage multi-stage build** designed for enterprise security and sub-second cold starts:
 
-Follow these exact steps to deploy to Google Cloud from scratch.
+```dockerfile
+# ==============================================================================
+# STAGE 1: Base Runtime Environment
+# ==============================================================================
+FROM node:20-slim AS base
 
-### Step 3.1: Authenticate and Set Active Project
-```bash
-# Set your active GCP project ID
-gcloud config set project YOUR_PROJECT_ID
+# Install Debian native cryptographic libraries needed for PDF digital signatures & SHA-256 hashing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    openssl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY package*.json ./
+
+# ==============================================================================
+# STAGE 2: Dependency Builder
+# ==============================================================================
+FROM base AS dependencies
+# npm ci ensures exact matching dependencies from package-lock.json with zero dev packages
+RUN npm ci --only=production
+
+# ==============================================================================
+# STAGE 3: Final Production Runner
+# ==============================================================================
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=5000
+
+# Copy node_modules from dependencies stage (leaves build tools behind)
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY . .
+
+# Create uploads folder and grant ownership to non-root node user
+RUN mkdir -p /app/uploads && chown -R node:node /app
+
+# Switch away from root to non-root user (security hardening)
+USER node
+
+EXPOSE 5000
+
+# Health check to ensure container is healthy before serving web traffic
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:5000/api/templates/public || exit 1
+
+CMD ["node", "src/server.js"]
 ```
 
-### Step 3.2: Enable Required GCP Cloud APIs
+#### Why This Matters:
+1. **Zero Bloat**: Build utilities are discarded in Stage 2. The final image is lightweight, reducing cold start latency.
+2. **Non-Root Hardening (`USER node`)**: By default, Docker containers run as `root`. If an attacker were to exploit a Node.js vulnerability, `USER node` restricts them from modifying the container system or breaking out into the host OS.
+3. **Layer Caching**: Changing application code in `src/` does not re-trigger `npm install`. Docker uses cached dependency layers to complete builds in seconds.
+
+---
+
+## ☁️ 3. GCP Architecture Breakdown
+
+```
+                                  USER BROWSER
+                                       │
+                    ┌──────────────────┴──────────────────┐
+                    ▼                                     ▼
+        ┌───────────────────────┐             ┌───────────────────────┐
+        │  Vercel Global CDN    │             │  Vercel Global CDN    │
+        │  Customer Web Client  │             │  Superadmin Portal    │
+        │  (React / Vite SPA)   │             │  (Governance UI)      │
+        └───────────┬───────────┘             └───────────┬───────────┘
+                    │                                     │
+                    └──────────────────┬──────────────────┘
+                                       │ HTTPS REST API Requests
+                                       ▼
+                    ┌─────────────────────────────────────┐
+                    │      Google Cloud Run (Serverless)  │
+                    │      Container: signaturly-api      │
+                    │      Auto scales: 0 ↔ 1 instance    │
+                    └───────────┬──────────────────┬──────┘
+                                │                  │
+               Signed URL Uploads / Downloads      │ Database Queries
+                                │                  │ (Agreements, Signers, Hashes)
+                                ▼                  ▼
+        ┌───────────────────────────────┐  ┌───────────────────────────────┐
+        │ Google Cloud Storage (GCS)    │  │ MongoDB Atlas M0 (Free Tier)  │
+        │ Private Bucket (5GB Free)     │  │ TLS Encrypted Cloud Database  │
+        └───────────────────────────────┘  └───────────────────────────────┘
+```
+
+### 1. Google Cloud Run (Serverless Compute)
+* **Scale-to-Zero ($0.00 Idle)**: When there are no active document creation or signing requests, Cloud Run shuts down all container instances. You pay **$0.00** for idle time.
+* **Cold Starts**: When a new request arrives, Cloud Run spins up a container in ~1.5 seconds.
+* **Dynamic Port Allocation**: Cloud Run automatically injects a `PORT` environment variable (`8080`) into the container. The Express server automatically listens on `process.env.PORT`.
+
+### 2. Google Artifact Registry (Container Registry)
+* Next-generation container storage in Google Cloud.
+* Standardized URI format:
+  `[REGION]-docker.pkg.dev/[PROJECT_ID]/[REPOSITORY_NAME]/[IMAGE_NAME]:[TAG]`
+
+### 3. Google Cloud Storage (GCS) & Signed URLs
+* **Why GCS instead of container disk?** Cloud Run containers are **ephemeral** (temporary). If a container scales to 0 or restarts, local disk files are deleted.
+* **The GCS Architecture**:
+  1. PDF documents are uploaded directly to the private GCS bucket (`gs://signaturly-vault-...`).
+  2. When a recipient opens an agreement to sign, the backend generates a **Time-Limited Signed URL** (valid for 15 minutes) using Google's cryptographic V4 signature.
+  3. The PDF streams securely to the browser with zero public bucket exposure.
+
+### 4. IAM & Service Accounts (Identity and Access Management)
+* **Service Account**: A robot identity that performs automated cloud tasks (e.g., `github-actions-deployer`).
+* **IAM Roles**: Badges granting specific capabilities:
+  * `roles/run.admin`: Permission to deploy revisions to Cloud Run.
+  * `roles/artifactregistry.writer`: Permission to upload built Docker images.
+  * `roles/iam.serviceAccountUser`: Permission to run workloads as a designated service account.
+  * `roles/storage.admin`: Permission to create and manage vault storage buckets.
+
+---
+
+## 🛠️ 4. Step-by-Step GCP Deployment Playbook (Every Command Explained)
+
+Here is the exact sequential breakdown of every command used during deployment:
+
+### Step 4.1: Enable GCP Cloud APIs
 ```bash
 gcloud services enable \
   run.googleapis.com \
   artifactregistry.googleapis.com \
   cloudbuild.googleapis.com \
   storage.googleapis.com \
-  logging.googleapis.com
+  iamcredentials.googleapis.com \
+  logging.googleapis.com \
+  --project=project-9aac115a-73f9-4e8a-9a7
 ```
+* **`run.googleapis.com`**: Enables the Cloud Run serverless engine.
+* **`artifactregistry.googleapis.com`**: Enables the Docker container image repository.
+* **`cloudbuild.googleapis.com`**: Enables cloud-side container compilation.
+* **`storage.googleapis.com`**: Enables Google Cloud Storage for PDF vaulting.
+* **`iamcredentials.googleapis.com`**: Enables Workload Identity Federation OIDC token exchanges.
+* **`logging.googleapis.com`**: Enables streaming build and server logs.
 
-### Step 3.3: Grant IAM Permissions to the Default Build Service Account
-GCP uses a default compute service account (`<PROJECT_NUMBER>-compute@developer.gserviceaccount.com`) to build containers and store build artifacts. Grant it necessary roles:
+---
 
+### Step 4.2: Grant IAM Roles to the Default Cloud Build Account
 ```bash
-export PROJECT_ID=$(gcloud config get-value project)
-export PROJECT_NUM=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
-
-# Grant Storage Admin (for build tarball uploads)
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:${PROJECT_NUM}-compute@developer.gserviceaccount.com" \
+# Grant storage access to upload source code tarballs
+gcloud projects add-iam-policy-binding project-9aac115a-73f9-4e8a-9a7 \
+  --member="serviceAccount:774331940137-compute@developer.gserviceaccount.com" \
   --role="roles/storage.admin"
 
-# Grant Artifact Registry Writer (to push the built Docker image)
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:${PROJECT_NUM}-compute@developer.gserviceaccount.com" \
+# Grant permission to push images into Artifact Registry
+gcloud projects add-iam-policy-binding project-9aac115a-73f9-4e8a-9a7 \
+  --member="serviceAccount:774331940137-compute@developer.gserviceaccount.com" \
   --role="roles/artifactregistry.writer"
 
-# Grant Logging Writer (to stream build logs)
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:${PROJECT_NUM}-compute@developer.gserviceaccount.com" \
+# Grant logging permissions for real-time build output
+gcloud projects add-iam-policy-binding project-9aac115a-73f9-4e8a-9a7 \
+  --member="serviceAccount:774331940137-compute@developer.gserviceaccount.com" \
   --role="roles/logging.logWriter"
 ```
 
-### Step 3.4: Create the Always-Free GCS Storage Bucket
-> ⚠️ **Important**: The bucket **must** be created in `us-central1`, `us-east1`, or `us-west1` to qualify for the **5 GB Always-Free Tier**.
+---
 
+### Step 4.3: Create the Always-Free GCS Storage Bucket
 ```bash
-export BUCKET_NAME="signaturly-vault-$PROJECT_ID"
-
-gcloud storage buckets create gs://$BUCKET_NAME \
+gcloud storage buckets create gs://signaturly-vault-project-9aac115a-73f9-4e8a-9a7 \
   --location=us-central1 \
   --default-storage-class=STANDARD \
   --uniform-bucket-level-access
 ```
+* `gs://...`: Google Storage URI protocol.
+* `--location=us-central1`: **Crucial**: US multi-regions/regions qualify for the **5 GB Standard Storage Always-Free Tier**.
+* `--default-storage-class=STANDARD`: Highest performance storage tier for instant PDF rendering.
+* `--uniform-bucket-level-access`: Enforces IAM-only permissions, eliminating object-level access leaks.
 
-### Step 3.5: Create the Artifact Registry Docker Repository
+---
+
+### Step 4.4: Create the Artifact Registry Docker Repository
 ```bash
 gcloud artifacts repositories create signaturly-repo \
   --repository-format=docker \
   --location=us-central1 \
-  --description="Signaturly Docker Repository"
+  --description="Signaturly Docker Repository" \
+  --project=project-9aac115a-73f9-4e8a-9a7
 ```
+* `repositories create signaturly-repo`: Creates the named container registry.
+* `--repository-format=docker`: Formats the store specifically for OCI / Docker container images.
+* `--location=us-central1`: Colocated in the same region as Cloud Run for zero-latency network pulls and zero egress bandwidth costs.
 
-### Step 3.6: Build & Push Container Image using Google Cloud Build
-Cloud Build compresses the local code directory and compiles the Docker container directly on Google Cloud's high-speed servers:
+---
 
+### Step 4.5: Cloud-Side Image Build with Google Cloud Build
 ```bash
-# Navigate to the server folder
-cd server
+cd ~/Signaturly/server
 
-# Build and push to Artifact Registry
-gcloud builds submit --tag us-central1-docker.pkg.dev/$PROJECT_ID/signaturly-repo/signaturly-api:latest
+gcloud builds submit --tag us-central1-docker.pkg.dev/project-9aac115a-73f9-4e8a-9a7/signaturly-repo/signaturly-api:latest
 ```
+* `builds submit`: Packages local server source code, securely uploads it to GCP, compiles the Dockerfile on Google's high-speed build infrastructure, and pushes the finished image to Artifact Registry.
 
-### Step 3.7: Deploy to Google Cloud Run (With Zero-Cost Safeguards)
-Deploy the container with a **hard limit of 1 instance** to prevent any accidental scaling costs or DDoS billing spikes:
+---
 
+### Step 4.6: Deploy to Cloud Run (With Zero-Cost Defense Safeguards)
 ```bash
 gcloud run deploy signaturly-api \
-  --image us-central1-docker.pkg.dev/$PROJECT_ID/signaturly-repo/signaturly-api:latest \
+  --image us-central1-docker.pkg.dev/project-9aac115a-73f9-4e8a-9a7/signaturly-repo/signaturly-api:latest \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
   --min-instances 0 \
   --max-instances 1 \
   --memory 512Mi \
-  --set-env-vars="NODE_ENV=production,CORS_ORIGIN=*,STORAGE_PROVIDER=gcs,GCP_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=$BUCKET_NAME,GCS_SIGNED_URL_EXPIRES=900,MONGO_URI=your_mongodb_atlas_uri,JWT_ACCESS_SECRET=your_access_secret,JWT_REFRESH_SECRET=your_refresh_secret,ADMIN_SECRET_KEY=your_admin_secret,SMTP_HOST=smtp.gmail.com,SMTP_PORT=465,SMTP_USER=your_email@gmail.com,SMTP_PASS=your_gmail_app_password,SMTP_FROM=your_email@gmail.com"
+  --set-env-vars="NODE_ENV=production,CORS_ORIGIN=*,MONGO_URI=mongodb+srv://suleman111111111111111_db_user:WOCfS74qN0fbJcc8@cluster0.0e0cvkg.mongodb.net/?appName=Cluster0,JWT_ACCESS_SECRET=access_secret_123,JWT_REFRESH_SECRET=refresh_secret_456,ADMIN_SECRET_KEY=signaturly-superadmin-secret,STORAGE_PROVIDER=gcs,GCP_PROJECT_ID=project-9aac115a-73f9-4e8a-9a7,GCS_BUCKET_NAME=signaturly-vault-project-9aac115a-73f9-4e8a-9a7,GCS_SIGNED_URL_EXPIRES=900,SMTP_HOST=smtp.gmail.com,SMTP_PORT=465,SMTP_USER=suleman111111111111111@gmail.com,SMTP_PASS=vgsatqmnxjowucfs,SMTP_FROM=suleman111111111111111@gmail.com" \
+  --project project-9aac115a-73f9-4e8a-9a7
 ```
-
-> 📋 **Save the Service URL** outputted by Cloud Run (e.g. `https://signaturly-api-xxxxx-uc.a.run.app`).
+* `--platform managed`: Managed serverless orchestration, load balancers, and SSL handled by GCP.
+* `--allow-unauthenticated`: Permits public HTTPS access over the internet for signing workflows.
+* `--min-instances 0`: **Scale-to-Zero** — stops all compute instances when idle ($0.00 cost).
+* `--max-instances 1`: **Hard Billing Ceiling** — limits maximum instances to 1, preventing DDoS attacks or unexpected traffic spikes from generating surprise bills.
+* `--memory 512Mi`: Optimal memory allocation for sub-second container initialization.
+* `--set-env-vars`: Passes all database connections, cryptographic secrets, GCS vault settings, and SMTP relay configurations.
 
 ---
 
-## ⚙️ 4. GitHub Actions Automated CI/CD Setup
+## ⚡ 5. GitHub Actions CI/CD Pipeline (Sequential Execution Breakdown)
 
-To automate backend deployment every time you `git push` to `main`:
+The automated workflow file is located at [`.github/workflows/deploy-backend.yml`](file:///c:/Users/Sulaiman/Desktop/Signaturly/.github/workflows/deploy-backend.yml).
 
-### Step 4.1: Workflow File Location
-The workflow is saved at `.github/workflows/deploy-backend.yml`:
+### Step-by-Step Execution Sequence
 
-```yaml
-name: Deploy Backend to Google Cloud Run
-
-on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'server/**'
-      - '.github/workflows/deploy-backend.yml'
-  workflow_dispatch:
-
-env:
-  PROJECT_ID: your-gcp-project-id
-  REGION: us-central1
-  SERVICE_NAME: signaturly-api
-  REPOSITORY_NAME: signaturly-repo
-  IMAGE_NAME: signaturly-api
-
-jobs:
-  deploy:
-    name: Build & Deploy to Cloud Run
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: 📥 Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: 🔐 Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - name: ⚙️ Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ env.PROJECT_ID }}
-
-      - name: 🐳 Configure Docker for GCP Artifact Registry
-        run: |
-          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
-
-      - name: 🏗️ Build Docker Image
-        run: |
-          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}"
-          docker build \
-            -t "${IMAGE_TAG}:${{ github.sha }}" \
-            -t "${IMAGE_TAG}:latest" \
-            ./server
-
-      - name: 🚀 Push Docker Image to Artifact Registry
-        run: |
-          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}"
-          docker push "${IMAGE_TAG}:${{ github.sha }}"
-          docker push "${IMAGE_TAG}:latest"
-
-      - name: 🌐 Deploy to Google Cloud Run
-        run: |
-          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          gcloud run deploy ${{ env.SERVICE_NAME }} \
-            --image "$IMAGE_TAG" \
-            --platform managed \
-            --region ${{ env.REGION }} \
-            --allow-unauthenticated \
-            --min-instances 0 \
-            --max-instances 1 \
-            --memory 512Mi \
-            --set-env-vars="NODE_ENV=production,CORS_ORIGIN=*"
+```
+  [git push origin main]
+            │
+            ▼
+ 1. Trigger Filter        ➔ Only triggers if files in server/** changed
+            │
+            ▼
+ 2. Ubuntu Runner Starts  ➔ GitHub spins up an isolated ephemeral runner
+            │
+            ▼
+ 3. Checkout Code         ➔ Clones repo at exact commit SHA
+            │
+            ▼
+ 4. OIDC Authentication   ➔ Requests short-lived token from Google WIF (No keys!)
+            │
+            ▼
+ 5. Setup gcloud SDK      ➔ Configures Google Cloud CLI on runner
+            │
+            ▼
+ 6. Configure Docker      ➔ Authorizes Docker client for us-central1 Artifact Registry
+            │
+            ▼
+ 7. Build Docker Image    ➔ Builds container with commit SHA tag and latest tag
+            │
+            ▼
+ 8. Push Image to GCP     ➔ Uploads image to us-central1 Artifact Registry
+            │
+            ▼
+ 9. Deploy to Cloud Run   ➔ Deploys new revision with zero downtime
 ```
 
-### Step 4.2: Create the Service Account Key for GitHub
+---
+
+## 🔐 6. Keyless Security: Workload Identity Federation (WIF) Explained
+
+### Why Avoid Static JSON Service Account Keys?
+1. **Leak Risk**: Static JSON private keys never expire. If accidentally committed to git or leaked, an attacker has permanent access.
+2. **Organization Restrictions**: Google Cloud enforces `constraints/iam.disableServiceAccountKeyCreation` by default to prevent downloading private keys.
+
+### How Workload Identity Federation Works
+Instead of static keys, GitHub Actions exchanges a short-lived OpenID Connect (OIDC) cryptographic token with Google Cloud:
+
+```
+ [GitHub Actions] ──(1. OIDC Token with repo claim)──> [GCP Workload Pool]
+        │                                                     │
+        │                                            (2. Validate repo == 'sulaimankhan8/Signaturly')
+        │                                                     │
+        ▼                                                     ▼
+ [Short-Lived Access Token] <──(3. Return 1hr Token)── [GCP Service Account]
+```
+
+### The 4 Setup Commands Executed:
 ```bash
-# Create service account
-gcloud iam service-accounts create github-actions-deployer \
-  --display-name="GitHub Actions Deployer"
+# 1. Enable IAM Credentials API
+gcloud services enable iamcredentials.googleapis.com --project=project-9aac115a-73f9-4e8a-9a7
 
-# Grant roles
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:github-actions-deployer@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/run.admin"
+# 2. Create the Workload Identity Pool
+gcloud iam workload-identity-pools create "github-pool" \
+  --project="project-9aac115a-73f9-4e8a-9a7" \
+  --location="global" \
+  --display-name="GitHub Pool"
 
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:github-actions-deployer@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/artifactregistry.writer"
+# 3. Create OIDC Provider with strict repository mapping
+gcloud iam workload-identity-pools providers create-oidc "github-provider" \
+  --project="project-9aac115a-73f9-4e8a-9a7" \
+  --location="global" \
+  --workload-identity-pool="github-pool" \
+  --display-name="GitHub Provider" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
+  --attribute-condition="assertion.repository == 'sulaimankhan8/Signaturly'" \
+  --issuer-uri="https://token.actions.githubusercontent.com"
 
-gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:github-actions-deployer@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/iam.serviceAccountUser"
-
-# Download key
-gcloud iam service-accounts keys create gcp-key.json \
-  --iam-account=github-actions-deployer@$PROJECT_ID.iam.gserviceaccount.com
+# 4. Bind the GitHub repository to the deployer service account
+gcloud iam service-accounts add-iam-policy-binding "github-actions-deployer@project-9aac115a-73f9-4e8a-9a7.iam.gserviceaccount.com" \
+  --project="project-9aac115a-73f9-4e8a-9a7" \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/774331940137/locations/global/workloadIdentityPools/github-pool/attribute.repository/sulaimankhan8/Signaturly"
 ```
-
-### Step 4.3: Add to GitHub Secrets
-1. In GitHub, go to **Settings > Secrets and variables > Actions**.
-2. Click **New repository secret**:
-   - **Name**: `GCP_SA_KEY`
-   - **Value**: *(Paste the full JSON content of `gcp-key.json`)*
 
 ---
 
-## 🌐 5. Frontend Deployments on Vercel (100% Free)
+## 🌐 7. Frontend Deployment on Vercel & SPA Routing (`vercel.json`)
 
-Both the Customer Web App and Admin Portal are deployed as Single Page Applications (SPAs) on Vercel.
+Both the **Customer Web Client** and **Superadmin Governance Portal** are deployed to Vercel's global CDN.
 
-### Project 1: User Web App (`client/`)
-1. Go to [Vercel New Project](https://vercel.com/new) and import your `Signaturly` repository.
-2. Under **Root Directory**, select **`client`**.
-3. Under **Environment Variables**, add:
-   - **Key**: `VITE_API_BASE_URL`
-   - **Value**: `https://signaturly-api-xxxxx-uc.a.run.app` *(Your Cloud Run URL)*
-4. Click **Deploy**.
+### The Single-Page-App (SPA) Problem
+In React Router, URLs like `/dashboard` or `/sign/doc_123` do not exist as physical files on the web server. If a user refreshes the page on `/dashboard`, a standard server returns a **404 Not Found**.
 
-### Project 2: Superadmin Governance Portal (`admin/`)
-1. In Vercel, click **Add New... > Project** and import the same repository.
-2. Under **Root Directory**, select **`admin`**.
-3. Under **Environment Variables**, add:
-   - **Key**: `VITE_API_BASE_URL`
-   - **Value**: `https://signaturly-api-xxxxx-uc.a.run.app`
-4. Click **Deploy**.
-
-### SPA Routing Configuration (`vercel.json`)
-Both `client/vercel.json` and `admin/vercel.json` include SPA rewrite rules to ensure refreshing pages like `/dashboard` or `/verify` does not produce a 404 error:
+### The Solution: `vercel.json`
+Both `client/vercel.json` and `admin/vercel.json` include SPA rewrite rules:
 ```json
 {
   "rewrites": [
@@ -290,95 +380,69 @@ Both `client/vercel.json` and `admin/vercel.json` include SPA rewrite rules to e
   ]
 }
 ```
+* **How it works**: Any path requested is routed to `index.html`, allowing React Router inside the browser to render the corresponding page seamlessly with zero 404 errors.
 
 ---
 
-## 🖥️ 6. Alternative: 24/7 Free `e2-micro` VM Deployment
+## 🔑 8. Environment Variables Reference (`.env.production`)
 
-If you prefer a 24/7 virtual Linux machine instead of serverless Cloud Run:
-
-```bash
-# 1. Create Always-Free VM in us-central1
-gcloud compute instances create signaturly-free-vm \
-  --zone=us-central1-a \
-  --machine-type=e2-micro \
-  --image-family=ubuntu-2204-lts \
-  --image-project=ubuntu-os-cloud \
-  --boot-disk-size=30GB \
-  --tags=http-server,https-server
-
-# 2. SSH into VM
-gcloud compute ssh signaturly-free-vm --zone=us-central1-a
-
-# 3. Create 4GB Virtual Memory (Swap) so 1GB RAM never crashes
-sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile
-sudo mkswap /swapfile && sudo swapon /swapfile
-echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-
-# 4. Install Docker & Run
-sudo apt update && sudo apt install -y docker.io docker-compose-v2 git
-git clone https://github.com/your-username/Signaturly.git /var/www/signaturly
-cd /var/www/signaturly
-cp server/.env.production server/.env
-docker compose up -d --build
-```
-
----
-
-## 🔑 7. Environment Variables Reference (`.env.production`)
+The complete production configuration file is stored at [`server/.env.production`](file:///c:/Users/Sulaiman/Desktop/Signaturly/server/.env.production):
 
 ```ini
-# Server Network & Runtime
-NODE_ENV=production
-APP_NAME="Signaturly Pro"
+# ==============================================================================
+# SIGNATURLY PRO BACKEND - PRODUCTION CONFIGURATION
+# ==============================================================================
 
-# Allowed CORS Origins (* allows Vercel subdomains, previews & DuckDNS)
+NODE_ENV=production
+APP_NAME=Signaturly Pro
+
+# Allowed CORS Origins (* allows Vercel domains, previews & DuckDNS)
 CORS_ORIGIN=*
 
-# Database (MongoDB Atlas Free M0)
-MONGO_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/signaturly_prod?retryWrites=true&w=majority
+# Database Connection (MongoDB Atlas Free M0)
+MONGO_URI=mongodb+srv://suleman111111111111111_db_user:WOCfS74qN0fbJcc8@cluster0.0e0cvkg.mongodb.net/?appName=Cluster0
 
-# Authentication Secrets (64-character random strings)
+# Authentication & Security Secrets
 JWT_ACCESS_SECRET=access_secret_123
 JWT_REFRESH_SECRET=refresh_secret_456
 ADMIN_SECRET_KEY=signaturly-superadmin-secret
 
 # Google Cloud Storage (5GB Always-Free Vault)
 STORAGE_PROVIDER=gcs
-GCP_PROJECT_ID=your-gcp-project-id
-GCS_BUCKET_NAME=signaturly-vault-your-project-id
+GCP_PROJECT_ID=project-9aac115a-73f9-4e8a-9a7
+GCS_BUCKET_NAME=signaturly-vault-project-9aac115a-73f9-4e8a-9a7
 GCS_SIGNED_URL_EXPIRES=900
 
 # Gmail SMTP Relay
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_16_character_gmail_app_password
-SMTP_FROM=your_email@gmail.com
+SMTP_USER=suleman111111111111111@gmail.com
+SMTP_PASS=vgsatqmnxjowucfs
+SMTP_FROM=suleman111111111111111@gmail.com
 ```
 
 ---
 
-## 🔄 8. Disaster Recovery, Tear Down & Project Migration Guide
+## 🔄 9. Disaster Recovery, Tear Down & Project Migration Guide
 
-If you ever need to **delete everything**, **re-create the instance**, or **migrate to another GCP account**:
+If you ever need to **delete everything**, **re-create the instance**, or **migrate to a new GCP account**:
 
-### To Cleanly Delete All Resources in a Project:
+### To Cleanly Delete All Resources:
 ```bash
-# 1. Delete Cloud Run Service
+# 1. Delete Cloud Run API Service
 gcloud run services delete signaturly-api --region=us-central1 --quiet
 
-# 2. Delete Artifact Registry Docker images
+# 2. Delete Artifact Registry Container Repository
 gcloud artifacts repositories delete signaturly-repo --location=us-central1 --quiet
 
-# 3. Delete GCS Document Bucket (and all contents)
-gcloud storage rm --recursive gs://signaturly-vault-YOUR_PROJECT_ID
+# 3. Delete GCS Document Vault Bucket & Contents
+gcloud storage rm --recursive gs://signaturly-vault-project-9aac115a-73f9-4e8a-9a7
 ```
 
-### To Deploy from Scratch on a Brand-New Project:
-1. `gcloud config set project NEW_PROJECT_ID`
-2. Follow **Section 3 (Steps 3.2 through 3.7)**.
-3. Update `VITE_API_BASE_URL` in Vercel to point to your new Cloud Run URL.
+### To Deploy on a Brand New Project from Scratch:
+1. Set the new project: `gcloud config set project NEW_PROJECT_ID`
+2. Follow **Section 4 (Steps 4.1 through 4.6)** in order.
+3. Update `VITE_API_BASE_URL` in your Vercel project settings to the new Cloud Run Service URL.
 
 ---
-*Signaturly Pro © 2026. Production Cloud Deployment & Architecture Manual.*
+*Signaturly Pro © 2026. Production Cloud Deployment, Docker & GCP Master Manual.*
