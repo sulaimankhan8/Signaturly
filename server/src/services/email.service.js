@@ -9,30 +9,30 @@ const emailWrapper = (content, headerTitle = "Signaturly Pro") => `
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${headerTitle}</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #08090d; color: #e5e7eb; margin: 0; padding: 20px; }
-    .container { max-width: 600px; margin: 0 auto; background-color: #12141c; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden; }
-    .header { background: linear-gradient(135deg, #991b1b, #450a0a); padding: 30px 24px; text-align: center; }
-    .header h1 { margin: 0; font-size: 24px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
-    .badge { display: inline-block; background-color: rgba(0,0,0,0.4); border: 1px solid rgba(239,68,68,0.4); color: #fca5a5; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-weight: bold; text-transform: uppercase; margin-top: 6px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f1f5f9; color: #334155; margin: 0; padding: 24px 12px; -webkit-font-smoothing: antialiased; }
+    .container { max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; border: 1px solid #e2e8f0; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05); overflow: hidden; }
+    .header { background-color: #0f172a; padding: 24px; text-align: center; border-bottom: 2px solid #ef4444; }
+    .header h1 { margin: 0; font-size: 20px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .badge { display: inline-block; background-color: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; text-transform: uppercase; margin-top: 4px; }
     .body-content { padding: 32px 24px; }
-    .btn { display: inline-block; background: linear-gradient(to right, #dc2626, #991b1b); color: #ffffff !important; font-weight: 700; text-decoration: none; padding: 14px 28px; border-radius: 10px; font-size: 14px; text-align: center; margin-top: 20px; box-shadow: 0 4px 14px rgba(153,27,27,0.4); }
-    .card { background-color: #08090d; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; margin: 20px 0; }
-    .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; border-top: 1px solid rgba(255,255,255,0.06); }
-    .highlight { color: #f87171; font-weight: 600; }
+    .btn { display: inline-block; background-color: #dc2626; color: #ffffff !important; font-weight: 600; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; text-align: center; margin: 16px 0; box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25); }
+    .card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; }
+    .footer { text-align: center; padding: 18px 24px; color: #64748b; font-size: 12px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; line-height: 1.5; }
+    .highlight { color: #dc2626; font-weight: 600; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
       <h1>Signaturly<span style="color:#ef4444;">Pro</span></h1>
-      <span class="badge">E-Signature Platform</span>
+      <span class="badge">Legal E-Signature System</span>
     </div>
     <div class="body-content">
       ${content}
     </div>
     <div class="footer">
-      <p>Securely powered by <strong>Signaturly Pro</strong> Cryptographic Vault.</p>
-      <p>Please do not share your private signing link with others.</p>
+      <p style="margin:0 0 4px 0;">Securely powered by <strong>Signaturly Pro</strong> Cryptographic Vault.</p>
+      <p style="margin:0;">This is a confidential legal document request. Please do not forward.</p>
     </div>
   </div>
 </body>
@@ -43,25 +43,25 @@ export const sendSigningRequestEmail = async ({ recipient, pdf, sender, customMe
   const signingUrl = `${env.appUrl}/sign/${recipient.token}`;
   
   const content = `
-    <h2 style="color:#ffffff; margin-top:0; font-size:20px;">Signature Requested</h2>
-    <p style="color:#9ca3af; font-size:14px; line-height:1.6;">
-      <strong style="color:#ffffff;">${sender.name || sender.email}</strong> has sent you a document to review and e-sign.
+    <h2 style="color:#0f172a; margin-top:0; font-size:18px; font-weight:700;">Signature Requested</h2>
+    <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
+      <strong style="color:#0f172a;">${sender.name || sender.email}</strong> has sent you a document to review and electronically sign.
     </p>
 
     <div class="card">
-      <div style="font-size:11px; color:#6b7280; text-transform:uppercase; font-weight:bold;">Document Name</div>
-      <div style="font-size:15px; color:#ffffff; font-weight:600; margin-top:4px;">${pdf.originalFileName}</div>
-      <div style="font-size:12px; color:#9ca3af; margin-top:4px;">Total Pages: ${pdf.pageCount}</div>
-      ${customMessage ? `<div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06); font-style:italic; color:#d1d5db; font-size:13px;">"${customMessage}"</div>` : ""}
+      <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700;">Document Title</div>
+      <div style="font-size:15px; color:#0f172a; font-weight:600; margin-top:4px;">${pdf.originalFileName}</div>
+      <div style="font-size:12px; color:#64748b; margin-top:4px;">Total Pages: ${pdf.pageCount}</div>
+      ${customMessage ? `<div style="margin-top:12px; padding-top:12px; border-top:1px solid #e2e8f0; font-style:italic; color:#334155; font-size:13px;">"${customMessage}"</div>` : ""}
     </div>
 
-    <div style="text-align:center;">
-      <a href="${signingUrl}" class="btn">Review & Sign Document</a>
+    <div style="text-align:center; margin:24px 0;">
+      <a href="${signingUrl}" class="btn">Review &amp; Sign Document</a>
     </div>
 
-    <p style="font-size:12px; color:#6b7280; margin-top:24px; text-align:center;">
-      Or copy and paste this link in your browser:<br>
-      <a href="${signingUrl}" style="color:#ef4444; word-break:break-all;">${signingUrl}</a>
+    <p style="font-size:12px; color:#64748b; margin-top:20px; text-align:center; word-break:break-all;">
+      If the button above does not work, copy and paste this link in your browser:<br>
+      <a href="${signingUrl}" style="color:#dc2626; text-decoration:underline;">${signingUrl}</a>
     </p>
   `;
 
@@ -76,20 +76,24 @@ export const sendSigningRequestEmail = async ({ recipient, pdf, sender, customMe
 export const sendCompletionEmail = async ({ recipientEmail, recipientName, pdf, senderName, downloadUrl }) => {
   const fileUrl = `${env.appUrl}${downloadUrl}`;
   const content = `
-    <h2 style="color:#ffffff; margin-top:0; font-size:20px;">✓ Document Completed & Signed</h2>
-    <p style="color:#9ca3af; font-size:14px; line-height:1.6;">
-      All parties have completed and signed <strong style="color:#ffffff;">${pdf.originalFileName}</strong>.
+    <h2 style="color:#059669; margin-top:0; font-size:18px; font-weight:700;">✓ Document Executed &amp; Completed</h2>
+    <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
+      All parties have completed and signed <strong style="color:#0f172a;">${pdf.originalFileName}</strong>.
     </p>
 
     <div class="card">
-      <div style="font-size:11px; color:#6b7280; text-transform:uppercase; font-weight:bold;">Document Title</div>
-      <div style="font-size:15px; color:#10b981; font-weight:600; margin-top:4px;">${pdf.originalFileName}</div>
-      <div style="font-size:12px; color:#9ca3af; margin-top:4px;">Status: <span style="color:#34d399; font-weight:bold;">Legally Executed</span></div>
+      <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700;">Document Title</div>
+      <div style="font-size:15px; color:#0f172a; font-weight:600; margin-top:4px;">${pdf.originalFileName}</div>
+      <div style="font-size:12px; color:#059669; font-weight:600; margin-top:4px;">Status: Legally Executed (SHA-256 Ledger Verified)</div>
     </div>
 
-    <div style="text-align:center;">
-      <a href="${fileUrl}" class="btn" style="background: linear-gradient(to right, #059669, #047857);">Download Executed PDF</a>
+    <div style="text-align:center; margin:24px 0;">
+      <a href="${fileUrl}" class="btn" style="background-color:#059669;">Download Signed PDF</a>
     </div>
+
+    <p style="font-size:12px; color:#64748b; text-align:center;">
+      A permanent cryptographic audit certificate has been attached to the executed agreement.
+    </p>
   `;
 
   return sendEmail({
@@ -102,14 +106,14 @@ export const sendCompletionEmail = async ({ recipientEmail, recipientName, pdf, 
 
 export const sendDeclineEmail = async ({ senderEmail, pdf, declinedRecipient, reason }) => {
   const content = `
-    <h2 style="color:#ffffff; margin-top:0; font-size:20px;">Document Signing Declined</h2>
-    <p style="color:#9ca3af; font-size:14px; line-height:1.6;">
-      <strong class="highlight">${declinedRecipient.name} (${declinedRecipient.email})</strong> has declined to sign <strong style="color:#ffffff;">${pdf.originalFileName}</strong>.
+    <h2 style="color:#dc2626; margin-top:0; font-size:18px; font-weight:700;">Document Signing Declined</h2>
+    <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
+      <strong class="highlight">${declinedRecipient.name} (${declinedRecipient.email})</strong> has declined to sign <strong style="color:#0f172a;">${pdf.originalFileName}</strong>.
     </p>
 
-    <div class="card" style="border-color: rgba(239,68,68,0.3);">
-      <div style="font-size:11px; color:#ef4444; text-transform:uppercase; font-weight:bold;">Reason Provided</div>
-      <div style="font-size:14px; color:#ffffff; margin-top:6px;">${reason || "No specific reason provided."}</div>
+    <div class="card" style="border-left: 3px solid #dc2626;">
+      <div style="font-size:11px; color:#dc2626; text-transform:uppercase; font-weight:700;">Reason Provided</div>
+      <div style="font-size:14px; color:#0f172a; margin-top:4px;">${reason || "No specific reason provided."}</div>
     </div>
   `;
 
@@ -121,25 +125,52 @@ export const sendDeclineEmail = async ({ senderEmail, pdf, declinedRecipient, re
   });
 };
 
+export const sendCancellationNotificationEmail = async ({ recipientEmail, recipientName, pdf, eventType = "voided", reason = "" }) => {
+  const isVoided = eventType === "voided";
+  const title = isVoided ? "Document Cancelled / Voided" : "Document Cancelled (Declined by Signer)";
+  const description = isVoided
+    ? `The document <strong>${pdf.originalFileName}</strong> has been cancelled and voided by the sender.`
+    : `The document <strong>${pdf.originalFileName}</strong> has been cancelled because another party declined to sign.`;
+
+  const content = `
+    <h2 style="color:#dc2626; margin-top:0; font-size:18px; font-weight:700;">${title}</h2>
+    <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:12px;">
+      Hello ${recipientName || "Signer"},
+    </p>
+    <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
+      ${description} Any pending or prior signatures on this document are now void and non-binding.
+    </p>
+
+    <div class="card" style="border-left: 3px solid #dc2626;">
+      <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700;">Document Status</div>
+      <div style="font-size:14px; color:#0f172a; font-weight:600; margin-top:4px;">${pdf.originalFileName} &mdash; <span style="color:#dc2626;">VOID / CANCELLED</span></div>
+      ${reason ? `<div style="font-size:13px; color:#64748b; margin-top:6px;"><em>Reason: ${reason}</em></div>` : ""}
+    </div>
+  `;
+
+  return sendEmail({
+    to: recipientEmail,
+    subject: `Document Cancelled: "${pdf.originalFileName}"`,
+    html: emailWrapper(content, "Document Cancelled"),
+    text: `Notice: "${pdf.originalFileName}" has been cancelled. Any prior signatures are void. Reason: ${reason || "N/A"}`,
+  });
+};
+
 export const sendPasswordResetEmail = async ({ email, name, resetToken }) => {
   const resetUrl = `${env.appUrl}/reset-password?token=${resetToken}`;
   
   const content = `
-    <h2 style="color:#ffffff; margin-top:0; font-size:20px;">Password Reset Request</h2>
-    <p style="color:#9ca3af; font-size:14px; line-height:1.6;">
-      Hello <strong style="color:#ffffff;">${name || email}</strong>, we received a request to reset your Signaturly Pro account password.
+    <h2 style="color:#0f172a; margin-top:0; font-size:18px; font-weight:700;">Password Reset Request</h2>
+    <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
+      Hello <strong style="color:#0f172a;">${name || email}</strong>, we received a request to reset your Signaturly Pro password.
     </p>
 
-    <div style="text-align:center; margin: 28px 0;">
-      <a href="${resetUrl}" class="btn">Reset My Password</a>
+    <div style="text-align:center; margin:24px 0;">
+      <a href="${resetUrl}" class="btn">Reset Password</a>
     </div>
 
-    <p style="font-size:12px; color:#9ca3af; line-height:1.5;">
-      This password reset link is valid for <strong>1 hour</strong>. If you did not request a password reset, you can safely ignore this email.
-    </p>
-
-    <p style="font-size:12px; color:#6b7280; margin-top:20px; word-break:break-all;">
-      Direct URL: <a href="${resetUrl}" style="color:#ef4444;">${resetUrl}</a>
+    <p style="font-size:12px; color:#64748b; line-height:1.5;">
+      This password reset link is valid for <strong>1 hour</strong>. If you did not request this, you can safely ignore this email.
     </p>
   `;
 
@@ -155,26 +186,21 @@ export const sendReminderEmail = async ({ recipient, pdf, sender, customMessage 
   const signingUrl = `${env.appUrl}/sign/${recipient.token}`;
 
   const content = `
-    <h2 style="color:#ffffff; margin-top:0; font-size:20px;">Friendly Reminder: Signature Pending</h2>
-    <p style="color:#9ca3af; font-size:14px; line-height:1.6;">
-      This is a reminder that <strong style="color:#ffffff;">${sender.name || sender.email}</strong> is awaiting your review and electronic signature on <strong style="color:#ffffff;">${pdf.originalFileName}</strong>.
+    <h2 style="color:#0f172a; margin-top:0; font-size:18px; font-weight:700;">Friendly Reminder: Signature Pending</h2>
+    <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
+      This is a reminder that <strong style="color:#0f172a;">${sender.name || sender.email}</strong> is awaiting your review and electronic signature on <strong style="color:#0f172a;">${pdf.originalFileName}</strong>.
     </p>
 
-    <div class="card" style="border-color: rgba(239,68,68,0.25);">
-      <div style="font-size:11px; color:#f87171; text-transform:uppercase; font-weight:bold;">Pending Action Required</div>
-      <div style="font-size:15px; color:#ffffff; font-weight:600; margin-top:4px;">${pdf.originalFileName}</div>
-      ${pdf.expiresAt ? `<div style="font-size:12px; color:#fbbf24; margin-top:6px;">⚠️ Expires on: ${new Date(pdf.expiresAt).toLocaleDateString()}</div>` : ""}
-      ${customMessage ? `<div style="margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06); font-style:italic; color:#d1d5db; font-size:13px;">"${customMessage}"</div>` : ""}
+    <div class="card">
+      <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700;">Document Title</div>
+      <div style="font-size:15px; color:#0f172a; font-weight:600; margin-top:4px;">${pdf.originalFileName}</div>
+      ${pdf.expiresAt ? `<div style="font-size:12px; color:#d97706; margin-top:4px;">⚠️ Deadline: ${new Date(pdf.expiresAt).toLocaleDateString()}</div>` : ""}
+      ${customMessage ? `<div style="margin-top:12px; padding-top:12px; border-top:1px solid #e2e8f0; font-style:italic; color:#334155; font-size:13px;">"${customMessage}"</div>` : ""}
     </div>
 
-    <div style="text-align:center;">
-      <a href="${signingUrl}" class="btn">Sign Document Now</a>
+    <div style="text-align:center; margin:24px 0;">
+      <a href="${signingUrl}" class="btn">Review &amp; Sign Now</a>
     </div>
-
-    <p style="font-size:12px; color:#6b7280; margin-top:24px; text-align:center;">
-      Or access directly:<br>
-      <a href="${signingUrl}" style="color:#ef4444; word-break:break-all;">${signingUrl}</a>
-    </p>
   `;
 
   return sendEmail({
@@ -187,15 +213,15 @@ export const sendReminderEmail = async ({ recipient, pdf, sender, customMessage 
 
 export const sendOtpEmail = async ({ email, otp, pdfTitle = "Document" }) => {
   const content = `
-    <h2 style="color:#ffffff; margin-top:0; font-size:20px;">Identity Verification Code</h2>
-    <p style="color:#9ca3af; font-size:14px; line-height:1.6;">
-      You are about to access and e-sign <strong style="color:#ffffff;">${pdfTitle}</strong>. Use the 6-digit verification code below to confirm your identity:
+    <h2 style="color:#0f172a; margin-top:0; font-size:18px; font-weight:700;">Identity Verification Code</h2>
+    <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
+      You are accessing and signing <strong style="color:#0f172a;">${pdfTitle}</strong>. Use the 6-digit verification code below:
     </p>
 
-    <div class="card" style="text-align:center; padding:24px; border-color: rgba(239,68,68,0.4);">
-      <div style="font-size:11px; color:#f87171; text-transform:uppercase; font-weight:bold; letter-spacing:1px;">Security Verification Code</div>
-      <div style="font-size:36px; color:#ffffff; font-weight:800; letter-spacing:6px; margin-top:8px; font-family:monospace;">${otp}</div>
-      <div style="font-size:12px; color:#9ca3af; margin-top:8px;">Valid for 10 minutes. Do not share this code.</div>
+    <div class="card" style="text-align:center; padding:24px; background-color:#f8fafc;">
+      <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700; letter-spacing:1px;">Security Verification Code</div>
+      <div style="font-size:36px; color:#0f172a; font-weight:800; letter-spacing:8px; margin-top:8px; font-family:monospace;">${otp}</div>
+      <div style="font-size:12px; color:#64748b; margin-top:8px;">Valid for 10 minutes. Do not share this code.</div>
     </div>
   `;
 
@@ -206,5 +232,3 @@ export const sendOtpEmail = async ({ email, otp, pdfTitle = "Document" }) => {
     text: `Your Signaturly Pro identity verification code for "${pdfTitle}" is: ${otp} (Valid for 10 minutes).`,
   });
 };
-
-

@@ -2,10 +2,10 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { sendDocumentToRecipients, voidDocument } from "../services/send.service.js";
 import { sendManualRecipientReminder } from "../services/reminder.service.js";
+import { updateRecipientEmailService } from "../services/recipient.service.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { Recipient } from "../models/Recipient.model.js";
 import { ApiError } from "../utils/ApiError.js";
-
 
 export const sendDocumentController = asyncHandler(async (req, res) => {
   const { pdfId } = req.params;
@@ -68,3 +68,17 @@ export const remindRecipientController = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(result, "Reminder dispatched successfully"));
 });
 
+export const updateRecipientEmailController = asyncHandler(async (req, res) => {
+  const { recipientId } = req.params;
+  const { email } = req.body;
+
+  const result = await updateRecipientEmailService({
+    recipientId,
+    userId: req.user.id,
+    newEmail: email,
+    ipAddress: req.ip || req.socket?.remoteAddress,
+    userAgent: req.headers["user-agent"],
+  });
+
+  res.status(200).json(new ApiResponse(result, "Recipient email updated and signing link re-dispatched successfully"));
+});

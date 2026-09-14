@@ -29,10 +29,10 @@ export default function SigningPage() {
   const [declineModalOpen, setDeclineModalOpen] = useState(false);
   const [declineReason, setDeclineReason] = useState("");
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
+  const [hasElectronicConsent, setHasElectronicConsent] = useState(false);
 
   const [activeSignatureUrl, setActiveSignatureUrl] = useState("");
   const [activeInitialsUrl, setActiveInitialsUrl] = useState("");
-
 
   const isFieldMine = useCallback((f) => {
     if (!session?.recipient) return false;
@@ -119,7 +119,7 @@ export default function SigningPage() {
         return f;
       })
     );
-    toast.success("Signature applied!");
+    toast.success("Signature applied to your signature field(s)!");
   };
 
   const handleApplyInitialsToAllMine = (initUrl) => {
@@ -132,14 +132,11 @@ export default function SigningPage() {
         return f;
       })
     );
-    toast.success("Initials applied!");
+    toast.success("Initials applied to your initials field(s)!");
   };
 
   const handleFieldClick = (field) => {
-    if (!isFieldMine(field)) {
-      toast("This field is assigned to another signer");
-      return;
-    }
+    if (!isFieldMine(field)) return;
 
     if (field.type === "signature") {
       if (activeSignatureUrl && !field.signatureUrl) {
@@ -159,8 +156,34 @@ export default function SigningPage() {
   };
 
   const myFields = fields.filter(isFieldMine);
+  const unfilledMyFields = myFields.filter((f) => {
+    if (f.type === "signature" || f.type === "initials") {
+      return !f.signatureUrl && !f.value && !activeSignatureUrl;
+    }
+    return !f.value;
+  });
+
+  const jumpToNextUnfilledField = () => {
+    if (unfilledMyFields.length === 0) {
+      toast.success("All your required fields are filled! Click 'Agree & Sign' to complete.");
+      return;
+    }
+
+    const nextField = unfilledMyFields[0];
+    if (nextField.page !== currentPage) {
+      setCurrentPage(nextField.page);
+    }
+    setSelectedFieldId(nextField.id);
+    toast(`Focused on field: ${nextField.type} (Page ${nextField.page})`, { icon: "👉" });
+  };
 
   const handleSubmitSignature = async () => {
+    // 0. Check affirmative electronic consent
+    if (!hasElectronicConsent) {
+      toast.error("Please agree to the Electronic Records & Signature Consent checkbox.");
+      return;
+    }
+
     // 1. Check if required signatures or initials are missing
     const mySigFields = myFields.filter((f) => f.type === "signature");
     const myInitFields = myFields.filter((f) => f.type === "initials");
@@ -261,17 +284,22 @@ export default function SigningPage() {
           <h2 className="text-xl font-display font-bold text-white">
             {isDeclined ? "Document Declined" : "Access Restricted"}
           </h2>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-400 leading-relaxed">
             {isDeclined
-              ? "You have declined to sign this document. The sender has been notified."
+              ? "You have declined to sign this document. A formal notification has been dispatched to the document owner."
               : error}
           </p>
+          <div className="pt-3 border-t border-white/10 text-[11px] text-gray-500">
+            If this was done in error, please contact the sender to request a fresh invitation link.
+          </div>
         </div>
       </div>
     );
   }
 
   if (isCompleted) {
+    const executedDownloadUrl = `${import.meta.env.VITE_API_BASE_URL}${session?.document.pdfUrl}`;
+
     return (
       <div className="min-h-screen bg-[#08090d] flex items-center justify-center p-4">
         <Toaster position="top-right" />
@@ -283,10 +311,10 @@ export default function SigningPage() {
           </div>
           <div>
             <h2 className="text-2xl font-display font-bold text-white">
-              Legally Signed & Executed!
+              Legally Signed &amp; Executed!
             </h2>
-            <p className="text-xs text-gray-400 mt-2">
-              Thank you, <strong className="text-white">{session?.recipient.name}</strong>. Your electronic signature is cryptographically bound to this document under Section 10A of the Indian IT Act 2000 & US ESIGN standards.
+            <p className="text-xs text-gray-400 mt-2 leading-relaxed">
+              Thank you, <strong className="text-white">{session?.recipient.name}</strong>. Your electronic signature is cryptographically bound to this document under Section 10A of the Indian IT Act 2000 &amp; US ESIGN standards.
             </p>
           </div>
 
@@ -294,6 +322,21 @@ export default function SigningPage() {
             <p className="text-[10px] uppercase font-bold text-gray-500">Executed Agreement</p>
             <p className="text-white font-semibold">{session?.document.originalFileName}</p>
             <p className="text-[11px] text-emerald-400 mt-1 font-mono">Sealed at {new Date().toLocaleString()}</p>
+          </div>
+
+          <div className="flex flex-col gap-2 pt-2">
+            <a
+              href={executedDownloadUrl}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-bold text-xs rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Download Signed Copy</span>
+            </a>
           </div>
         </div>
       </div>
@@ -312,7 +355,6 @@ export default function SigningPage() {
       />
     );
   }
-
 
   const pdfUrl = `${import.meta.env.VITE_API_BASE_URL}${session?.document.pdfUrl}`;
 
@@ -340,6 +382,20 @@ export default function SigningPage() {
           </div>
 
           <div className="flex items-center space-x-2 sm:space-x-3">
+            <a
+              href={pdfUrl}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden sm:inline-flex items-center gap-1 px-3 py-2 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 rounded-xl text-xs font-semibold transition-all"
+              title="Download preview copy for review"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Download Review Copy</span>
+            </a>
+
             <button
               onClick={() => setDeclineModalOpen(true)}
               className="px-3 py-2 bg-white/5 hover:bg-red-950/40 text-gray-300 hover:text-red-300 border border-white/10 rounded-xl text-xs font-bold transition-all"
@@ -350,7 +406,7 @@ export default function SigningPage() {
             <button
               onClick={handleSubmitSignature}
               disabled={isSubmitting}
-              className="px-6 py-2 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-lg shadow-red-950/50 border border-red-500/30 transition-all flex items-center gap-2"
+              className="px-5 sm:px-6 py-2 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-lg shadow-red-950/50 border border-red-500/30 transition-all flex items-center gap-2"
             >
               {isSubmitting ? (
                 <>
@@ -362,7 +418,7 @@ export default function SigningPage() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span>Agree & Sign Document</span>
+                  <span>Agree &amp; Sign Document</span>
                 </>
               )}
             </button>
@@ -370,13 +426,31 @@ export default function SigningPage() {
         </div>
       </header>
 
+      {/* Mandatory ESIGN / eIDAS Consent Strip */}
+      <div className="bg-[#12141c] border-b border-white/10 px-4 sm:px-6 py-2">
+        <div className="max-w-7xl mx-auto flex items-center justify-between text-xs">
+          <label className="flex items-center gap-2.5 cursor-pointer select-none text-gray-300 hover:text-white transition-colors">
+            <input
+              type="checkbox"
+              id="electronic-consent-checkbox"
+              checked={hasElectronicConsent}
+              onChange={(e) => setHasElectronicConsent(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-700 text-red-600 focus:ring-red-500 focus:ring-offset-gray-900 bg-[#08090d] cursor-pointer"
+            />
+            <span className="text-[11px] sm:text-xs">
+              I agree to conduct business electronically and accept this electronic signature (US ESIGN &amp; Section 10A IT Act).
+            </span>
+          </label>
+        </div>
+      </div>
+
       {/* Main Signing Workspace */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         {/* Sidebar */}
         <aside className="w-80 hidden lg:block overflow-y-auto bg-[#12141c] border-r border-white/10 p-5 space-y-6">
           <div className="bg-[#08090d] rounded-2xl p-4 border border-white/10 space-y-3">
             <h3 className="text-white font-display font-bold text-xs uppercase tracking-wider">
-              Signature & Initials Studio
+              Signature &amp; Initials Studio
             </h3>
             <p className="text-[11px] text-gray-400">
               Create your verified e-signature or initials to seal required fields.
@@ -393,19 +467,31 @@ export default function SigningPage() {
           </div>
 
           <div className="bg-[#08090d] rounded-2xl p-4 border border-white/10 space-y-2">
-            <h3 className="text-white font-display font-bold text-xs uppercase tracking-wider">
-              Your Required Fields ({myFields.length})
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-white font-display font-bold text-xs uppercase tracking-wider">
+                Required Fields ({myFields.length})
+              </h3>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-950 text-red-400 border border-red-800/40">
+                {unfilledMyFields.length} remaining
+              </span>
+            </div>
             <p className="text-[10px] text-gray-400">
-              Click directly on the contract fields to sign or fill text.
+              Click directly on the contract fields or use the Navigator.
             </p>
 
             <div className="space-y-1.5 pt-2">
               {myFields.map((f, idx) => (
                 <div
                   key={f.id}
-                  onClick={() => handleFieldClick(f)}
-                  className="p-2 rounded-xl text-xs bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-between cursor-pointer transition-colors"
+                  onClick={() => {
+                    if (f.page !== currentPage) setCurrentPage(f.page);
+                    handleFieldClick(f);
+                  }}
+                  className={`p-2 rounded-xl text-xs border flex items-center justify-between cursor-pointer transition-colors ${
+                    selectedFieldId === f.id
+                      ? "bg-red-950/40 border-red-500/50"
+                      : "bg-white/5 hover:bg-white/10 border-white/10"
+                  }`}
                 >
                   <span className="capitalize font-semibold text-gray-200">
                     #{idx + 1} {f.type} (Page {f.page})
@@ -420,7 +506,7 @@ export default function SigningPage() {
         </aside>
 
         {/* PDF Viewer */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-[#08090d]">
+        <main className="flex-1 flex flex-col overflow-hidden bg-[#08090d] relative">
           {/* Page Controls Toolbar */}
           <div className="bg-[#12141c] border-b border-white/10 px-4 sm:px-6 py-2.5 flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -455,7 +541,7 @@ export default function SigningPage() {
 
           {/* Canvas */}
           <div
-            className="flex-1 overflow-auto p-4 sm:p-6 flex items-center justify-center select-none"
+            className="flex-1 overflow-auto p-4 sm:p-6 flex items-center justify-center select-none relative"
             onClick={() => setSelectedFieldId(null)}
           >
             <div className="relative inline-block shadow-2xl rounded-lg overflow-hidden border border-white/10">
@@ -502,6 +588,25 @@ export default function SigningPage() {
               </div>
             </div>
           </div>
+
+          {/* Floating Next-Field Navigator FAB */}
+          <div className="absolute bottom-6 right-6 z-30">
+            {unfilledMyFields.length > 0 ? (
+              <button
+                onClick={jumpToNextUnfilledField}
+                className="px-4 py-3 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-full shadow-2xl shadow-red-950 flex items-center gap-2 border border-red-400/40 animate-pulse transition-all"
+              >
+                <span>👉 Next Field ({unfilledMyFields.length} left)</span>
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmitSignature}
+                className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-full shadow-2xl flex items-center gap-2 border border-emerald-400/40 transition-all"
+              >
+                <span>✓ All Filled &bull; Finish &amp; Sign</span>
+              </button>
+            )}
+          </div>
         </main>
       </div>
 
@@ -546,7 +651,7 @@ export default function SigningPage() {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
           <div className="bg-[#12141c] border border-white/10 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <div className="flex justify-between items-center border-b border-white/10 pb-3">
-              <h3 className="text-base font-display font-bold text-white">Signature & Initials Studio</h3>
+              <h3 className="text-base font-display font-bold text-white">Signature &amp; Initials Studio</h3>
               <button onClick={() => setSignatureModalOpen(false)} className="text-gray-400 hover:text-white">✕</button>
             </div>
 

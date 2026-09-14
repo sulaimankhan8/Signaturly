@@ -11,6 +11,9 @@ import { ApiError } from "../utils/ApiError.js";
 import { readFile, fileExists, saveFile } from "./storage.service.js";
 import { createChainedAuditLog } from "./auditLedger.service.js";
 
+// In-memory document-level serialization queue to prevent parallel signing race conditions
+const documentSignQueues = new Map();
+
 const getImageBuffer = async (url) => {
   if (!url) return null;
 
@@ -48,7 +51,7 @@ const getImageBuffer = async (url) => {
   return null;
 };
 
-export const signPdf = async ({
+const executeSignPdf = async ({
   pdfId,
   userId = null,
   recipientId = null,
@@ -59,7 +62,7 @@ export const signPdf = async ({
   userAgent = "",
   isFinalCompletion = true,
 }) => {
-  console.log("signPdf called", { pdfId, userId, recipientId, fieldsCount: fields?.length });
+  console.log("executeSignPdf called", { pdfId, userId, recipientId, fieldsCount: fields?.length });
 
   const pdfMeta = await Pdf.findById(pdfId);
   if (!pdfMeta) throw new ApiError(404, "PDF not found");
@@ -247,7 +250,6 @@ export const signPdf = async ({
         });
 
         if (field.checked || field.value === "true" || field.value === true) {
-          // Draw checkmark lines or cross
           page.drawLine({
             start: { x: startX + size * 0.2, y: startY + size * 0.5 },
             end: { x: startX + size * 0.45, y: startY + size * 0.2 },
@@ -351,4 +353,34 @@ export const signPdf = async ({
 
   await pdfMeta.save();
   return signedPath;
+};
+
+/**
+ * Public wrapper for signPdf with per-document mutex queueing.
+ * Prevents race conditions during parallel multi-signer signing flows.
+ */
+export const signPdf = async (params) => {
+  const docKey = params?.pdfId?.toString();
+  if (!docKey) {
+    return await executeSignPdf(params);
+  }
+
+  const previousTask = documentSignQueues.get(docKey) || Promise.resolve();
+
+  let releaseLock;
+  const currentTask = new Promise((resolve) => {
+    releaseLock = resolve;
+  });
+
+  documentSignQueues.set(docKey, previousTask.then(() => currentTask, () => currentTask));
+
+  try {
+    await previousTask;
+    return await executeSignPdf(params);
+  } finally {
+    releaseLock();
+    if (documentSignQueues.get(docKey) === currentTask) {
+      documentSignQueues.delete(docKey);
+    }
+  }
 };

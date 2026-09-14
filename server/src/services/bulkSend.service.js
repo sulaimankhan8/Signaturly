@@ -1,12 +1,12 @@
 import path from "path";
-import fs from "fs";
 import crypto from "crypto";
 import { Template } from "../models/Template.model.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { Recipient } from "../models/Recipient.model.js";
 import { PdfAudit } from "../models/PdfAudit.model.js";
 import { User } from "../models/User.model.js";
-import { calculateFileHash } from "./hash.service.js";
+import { sha256FromBuffer } from "./hash.service.js";
+import { readFile, saveFile } from "./storage.service.js";
 import { sendSigningRequestEmail } from "./email.service.js";
 import { ApiError } from "../utils/ApiError.js";
 
@@ -29,19 +29,17 @@ export const processBulkSendFromTemplate = async ({
   const template = await Template.findOne({ _id: templateId, userId });
   if (!template) throw new ApiError(404, "Template not found or unauthorized");
 
-  const sourcePdfPath = template.pdfPath;
-  if (!fs.existsSync(sourcePdfPath)) {
-    throw new ApiError(404, "Template source PDF file is missing on server");
+  const templatePdfPath = template.sourcePdfPath;
+  let sourceBuffer;
+  try {
+    sourceBuffer = await readFile(templatePdfPath);
+  } catch (err) {
+    throw new ApiError(404, "Template source PDF file is missing on storage: " + err.message);
   }
 
   const batchId = `BATCH-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
-  const successfulDispatches = [];
+  const dispatchedDocuments = [];
   const errors = [];
-
-  const uploadsDir = path.resolve(process.cwd(), "uploads", "pdfs");
-  if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-  }
 
   for (let i = 0; i < recipientsList.length; i++) {
     const row = recipientsList[i];
@@ -54,51 +52,58 @@ export const processBulkSendFromTemplate = async ({
     }
 
     try {
-      // 1. Copy source PDF to unique document file
-      const newPdfFileName = `bulk_${batchId}_${Date.now()}_${i + 1}.pdf`;
-      const newPdfPath = path.join(uploadsDir, newPdfFileName);
-      await fs.promises.copyFile(sourcePdfPath, newPdfPath);
+      const sanitizedName = (template.name || "Template").replace(/[^a-zA-Z0-9_-]/g, "_");
+      const newPdfFileName = `${Date.now()}_bulk_${batchId}_${i + 1}_${sanitizedName}.pdf`;
+      const relativeStorageKey = `${userId}/${newPdfFileName}`;
 
-      const fileHash = await calculateFileHash(newPdfPath);
+      const savedStoragePath = await saveFile(relativeStorageKey, sourceBuffer, "application/pdf");
+      const fileHash = sha256FromBuffer(sourceBuffer);
       const originalDocName = `${template.name} - ${name || email}`;
 
-      // 2. Create PDF record
+      // 1. Create Recipient record
+      const token = crypto.randomBytes(32).toString("hex");
+      const recipientRole = template.roles?.[0]?.name || "Signer";
+      const recipientColor = template.roles?.[0]?.color || "#3b82f6";
+
+      // 2. Create PDF record first (placeholder fields)
       const pdf = await Pdf.create({
         userId,
         originalFileName: originalDocName,
-        filePath: newPdfPath,
+        storagePath: savedStoragePath,
         originalHash: fileHash,
         pageCount: template.pageCount || 1,
         status: "pending",
         message: customMessage,
         fields: [],
+        recipients: [],
       });
 
-      // 3. Create Recipient record
-      const token = crypto.randomBytes(32).toString("hex");
       const recipient = await Recipient.create({
         pdfId: pdf._id,
         name: name || email.split("@")[0],
         email,
-        role: template.roles[0]?.name || "Signer",
-        color: template.roles[0]?.color || "#ef4444",
+        role: recipientRole,
+        color: recipientColor,
         signingOrder: 1,
         status: "sent",
         token,
       });
 
-      // 4. Map template fields to this recipient
+      // 3. Map template fields to standard percentage field schema
       const mappedFields = (template.fields || []).map((tf) => ({
         id: tf.id || `f_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-        pageNumber: tf.pageNumber || 1,
         type: tf.type || "signature",
-        x: tf.x,
-        y: tf.y,
-        width: tf.width || 120,
-        height: tf.height || 40,
+        page: Number(tf.page) || 1,
+        xPercent: tf.xPercent !== undefined ? Number(tf.xPercent) : (Number(tf.x) / 100 || 0),
+        yPercent: tf.yPercent !== undefined ? Number(tf.yPercent) : (Number(tf.y) / 100 || 0),
+        widthPercent: tf.widthPercent !== undefined ? Number(tf.widthPercent) : (Number(tf.width) / 100 || 0.2),
+        heightPercent: tf.heightPercent !== undefined ? Number(tf.heightPercent) : (Number(tf.height) / 100 || 0.05),
+        fontSizePercent: tf.fontSizePercent ? Number(tf.fontSizePercent) : undefined,
+        label: tf.label || "",
         required: tf.required !== false,
-        recipientId: recipient._id,
+        recipientId: recipient._id.toString(),
         recipientEmail: recipient.email,
+        recipientName: recipient.name,
         recipientColor: recipient.color,
       }));
 
@@ -106,25 +111,25 @@ export const processBulkSendFromTemplate = async ({
       pdf.recipients = [recipient._id];
       await pdf.save();
 
-      // 5. Send signing invitation email
+      // 4. Send signing invitation email
       try {
         await sendSigningRequestEmail({
           recipient,
           pdf,
-          sender,
+          sender: user,
           customMessage,
         });
       } catch (mailErr) {
         console.error(`Email dispatch failed for ${email}:`, mailErr.message);
       }
 
-      // 6. Audit Trail
+      // 5. Audit Trail
       await PdfAudit.create({
         pdfId: pdf._id,
         userId,
-        event: "bulk_dispatched",
-        actorName: sender.name || "Sender",
-        actorEmail: sender.email,
+        event: "sent",
+        actorName: user.name || "Sender",
+        actorEmail: user.email,
         description: `Dispatched in bulk batch ${batchId} to ${name} (${email})`,
         ipAddress,
         userAgent,

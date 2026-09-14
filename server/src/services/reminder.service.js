@@ -69,13 +69,13 @@ export const processAutomatedReminders = async () => {
     const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // Find pending documents that are not expired
-    const pendingPdfs = await Pdf.find({
-      status: "pending",
+    // Find pending and partially signed documents that are not expired
+    const activePdfs = await Pdf.find({
+      status: { $in: ["pending", "partially_signed"] },
       $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
     });
 
-    for (const pdf of pendingPdfs) {
+    for (const pdf of activePdfs) {
       const pendingRecipients = await Recipient.find({
         pdfId: pdf._id,
         status: { $in: ["sent", "viewed"] },

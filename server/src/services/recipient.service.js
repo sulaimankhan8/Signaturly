@@ -2,12 +2,17 @@ import { v4 as uuidv4 } from "uuid";
 import { Recipient } from "../models/Recipient.model.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { PdfAudit } from "../models/PdfAudit.model.js";
+import { User } from "../models/User.model.js";
 import { ApiError } from "../utils/ApiError.js";
-import { sendSigningRequestEmail, sendCompletionEmail, sendDeclineEmail } from "./email.service.js";
+import {
+  sendSigningRequestEmail,
+  sendCompletionEmail,
+  sendDeclineEmail,
+  sendCancellationNotificationEmail,
+} from "./email.service.js";
 import { signPdf } from "./pdfSign.service.js";
 import { notifyUserDocumentUpdate } from "./sse.service.js";
 import path from "path";
-
 import bcrypt from "bcrypt";
 
 const RECIPIENT_COLORS = [
@@ -287,6 +292,7 @@ export const declineRecipientSignature = async ({
     signedAt: new Date(),
   });
 
+  // 1. Notify Document Owner / Sender
   const populatedPdf = await Pdf.findById(pdf._id).populate("userId");
   if (populatedPdf.userId?.email) {
     sendDeclineEmail({
@@ -294,6 +300,23 @@ export const declineRecipientSignature = async ({
       pdf,
       declinedRecipient: recipient,
       reason,
+    }).catch(console.error);
+  }
+
+  // 2. Notify any other signers who had already signed that document is declined
+  const priorSigners = await Recipient.find({
+    pdfId: pdf._id,
+    _id: { $ne: recipient._id },
+    status: "signed",
+  });
+
+  for (const priorSigner of priorSigners) {
+    sendCancellationNotificationEmail({
+      recipientEmail: priorSigner.email,
+      recipientName: priorSigner.name,
+      pdf,
+      eventType: "declined",
+      reason: `${recipient.name} declined: ${reason || 'No reason given'}`,
     }).catch(console.error);
   }
 
@@ -306,4 +329,86 @@ export const declineRecipientSignature = async ({
   });
 
   return { success: true };
+};
+
+/**
+ * Service to update mistyped recipient email & re-dispatch token
+ */
+export const updateRecipientEmailService = async ({
+  recipientId,
+  userId,
+  newEmail,
+  ipAddress = "",
+  userAgent = "",
+}) => {
+  if (!newEmail || !newEmail.includes("@")) {
+    throw new ApiError(400, "Valid email address is required");
+  }
+
+  const cleanEmail = newEmail.trim().toLowerCase();
+  const recipient = await Recipient.findById(recipientId);
+  if (!recipient) throw new ApiError(404, "Recipient not found");
+
+  if (recipient.status === "signed") {
+    throw new ApiError(400, "Cannot change email for a recipient who has already signed");
+  }
+
+  const pdf = await Pdf.findById(recipient.pdfId);
+  if (!pdf) throw new ApiError(404, "Document not found");
+
+  if (pdf.userId.toString() !== userId) {
+    throw new ApiError(403, "Unauthorized to modify this document's recipients");
+  }
+
+  if (["signed", "declined", "voided", "expired"].includes(pdf.status)) {
+    throw new ApiError(400, `Cannot update recipient for a document with status: ${pdf.status}`);
+  }
+
+  const oldEmail = recipient.email;
+  recipient.email = cleanEmail;
+  recipient.token = uuidv4(); // rotate token for security
+  recipient.status = "sent";
+  await recipient.save();
+
+  // Update associated field metadata
+  if (Array.isArray(pdf.fields)) {
+    pdf.fields = pdf.fields.map((f) => {
+      if (f.recipientId?.toString() === recipient._id.toString() || f.recipientEmail?.toLowerCase() === oldEmail) {
+        return { ...f, recipientEmail: cleanEmail };
+      }
+      return f;
+    });
+    pdf.markModified("fields");
+    await pdf.save();
+  }
+
+  const sender = await User.findById(userId);
+
+  // Dispatch new invite email to the updated email address
+  await sendSigningRequestEmail({
+    recipient,
+    pdf,
+    sender,
+    customMessage: pdf.message,
+  });
+
+  // Log audit
+  await PdfAudit.create({
+    pdfId: pdf._id,
+    recipientId: recipient._id,
+    userId,
+    event: "recipient_updated",
+    actorName: sender?.name || "Sender",
+    actorEmail: sender?.email || "",
+    description: `Recipient email updated from ${oldEmail} to ${cleanEmail}. Fresh signing link dispatched.`,
+    ipAddress,
+    userAgent,
+    signedAt: new Date(),
+  });
+
+  return {
+    success: true,
+    recipientId: recipient._id,
+    newEmail: recipient.email,
+  };
 };

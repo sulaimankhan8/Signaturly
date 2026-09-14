@@ -14,6 +14,7 @@ export default function SendDocument() {
   const [signingOrder, setSigningOrder] = useState(false);
   const [message, setMessage] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
+  const [savedContacts, setSavedContacts] = useState([]);
 
   const [recipients, setRecipients] = useState([
     {
@@ -28,6 +29,14 @@ export default function SendDocument() {
   ]);
 
   useEffect(() => {
+    // Load saved contacts from localStorage
+    try {
+      const stored = localStorage.getItem("signaturly_saved_contacts");
+      if (stored) {
+        setSavedContacts(JSON.parse(stored));
+      }
+    } catch (e) {}
+
     const fetchDoc = async () => {
       try {
         const res = await API.get(`/pdf/${pdfId}`);
@@ -64,6 +73,11 @@ export default function SendDocument() {
     );
   };
 
+  const selectSavedContact = (id, contact) => {
+    updateRecipient(id, { name: contact.name, email: contact.email });
+    toast.success(`Loaded contact: ${contact.name}`);
+  };
+
   const removeRecipient = (id) => {
     if (recipients.length <= 1) {
       toast.error("At least one recipient is required");
@@ -83,6 +97,8 @@ export default function SendDocument() {
 
   const proceedToFieldAssignment = () => {
     // Validate recipients
+    const contactsToSave = [...savedContacts];
+
     for (let i = 0; i < recipients.length; i++) {
       const r = recipients[i];
       if (!r.name.trim()) {
@@ -97,7 +113,17 @@ export default function SendDocument() {
         toast.error(`Please provide an access passcode for Recipient #${i + 1}`);
         return;
       }
+
+      // Add to contact cache if not existing
+      const cleanEmail = r.email.trim().toLowerCase();
+      if (!contactsToSave.some((c) => c.email.toLowerCase() === cleanEmail)) {
+        contactsToSave.push({ name: r.name.trim(), email: cleanEmail });
+      }
     }
+
+    try {
+      localStorage.setItem("signaturly_saved_contacts", JSON.stringify(contactsToSave.slice(-25)));
+    } catch (e) {}
 
     // Pass configuration to AssignFields stage
     navigate(`/assign/${pdfId}`, {
@@ -133,11 +159,11 @@ export default function SendDocument() {
           <div>
             <div className="flex items-center space-x-2 text-xs text-red-400 font-bold uppercase tracking-wider mb-1">
               <span>Step 1 of 2</span>
-              <span>•</span>
+              <span>&bull;</span>
               <span>Workflow Setup</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-white">
-              Add Recipients & Configure Flow
+              Add Recipients &amp; Configure Flow
             </h1>
             <p className="text-gray-400 text-xs mt-1">
               Document: <span className="text-white font-semibold">{docMeta?.originalFileName}</span> ({docMeta?.pageCount} pages)
@@ -157,13 +183,13 @@ export default function SendDocument() {
 
         {/* Recipients Card */}
         <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-display font-bold text-white">Document Signers</h2>
               <p className="text-gray-400 text-xs mt-0.5">Specify who needs to sign or review this agreement.</p>
             </div>
 
-            <label className="flex items-center space-x-2 cursor-pointer bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
+            <label className="flex items-center space-x-2 cursor-pointer bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 select-none">
               <input
                 type="checkbox"
                 checked={signingOrder}
@@ -215,9 +241,28 @@ export default function SendDocument() {
 
                 {/* Name */}
                 <div className="flex-1 w-full sm:w-auto">
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
-                    Signer Name
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[10px] uppercase font-bold text-gray-400">
+                      Signer Name
+                    </label>
+                    {savedContacts.length > 0 && (
+                      <select
+                        className="text-[10px] bg-transparent text-red-400 font-bold focus:outline-none cursor-pointer"
+                        onChange={(e) => {
+                          const contact = savedContacts.find((c) => c.email === e.target.value);
+                          if (contact) selectSavedContact(recipient.id, contact);
+                        }}
+                        defaultValue=""
+                      >
+                        <option value="" disabled>Saved Contacts ▾</option>
+                        {savedContacts.map((c) => (
+                          <option key={c.email} value={c.email} className="bg-[#12141c] text-white">
+                            {c.name} ({c.email})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                   <input
                     type="text"
                     required
@@ -328,7 +373,7 @@ export default function SendDocument() {
 
         {/* Message & Expiration Settings Card */}
         <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
-          <h2 className="text-base font-display font-bold text-white">Email & Expiration Settings</h2>
+          <h2 className="text-base font-display font-bold text-white">Email &amp; Expiration Settings</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="sm:col-span-2">

@@ -7,7 +7,7 @@ export const processAutomatedExpirations = async () => {
     const now = new Date();
 
     const expiredPdfs = await Pdf.find({
-      status: "pending",
+      status: { $in: ["pending", "partially_signed"] },
       expiresAt: { $ne: null, $lt: now },
     });
 

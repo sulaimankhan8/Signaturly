@@ -54,6 +54,8 @@ export default function AssignFields() {
   const activeRecipient =
     recipients.find((r) => r.id === activeRecipientId) || recipients[0];
 
+  const selectedField = fields.find((f) => f.id === selectedFieldId);
+
   const handlePageRender = ({ width, height }) => {
     setPageDims({ width, height });
   };
@@ -107,6 +109,24 @@ export default function AssignFields() {
     setFields((prev) => prev.filter((f) => f.id !== id));
     if (selectedFieldId === id) setSelectedFieldId(null);
     toast.success("Field removed");
+  };
+
+  const replicateFieldToAllPages = () => {
+    if (!selectedField) return;
+
+    const clones = [];
+    for (let p = 1; p <= totalPages; p++) {
+      if (p !== selectedField.page) {
+        clones.push({
+          ...selectedField,
+          id: crypto.randomUUID(),
+          page: p,
+        });
+      }
+    }
+
+    setFields((prev) => [...prev, ...clones]);
+    toast.success(`Replicated ${selectedField.type} to all ${totalPages} pages!`);
   };
 
   const handleSendDocument = async () => {
@@ -281,6 +301,42 @@ export default function AssignFields() {
             <FieldPalette onAdd={addField} activeColor={activeRecipient?.color} />
           </div>
 
+          {/* Field Helper Actions when a field is selected */}
+          {selectedField && (
+            <div className="bg-[#08090d] rounded-2xl p-4 border border-red-500/30 space-y-3 animate-fadeIn">
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-display font-bold text-xs uppercase tracking-wider">
+                  Field Action Tools
+                </h3>
+                <span className="text-[10px] text-red-400 capitalize font-bold">
+                  {selectedField.type} (Page {selectedField.page})
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={replicateFieldToAllPages}
+                  className="w-full py-2 px-3 bg-red-950/40 hover:bg-red-900/60 border border-red-600/40 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all"
+                  title="Place this field at identical position on every page"
+                >
+                  <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                  </svg>
+                  <span>Replicate to All {totalPages} Pages</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => removeField(selectedField.id)}
+                  className="w-full py-1.5 px-3 bg-white/5 hover:bg-red-950/60 text-gray-400 hover:text-red-300 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5"
+                >
+                  <span>Remove Selected Field</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Fields Placed Summary */}
           <div className="bg-[#08090d] rounded-2xl p-4 border border-white/10 space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-gray-300">
@@ -292,7 +348,10 @@ export default function AssignFields() {
               {fields.map((f, idx) => (
                 <div
                   key={f.id}
-                  onClick={() => setSelectedFieldId(f.id)}
+                  onClick={() => {
+                    if (f.page !== currentPage) setCurrentPage(f.page);
+                    setSelectedFieldId(f.id);
+                  }}
                   className={`p-2 rounded-xl text-xs flex items-center justify-between cursor-pointer transition-colors ${
                     selectedFieldId === f.id
                       ? "bg-white/15 border font-bold"
@@ -304,7 +363,7 @@ export default function AssignFields() {
                   }}
                 >
                   <span className="text-gray-300 capitalize text-[11px] truncate">
-                    #{idx + 1} {f.type} ({f.recipientName})
+                    #{idx + 1} {f.type} (P.{f.page} &bull; {f.recipientName})
                   </span>
                   <button
                     type="button"

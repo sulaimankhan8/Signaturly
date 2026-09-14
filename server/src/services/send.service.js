@@ -4,7 +4,7 @@ import { PdfAudit } from "../models/PdfAudit.model.js";
 import { User } from "../models/User.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { createRecipientsForDoc } from "./recipient.service.js";
-import { sendSigningRequestEmail } from "./email.service.js";
+import { sendSigningRequestEmail, sendCancellationNotificationEmail } from "./email.service.js";
 import { notifyUserDocumentUpdate } from "./sse.service.js";
 
 export const sendDocumentToRecipients = async ({
@@ -59,8 +59,6 @@ export const sendDocumentToRecipients = async ({
     }
 
     // c) Try matching by roleId → signingOrder (template flow)
-    //    Template fields have roleId like "role-1", "role-2", etc.
-    //    Recipients are created in role order, so match by signingOrder.
     if (!matchedRecipient && f.roleId) {
       const roleNum = parseInt(String(f.roleId).replace(/\D/g, ""), 10);
       if (!isNaN(roleNum)) {
@@ -185,6 +183,18 @@ export const voidDocument = async ({ pdfId, userId, ipAddress, userAgent }) => {
     userAgent,
     signedAt: new Date(),
   });
+
+  // Notify all recipients (prior signers & invited recipients) that the agreement is voided
+  const allRecipients = await Recipient.find({ pdfId: pdf._id });
+  for (const recipient of allRecipients) {
+    sendCancellationNotificationEmail({
+      recipientEmail: recipient.email,
+      recipientName: recipient.name,
+      pdf,
+      eventType: "voided",
+      reason: "Document was voided and cancelled by the sender.",
+    }).catch(console.error);
+  }
 
   // Push real-time SSE update
   notifyUserDocumentUpdate(userId, {
