@@ -12,6 +12,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
 
+  const accessToken = useSelector((state) => state.auth.accessToken);
+
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -25,22 +27,55 @@ export default function Dashboard() {
   const [isRecipientsLoading, setIsRecipientsLoading] = useState(false);
   const [remindingRecipientId, setRemindingRecipientId] = useState(null);
 
-  const loadDocuments = async () => {
+  const loadDocuments = async (showSpinner = true) => {
     try {
-      setIsLoading(true);
+      if (showSpinner) setIsLoading(true);
       const data = await fetchMyPdfsApi();
       setDocuments(data || []);
     } catch (err) {
       console.error("Failed to load user documents:", err);
-      toast.error("Failed to load documents. Please try again.");
+      if (showSpinner) toast.error("Failed to load documents. Please try again.");
     } finally {
-      setIsLoading(false);
+      if (showSpinner) setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadDocuments();
+    loadDocuments(true);
+
+    // Auto-refresh when returning to tab from signing in another tab
+    const handleFocus = () => {
+      loadDocuments(false);
+    };
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
+
+  // Live real-time updates via Server-Sent Events (SSE) — Zero client-side interval polling
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const sseUrl = `${import.meta.env.VITE_API_BASE_URL}/api/pdf/events?token=${accessToken}`;
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.type === "DOCUMENT_UPDATED") {
+          loadDocuments(false);
+        }
+      } catch (e) {
+        // Heartbeat or raw ping
+      }
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [accessToken]);
 
   const handleVoid = async (id, title) => {
     if (
@@ -242,15 +277,31 @@ export default function Dashboard() {
             </p>
           </div>
 
-          <button
-            onClick={() => navigate("/upload")}
-            className="inline-flex items-center justify-center px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#facc15] hover:shadow-[4px_4px_0px_0px_#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 transition-all border-2 border-black text-xs"
-          >
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-            </svg>
-            Upload Document
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                loadDocuments();
+                toast.success("Document vault updated!");
+              }}
+              disabled={isLoading}
+              className="inline-flex items-center justify-center p-3 bg-[#13151f] hover:bg-white/10 text-white font-bold rounded-xl border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] transition-all text-xs"
+              title="Refresh Document List"
+            >
+              <svg className={`w-4 h-4 ${isLoading ? "animate-spin text-yellow-400" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+
+            <button
+              onClick={() => navigate("/upload")}
+              className="inline-flex items-center justify-center px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#facc15] hover:shadow-[4px_4px_0px_0px_#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 transition-all border-2 border-black text-xs"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+              </svg>
+              Upload Document
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -417,42 +468,74 @@ export default function Dashboard() {
                   </div>
 
                   {/* Actions Bar */}
-                  <div className="pt-4 border-t-2 border-white/10 flex items-center justify-between gap-2">
-                    {/* Direct Self-Sign or Editor */}
-                    <button
-                      onClick={() => navigate(`/editor/${docId}`)}
-                      className="py-2 px-3 bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_#facc15] hover:shadow-[3px_3px_0px_0px_#fff] border-2 border-black"
-                      title="Self Sign Document"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                      </svg>
-                      <span>Sign</span>
-                    </button>
+                  {/* Actions Bar */}
+                  <div className="pt-4 border-t-2 border-white/10 flex items-center justify-between gap-2 flex-wrap">
+                    {/* If Completed: Primary Download Button */}
+                    {isSigned && doc.signedUrl ? (
+                      <a
+                        href={`${import.meta.env.VITE_API_BASE_URL}${doc.signedUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_#facc15] hover:shadow-[3px_3px_0px_0px_#fff] border-2 border-black"
+                        title="Download Final Executed PDF"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                        <span>Executed PDF</span>
+                      </a>
+                    ) : (doc.status === "pending" || doc.status === "partially_signed") ? (
+                      /* If In-Progress: Track Signers Primary */
+                      <button
+                        onClick={() => handleOpenRecipients(docId)}
+                        className="py-2 px-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] border-2 border-black"
+                        title="Track Signers & Progress"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <span>Signers</span>
+                      </button>
+                    ) : (
+                      /* Draft: Self-Sign / Editor */
+                      <button
+                        onClick={() => navigate(`/editor/${docId}`)}
+                        className="py-2 px-3 bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_#facc15] hover:shadow-[3px_3px_0px_0px_#fff] border-2 border-black"
+                        title="Self Sign Document"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        <span>Sign</span>
+                      </button>
+                    )}
 
-                    {/* Send for multi-signature */}
-                    <button
-                      onClick={() => navigate(`/send/${docId}`)}
-                      className="py-2 px-3 bg-[#1e2235] hover:bg-[#282d47] text-white border-2 border-white/20 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff]"
-                      title="Send to Multiple Recipients"
-                    >
-                      <svg className="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                      </svg>
-                      <span>Send</span>
-                    </button>
+                    {/* Send for multi-signature (if draft or completed re-send) */}
+                    {doc.status === "draft" && (
+                      <button
+                        onClick={() => navigate(`/send/${docId}`)}
+                        className="py-2 px-3 bg-[#1e2235] hover:bg-[#282d47] text-white border-2 border-white/20 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff]"
+                        title="Send to Multiple Recipients"
+                      >
+                        <svg className="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        <span>Send</span>
+                      </button>
+                    )}
 
-                    {/* Download Signed PDF */}
-                    {isSigned && doc.signedUrl && (
+                    {/* View Latest In-Progress Signed PDF */}
+                    {!isSigned && doc.signedUrl && (
                       <a
                         href={`${import.meta.env.VITE_API_BASE_URL}${doc.signedUrl}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-8 h-8 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
-                        title="Download Signed PDF"
+                        title="Preview Latest Signed PDF"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                         </svg>
                       </a>
                     )}
@@ -468,16 +551,18 @@ export default function Dashboard() {
                       </svg>
                     </button>
 
-                    {/* Track Signers & Remind */}
-                    <button
-                      onClick={() => handleOpenRecipients(docId)}
-                      className="w-8 h-8 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
-                      title="Track Signers & Send Reminders"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                      </svg>
-                    </button>
+                    {/* Track Signers & Remind (if not already main button) */}
+                    {isSigned && (
+                      <button
+                        onClick={() => handleOpenRecipients(docId)}
+                        className="w-8 h-8 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
+                        title="View Completed Signers"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                      </button>
+                    )}
 
                     {/* Void Document (Prominent button for In-Progress Envelopes) */}
                     {(doc.status === "pending" || doc.status === "partially_signed") && (
@@ -496,7 +581,7 @@ export default function Dashboard() {
                     <button
                       onClick={() => handleDelete(docId, doc.originalFileName)}
                       disabled={deletingId === docId}
-                      className="w-8 h-8 bg-red-950 hover:bg-red-800 text-red-400 hover:text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all disabled:opacity-50"
+                      className="w-8 h-8 bg-red-950 hover:bg-red-800 text-red-400 hover:text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all disabled:opacity-50 ml-auto"
                       title="Purge Document from Workspace"
                     >
                       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

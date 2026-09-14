@@ -80,9 +80,14 @@ export const signPdf = async ({
 
   // Process each field
   for (const field of fields) {
-    const pageIndex = field.page - 1;
-    if (pageIndex < 0 || pageIndex >= pdfDoc.getPageCount()) {
-      console.error("Invalid page number:", field.page);
+    const parsedPage = parseInt(field.page, 10);
+    if (isNaN(parsedPage) || parsedPage < 1) {
+      console.warn("Skipping field with invalid page number:", field.id, "page:", field.page);
+      continue;
+    }
+    const pageIndex = parsedPage - 1;
+    if (pageIndex >= pdfDoc.getPageCount()) {
+      console.error("Invalid page number:", field.page, "— doc only has", pdfDoc.getPageCount(), "pages");
       continue;
     }
 

@@ -13,6 +13,12 @@ export default function TypeSignature({ onConfirm, defaultText = "" }) {
   const [selectedFont, setSelectedFont] = useState(CURSIVE_FONTS[0].font);
   const [color, setColor] = useState("#000000");
 
+  useEffect(() => {
+    if (defaultText && defaultText.trim()) {
+      setTypedName(defaultText.trim());
+    }
+  }, [defaultText]);
+
   const generateSignatureImage = () => {
     const text = typedName.trim();
     if (!text) {

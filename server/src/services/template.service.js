@@ -202,7 +202,7 @@ export const instantiateDocumentFromTemplate = async ({
     pdfId: newPdf._id,
     userId,
     recipientsData,
-    fields: template.fields,
+    fieldsData: template.fields,
     signingOrder,
     message,
     expiresAt,

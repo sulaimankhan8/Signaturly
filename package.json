@@ -10,6 +10,8 @@
     "build:client": "npm --prefix client run build",
     "build:admin": "npm --prefix admin run build",
     "build:all": "npm run build:client && npm run build:admin",
+    "seed-admin": "npm --prefix server run seed-admin",
+    "create-admin": "npm --prefix server run create-admin",
     "docker:build": "docker compose build",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",

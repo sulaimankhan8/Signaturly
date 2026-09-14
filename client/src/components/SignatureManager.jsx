@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import SignaturePad from "./SignaturePad";
 import TypeSignature from "./TypeSignature";
 import VerifiedESignBadge from "./VerifiedESignBadge";
@@ -11,22 +11,39 @@ export default function SignatureManager({
   defaultSignatureUrl = "",
   defaultInitialsUrl = "",
   signerName = "",
+  storageKey = "default",
 }) {
   const [managerMode, setManagerMode] = useState("signature"); // signature | initials
   const [sigTab, setSigTab] = useState("esign"); // esign | draw | type | upload
   const [signatureUrl, setSignatureUrl] = useState(defaultSignatureUrl);
   const [initialsUrl, setInitialsUrl] = useState(defaultInitialsUrl);
 
+  const sigStorageKey = `signaturly_sig_${storageKey}`;
+  const initStorageKey = `signaturly_init_${storageKey}`;
+
+  // Sync state when default props change
+  useEffect(() => {
+    setSignatureUrl(defaultSignatureUrl || "");
+  }, [defaultSignatureUrl]);
+
+  useEffect(() => {
+    setInitialsUrl(defaultInitialsUrl || "");
+  }, [defaultInitialsUrl]);
+
   const handleSignatureCapture = (dataUrl) => {
     setSignatureUrl(dataUrl);
     onUploaded(dataUrl);
-    localStorage.setItem("signaturly_default_signature", dataUrl);
+    try {
+      localStorage.setItem(sigStorageKey, dataUrl);
+    } catch (e) {}
   };
 
   const handleInitialsCapture = (dataUrl) => {
     setInitialsUrl(dataUrl);
     onInitialsUploaded(dataUrl);
-    localStorage.setItem("signaturly_default_initials", dataUrl);
+    try {
+      localStorage.setItem(initStorageKey, dataUrl);
+    } catch (e) {}
   };
 
   const handleFileUpload = (e) => {

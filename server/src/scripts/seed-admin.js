@@ -33,19 +33,17 @@ async function seedAdmin() {
 
     let existingUser = await User.findOne({ email });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     if (existingUser) {
       existingUser.role = "superadmin";
       existingUser.name = name;
-      existingUser.password = hashedPassword;
+      existingUser.password = password;
       await existingUser.save();
       console.log(`\n SUCCESS: Updated existing user <${email}> to SUPERADMIN role!`);
     } else {
       await User.create({
         name,
         email,
-        password: hashedPassword,
+        password,
         role: "superadmin",
       });
       console.log(`\n SUCCESS: Created new SUPERADMIN account for <${email}>!`);

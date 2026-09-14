@@ -30,12 +30,8 @@ export default function SigningPage() {
   const [declineReason, setDeclineReason] = useState("");
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
 
-  const [activeSignatureUrl, setActiveSignatureUrl] = useState(
-    localStorage.getItem("signaturly_default_signature") || ""
-  );
-  const [activeInitialsUrl, setActiveInitialsUrl] = useState(
-    localStorage.getItem("signaturly_default_initials") || ""
-  );
+  const [activeSignatureUrl, setActiveSignatureUrl] = useState("");
+  const [activeInitialsUrl, setActiveInitialsUrl] = useState("");
 
 
   const isFieldMine = useCallback((f) => {
@@ -47,7 +43,6 @@ export default function SigningPage() {
     return (
       (f.recipientId && f.recipientId.toString() === rId) ||
       (f.recipientEmail && f.recipientEmail.trim().toLowerCase() === rEmail) ||
-      (f.roleId && (session.recipient.role === f.roleId || session.recipient.role === f.roleName)) ||
       (f.recipientName && f.recipientName.trim().toLowerCase() === rName)
     );
   }, [session]);
@@ -59,6 +54,14 @@ export default function SigningPage() {
         const data = await fetchSigningSessionApi(token);
         setSession(data);
         setTotalPages(data.document.pageCount || 1);
+
+        const storageKey = data.recipient.email || token;
+        try {
+          const savedSig = localStorage.getItem(`signaturly_sig_${storageKey}`) || "";
+          const savedInit = localStorage.getItem(`signaturly_init_${storageKey}`) || "";
+          setActiveSignatureUrl(savedSig);
+          setActiveInitialsUrl(savedInit);
+        } catch (e) {}
 
         const initialFields = (data.document.fields || []).map((f) => {
           const isMine =
@@ -380,7 +383,8 @@ export default function SigningPage() {
             </p>
 
             <SignatureManager
-              signerName={session?.recipient.name}
+              signerName={session?.recipient?.name}
+              storageKey={session?.recipient?.email || token}
               defaultSignatureUrl={activeSignatureUrl}
               defaultInitialsUrl={activeInitialsUrl}
               onUploaded={handleApplySignatureToAllMine}
@@ -547,7 +551,8 @@ export default function SigningPage() {
             </div>
 
             <SignatureManager
-              signerName={session?.recipient.name}
+              signerName={session?.recipient?.name}
+              storageKey={session?.recipient?.email || token}
               defaultSignatureUrl={activeSignatureUrl}
               defaultInitialsUrl={activeInitialsUrl}
               onUploaded={(url) => {

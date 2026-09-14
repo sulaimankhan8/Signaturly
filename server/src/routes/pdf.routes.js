@@ -8,8 +8,14 @@ import {
   getAuditCertificatePdfController,
 } from "../controllers/pdf.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
+import { registerSseClient } from "../services/sse.service.js";
 
 const router = Router();
+
+// Real-time SSE stream for instant status updates without polling
+router.get("/events", protect, (req, res) => {
+  registerSseClient(req.user.id, req, res);
+});
 
 router.post(
   "/upload",

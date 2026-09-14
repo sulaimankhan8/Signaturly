@@ -7,6 +7,12 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
   const [color, setColor] = useState("#0f172a");
   const [previewUrl, setPreviewUrl] = useState("");
 
+  useEffect(() => {
+    if (defaultName && defaultName.trim() && defaultName !== "Signer") {
+      setName(defaultName.trim());
+    }
+  }, [defaultName]);
+
   const generateBadgeDataUrl = (signerName = name, style = styleType, strokeColor = color) => {
     const text = signerName.trim() || "Authorized Signer";
     const canvas = document.createElement("canvas");

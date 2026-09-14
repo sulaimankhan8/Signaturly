@@ -220,6 +220,8 @@ export default function PdfEditor() {
                 Signature Studio
               </h3>
               <SignatureManager
+                signerName={user?.name || "Signer"}
+                storageKey={user?.email || "owner"}
                 defaultSignatureUrl={signatureUrl}
                 onUploaded={(url) => {
                   setSignatureUrl(url);

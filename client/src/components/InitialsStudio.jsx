@@ -16,6 +16,21 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
   const [badgeStyle, setBadgeStyle] = useState("monogram-circle"); // monogram-circle | monogram-square | handwritten
   const [color, setColor] = useState("#000000");
 
+  useEffect(() => {
+    if (defaultName && defaultName.trim()) {
+      const calculated = defaultName
+        .split(" ")
+        .filter(Boolean)
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .substring(0, 3);
+      if (calculated) {
+        setInitialsText(calculated);
+      }
+    }
+  }, [defaultName]);
+
   const canvasRef = useRef(null);
   const ctxRef = useRef(null);
   const [drawing, setDrawing] = useState(false);

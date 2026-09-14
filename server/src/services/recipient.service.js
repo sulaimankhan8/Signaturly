@@ -5,6 +5,7 @@ import { PdfAudit } from "../models/PdfAudit.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { sendSigningRequestEmail, sendCompletionEmail, sendDeclineEmail } from "./email.service.js";
 import { signPdf } from "./pdfSign.service.js";
+import { notifyUserDocumentUpdate } from "./sse.service.js";
 import path from "path";
 
 import bcrypt from "bcrypt";
@@ -109,6 +110,13 @@ export const recordRecipientView = async ({ token, ipAddress, userAgent }) => {
       userAgent,
       signedAt: new Date(),
     });
+
+    notifyUserDocumentUpdate(pdf.userId, {
+      pdfId: pdf._id,
+      event: "viewed",
+      recipientName: recipient.name,
+      recipientEmail: recipient.email,
+    });
   }
 
   return { recipient, pdf };
@@ -133,26 +141,67 @@ export const submitRecipientSignature = async ({
   recipient.userAgent = userAgent;
   await recipient.save();
 
-  // 2. Burn this recipient's filled fields into the PDF
   const remainingRecipients = await Recipient.find({
     pdfId: pdf._id,
     status: { $ne: "signed" },
   });
-
   const isFinal = remainingRecipients.length === 0;
+
+  // 2. Persist updated fields to MongoDB
+  const rId = recipient._id.toString();
+  const rEmail = recipient.email.toLowerCase();
+  const rName = recipient.name.toLowerCase();
+
+  const updatedPdfFields = (pdf.fields || []).map((dbField) => {
+    const isMine =
+      (dbField.recipientId && dbField.recipientId.toString() === rId) ||
+      (dbField.recipientEmail && dbField.recipientEmail.toLowerCase() === rEmail) ||
+      (dbField.recipientName && dbField.recipientName.toLowerCase() === rName);
+
+    if (isMine) {
+      const matchingFilled = (filledFields || []).find((f) => f.id === dbField.id);
+      if (matchingFilled) {
+        return {
+          ...dbField,
+          value: matchingFilled.value !== undefined ? matchingFilled.value : dbField.value,
+          signatureUrl: matchingFilled.signatureUrl || matchingFilled.value || dbField.signatureUrl,
+          signedAt: new Date(),
+          signedBy: recipient._id.toString(),
+        };
+      }
+    }
+    return dbField;
+  });
+
+  pdf.fields = updatedPdfFields;
+  pdf.markModified("fields");
+  if (!isFinal && pdf.status === "pending") {
+    pdf.status = "partially_signed";
+  }
+  await pdf.save();
+
+  // 3. Burn ONLY this recipient's filled fields into the PDF layer
+  const recipientFieldsToBurn = (filledFields || []).filter((f) => {
+    const isMine =
+      (f.recipientId && f.recipientId.toString() === rId) ||
+      (f.recipientEmail && f.recipientEmail.toLowerCase() === rEmail) ||
+      (f.recipientName && f.recipientName.toLowerCase() === rName);
+    return isMine;
+  });
 
   await signPdf({
     pdfId: pdf._id,
+    userId: pdf.userId,
     recipientId: recipient._id,
     actorName: recipient.name,
     actorEmail: recipient.email,
-    fields: filledFields || [],
+    fields: recipientFieldsToBurn.length > 0 ? recipientFieldsToBurn : (filledFields || []),
     ipAddress,
     userAgent,
     isFinalCompletion: isFinal,
   });
 
-  // 3. Sequential workflow trigger or complete notification
+  // 4. Sequential workflow trigger or complete notification
   if (isFinal) {
     pdf.status = "signed";
     await pdf.save();
@@ -191,6 +240,14 @@ export const submitRecipientSignature = async ({
       }).catch(console.error);
     }
   }
+
+  notifyUserDocumentUpdate(pdf.userId, {
+    pdfId: pdf._id,
+    event: isFinal ? "completed" : "signed",
+    recipientName: recipient.name,
+    recipientEmail: recipient.email,
+    status: isFinal ? "signed" : "partially_signed",
+  });
 
   return { success: true, isFinal };
 };
@@ -239,6 +296,14 @@ export const declineRecipientSignature = async ({
       reason,
     }).catch(console.error);
   }
+
+  notifyUserDocumentUpdate(pdf.userId, {
+    pdfId: pdf._id,
+    event: "declined",
+    recipientName: recipient.name,
+    recipientEmail: recipient.email,
+    status: "declined",
+  });
 
   return { success: true };
 };

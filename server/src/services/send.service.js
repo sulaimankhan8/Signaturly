@@ -5,6 +5,7 @@ import { User } from "../models/User.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { createRecipientsForDoc } from "./recipient.service.js";
 import { sendSigningRequestEmail } from "./email.service.js";
+import { notifyUserDocumentUpdate } from "./sse.service.js";
 
 export const sendDocumentToRecipients = async ({
   pdfId,
@@ -35,16 +36,61 @@ export const sendDocumentToRecipients = async ({
   });
 
   // 2. Link each field to the exact recipient._id
-  const normalizedFields = fieldsData.map((f) => {
-    const matchedRecipient = recipients.find(
-      (r) =>
-        (f.recipientEmail && r.email.toLowerCase() === f.recipientEmail.toLowerCase()) ||
-        (f.roleId && (r.role === f.roleId || r.role === f.roleName)) ||
-        (f.recipientName && r.name.toLowerCase() === f.recipientName.toLowerCase())
-    );
+  const normalizedFields = fieldsData.map((rawField) => {
+    // If rawField is a Mongoose document or has _doc / toObject, extract plain object
+    const f = (rawField && typeof rawField.toObject === "function")
+      ? rawField.toObject()
+      : (rawField && rawField._doc ? { ...rawField._doc } : { ...rawField });
+
+    let matchedRecipient = null;
+
+    // a) Try matching by email (most reliable — used in manual send flow)
+    if (!matchedRecipient && f.recipientEmail) {
+      matchedRecipient = recipients.find(
+        (r) => r.email.toLowerCase() === f.recipientEmail.toLowerCase()
+      );
+    }
+
+    // b) Try matching by name
+    if (!matchedRecipient && f.recipientName) {
+      matchedRecipient = recipients.find(
+        (r) => r.name.toLowerCase() === f.recipientName.toLowerCase()
+      );
+    }
+
+    // c) Try matching by roleId → signingOrder (template flow)
+    //    Template fields have roleId like "role-1", "role-2", etc.
+    //    Recipients are created in role order, so match by signingOrder.
+    if (!matchedRecipient && f.roleId) {
+      const roleNum = parseInt(String(f.roleId).replace(/\D/g, ""), 10);
+      if (!isNaN(roleNum)) {
+        matchedRecipient = recipients.find(
+          (r) => r.signingOrder === roleNum
+        );
+      }
+      // Fallback: try matching roleName against recipient name
+      if (!matchedRecipient && f.roleName) {
+        matchedRecipient = recipients.find(
+          (r) => r.name.toLowerCase() === f.roleName.toLowerCase()
+        );
+      }
+    }
 
     return {
-      ...f,
+      id: f.id || f._id?.toString() || `field-${Math.random().toString(36).substr(2, 9)}`,
+      type: f.type || "signature",
+      page: Number(f.page) || 1,
+      xPercent: Number(f.xPercent) || 0,
+      yPercent: Number(f.yPercent) || 0,
+      widthPercent: Number(f.widthPercent) || 0.2,
+      heightPercent: Number(f.heightPercent) || 0.05,
+      fontSizePercent: f.fontSizePercent ? Number(f.fontSizePercent) : undefined,
+      label: f.label || "",
+      required: f.required !== false,
+      value: f.value || "",
+      signatureUrl: f.signatureUrl || "",
+      roleId: f.roleId || undefined,
+      roleName: f.roleName || undefined,
       recipientId: matchedRecipient ? matchedRecipient._id.toString() : (f.recipientId || recipients[0]?._id?.toString()),
       recipientEmail: matchedRecipient ? matchedRecipient.email : (f.recipientEmail || recipients[0]?.email),
       recipientName: matchedRecipient ? matchedRecipient.name : (f.recipientName || recipients[0]?.name),
@@ -102,6 +148,13 @@ export const sendDocumentToRecipients = async ({
     signedAt: new Date(),
   });
 
+  // 6. Push real-time SSE update to the sender's dashboard
+  notifyUserDocumentUpdate(userId, {
+    pdfId: pdf._id.toString(),
+    event: "sent",
+    status: pdf.status,
+  });
+
   return {
     pdfId: pdf._id,
     status: pdf.status,
@@ -131,6 +184,13 @@ export const voidDocument = async ({ pdfId, userId, ipAddress, userAgent }) => {
     ipAddress,
     userAgent,
     signedAt: new Date(),
+  });
+
+  // Push real-time SSE update
+  notifyUserDocumentUpdate(userId, {
+    pdfId: pdf._id.toString(),
+    event: "voided",
+    status: "voided",
   });
 
   return { success: true };
