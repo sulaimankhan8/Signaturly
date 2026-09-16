@@ -26,10 +26,14 @@ const pdfAuditSchema = new mongoose.Schema(
         "sent",
         "viewed",
         "signed",
+        "completed",
         "declined",
         "voided",
         "downloaded",
         "expired",
+        "reminder_sent",
+        "automated_reminder",
+        "recipient_updated",
       ],
       default: "signed",
     },
@@ -100,4 +104,3 @@ pdfAuditSchema.pre(["updateOne", "updateMany", "findOneAndUpdate", "findByIdAndU
 });
 
 export const PdfAudit = mongoose.model("PdfAudit", pdfAuditSchema);
-

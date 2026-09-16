@@ -7,6 +7,7 @@ import { PdfAudit } from "../models/PdfAudit.model.js";
 import { Recipient } from "../models/Recipient.model.js";
 import path from "path";
 import { fileExists, deleteFile, getFileUrl } from "../services/storage.service.js";
+import { eventBus, EventTypes } from "../events/index.js";
 
 export const uploadPdfController = asyncHandler(async (req, res) => {
   const pdf = await uplodedPdf({
@@ -17,6 +18,23 @@ export const uploadPdfController = asyncHandler(async (req, res) => {
   const fileName = path.basename(pdf.storagePath);
   const relativeKey = `${pdf.userId}/${fileName}`;
   const fileUrl = await getFileUrl(relativeKey);
+
+  // Emit event-driven signal for document creation / initial vault storage
+  await eventBus.emitEvent(EventTypes.DOCUMENT_CREATED, {
+    aggregateId: pdf._id,
+    actor: {
+      id: req.user._id || req.user.id,
+      name: req.user.name || "User",
+      email: req.user.email || "",
+      ipAddress: req.ip || req.socket?.remoteAddress,
+      userAgent: req.headers["user-agent"],
+    },
+    payload: {
+      title: pdf.originalFileName,
+      fileUrl,
+      pageCount: pdf.pageCount,
+    },
+  });
 
   res.status(201).json(
     new ApiResponse(
@@ -37,30 +55,118 @@ export const getMyPdfsController = asyncHandler(async (req, res) => {
 
   const formattedPdfs = await Promise.all(
     pdfs.map(async (pdf) => {
-      const fileName = path.basename(pdf.storagePath);
-      const relativeKey = `${pdf.userId}/${fileName}`;
-      const signedKey = relativeKey.replace(/\.pdf$/i, "-signed.pdf");
+      try {
+        const fileName = path.basename(pdf.storagePath || "doc.pdf");
+        const relativeKey = `${pdf.userId}/${fileName}`;
+        const signedKey = relativeKey.replace(/\.pdf$/i, "-signed.pdf");
 
-      const originalUrl = await getFileUrl(relativeKey);
-      const isSignedPresent = await fileExists(signedKey);
-      const signedUrl = isSignedPresent ? await getFileUrl(signedKey) : null;
+        const originalUrl = await getFileUrl(relativeKey);
+        const isSignedPresent = await fileExists(signedKey);
+        const signedUrl = isSignedPresent ? await getFileUrl(signedKey) : null;
 
-      return {
-        _id: pdf._id,
-        id: pdf._id,
-        originalFileName: pdf.originalFileName,
-        pageCount: pdf.pageCount,
-        status: pdf.status,
-        createdAt: pdf.createdAt,
-        updatedAt: pdf.updatedAt,
-        originalUrl,
-        signedUrl,
-        originalHash: pdf.originalHash,
-      };
+        return {
+          _id: pdf._id,
+          id: pdf._id,
+          originalFileName: pdf.originalFileName,
+          pageCount: pdf.pageCount,
+          status: pdf.status,
+          createdAt: pdf.createdAt,
+          updatedAt: pdf.updatedAt,
+          originalUrl,
+          signedUrl,
+          originalHash: pdf.originalHash,
+        };
+      } catch (err) {
+        return {
+          _id: pdf._id,
+          id: pdf._id,
+          originalFileName: pdf.originalFileName,
+          pageCount: pdf.pageCount || 1,
+          status: pdf.status || "draft",
+          createdAt: pdf.createdAt,
+          updatedAt: pdf.updatedAt,
+          originalUrl: pdf.storagePath || "",
+          signedUrl: null,
+          originalHash: pdf.originalHash || "",
+        };
+      }
     })
   );
 
   res.status(200).json(new ApiResponse(formattedPdfs, "User documents fetched successfully"));
+});
+
+/**
+ * Lightweight Zero-Cost Delta Sync Controller
+ * Returns 304 Not Modified if no documents were modified since the provided timestamp.
+ */
+export const syncUpdatesController = asyncHandler(async (req, res) => {
+  const userId = req.user.id;
+  const since = req.query.since ? new Date(req.query.since) : null;
+
+  if (since && !isNaN(since.getTime())) {
+    const hasModifications = await Pdf.exists({
+      userId,
+      updatedAt: { $gt: since },
+    });
+
+    if (!hasModifications) {
+      // Zero-cost response: No payload, allows Cloud Run container to scale to 0
+      return res.status(304).end();
+    }
+  }
+
+  const pdfs = await Pdf.find({ userId }).sort({ createdAt: -1 });
+
+  const formattedPdfs = await Promise.all(
+    pdfs.map(async (pdf) => {
+      try {
+        const fileName = path.basename(pdf.storagePath || "doc.pdf");
+        const relativeKey = `${pdf.userId}/${fileName}`;
+        const signedKey = relativeKey.replace(/\.pdf$/i, "-signed.pdf");
+
+        const originalUrl = await getFileUrl(relativeKey);
+        const isSignedPresent = await fileExists(signedKey);
+        const signedUrl = isSignedPresent ? await getFileUrl(signedKey) : null;
+
+        return {
+          _id: pdf._id,
+          id: pdf._id,
+          originalFileName: pdf.originalFileName,
+          pageCount: pdf.pageCount,
+          status: pdf.status,
+          createdAt: pdf.createdAt,
+          updatedAt: pdf.updatedAt,
+          originalUrl,
+          signedUrl,
+          originalHash: pdf.originalHash,
+        };
+      } catch (err) {
+        return {
+          _id: pdf._id,
+          id: pdf._id,
+          originalFileName: pdf.originalFileName,
+          pageCount: pdf.pageCount || 1,
+          status: pdf.status || "draft",
+          createdAt: pdf.createdAt,
+          updatedAt: pdf.updatedAt,
+          originalUrl: pdf.storagePath || "",
+          signedUrl: null,
+          originalHash: pdf.originalHash || "",
+        };
+      }
+    })
+  );
+
+  res.status(200).json(
+    new ApiResponse(
+      {
+        documents: formattedPdfs,
+        serverTime: new Date().toISOString(),
+      },
+      "Delta sync completed"
+    )
+  );
 });
 
 export const deletePdfController = asyncHandler(async (req, res) => {

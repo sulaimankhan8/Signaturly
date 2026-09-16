@@ -1,16 +1,10 @@
 import { v4 as uuidv4 } from "uuid";
 import { Recipient } from "../models/Recipient.model.js";
 import { Pdf } from "../models/Pdf.model.js";
-import { PdfAudit } from "../models/PdfAudit.model.js";
 import { User } from "../models/User.model.js";
 import { ApiError } from "../utils/ApiError.js";
-import {
-  sendSigningRequestEmail,
-  sendCompletionEmail,
-  sendDeclineEmail,
-  sendCancellationNotificationEmail,
-} from "./email.service.js";
 import { signPdf } from "./pdfSign.service.js";
+import { eventBus, EventTypes } from "../events/index.js";
 import { notifyUserDocumentUpdate } from "./sse.service.js";
 import path from "path";
 import bcrypt from "bcrypt";
@@ -104,16 +98,20 @@ export const recordRecipientView = async ({ token, ipAddress, userAgent }) => {
     recipient.userAgent = userAgent;
     await recipient.save();
 
-    await PdfAudit.create({
-      pdfId: pdf._id,
-      recipientId: recipient._id,
-      event: "viewed",
-      actorName: recipient.name,
-      actorEmail: recipient.email,
-      description: `${recipient.name} opened and viewed the document.`,
-      ipAddress,
-      userAgent,
-      signedAt: new Date(),
+    // Emit event
+    await eventBus.emitEvent(EventTypes.RECIPIENT_VIEWED, {
+      aggregateId: pdf._id,
+      actor: {
+        id: recipient._id,
+        name: recipient.name,
+        email: recipient.email,
+        ipAddress,
+        userAgent,
+      },
+      payload: {
+        recipientId: recipient._id,
+        pdfId: pdf._id,
+      },
     });
 
     notifyUserDocumentUpdate(pdf.userId, {
@@ -186,7 +184,7 @@ export const submitRecipientSignature = async ({
   await pdf.save();
 
   // 3. Burn ONLY this recipient's filled fields into the PDF layer
-  const recipientFieldsToBurn = (filledFields || []).filter((f) => {
+  const recipientFieldsToBurn = (updatedPdfFields || []).filter((f) => {
     const isMine =
       (f.recipientId && f.recipientId.toString() === rId) ||
       (f.recipientEmail && f.recipientEmail.toLowerCase() === rEmail) ||
@@ -200,10 +198,27 @@ export const submitRecipientSignature = async ({
     recipientId: recipient._id,
     actorName: recipient.name,
     actorEmail: recipient.email,
-    fields: recipientFieldsToBurn.length > 0 ? recipientFieldsToBurn : (filledFields || []),
+    fields: recipientFieldsToBurn,
     ipAddress,
     userAgent,
     isFinalCompletion: isFinal,
+  });
+
+  // Emit DOCUMENT_SIGNED event for this recipient
+  await eventBus.emitEvent(EventTypes.DOCUMENT_SIGNED, {
+    aggregateId: pdf._id,
+    actor: {
+      id: recipient._id,
+      name: recipient.name,
+      email: recipient.email,
+      ipAddress,
+      userAgent,
+    },
+    payload: {
+      recipientId: recipient._id,
+      pdfId: pdf._id,
+      isFinal,
+    },
   });
 
   // 4. Sequential workflow trigger or complete notification
@@ -211,20 +226,26 @@ export const submitRecipientSignature = async ({
     pdf.status = "signed";
     await pdf.save();
 
-    // Notify sender & all signers that document is completed
     const allRecipients = await Recipient.find({ pdfId: pdf._id });
     const signedFileName = path.basename(pdf.storagePath).replace(/\.pdf$/i, "-signed.pdf");
     const downloadUrl = `/uploads/${pdf.userId}/${signedFileName}`;
 
-    for (const r of allRecipients) {
-      sendCompletionEmail({
-        recipientEmail: r.email,
-        recipientName: r.name,
+    // Emit completed event
+    await eventBus.emitEvent(EventTypes.DOCUMENT_COMPLETED, {
+      aggregateId: pdf._id,
+      actor: {
+        id: recipient._id,
+        name: recipient.name,
+        email: recipient.email,
+        ipAddress,
+        userAgent,
+      },
+      payload: {
         pdf,
-        senderName: "Signaturly Pro Vault",
+        recipients: allRecipients,
         downloadUrl,
-      }).catch(console.error);
-    }
+      },
+    });
   } else if (pdf.signingOrder) {
     // If sequential, dispatch email to the NEXT signer in order
     const nextRecipient = await Recipient.findOne({
@@ -237,12 +258,22 @@ export const submitRecipientSignature = async ({
       await nextRecipient.save();
 
       const populatedPdf = await Pdf.findById(pdf._id).populate("userId");
-      sendSigningRequestEmail({
-        recipient: nextRecipient,
-        pdf,
-        sender: populatedPdf.userId,
-        customMessage: pdf.message,
-      }).catch(console.error);
+      await eventBus.emitEvent(EventTypes.DOCUMENT_SENT, {
+        aggregateId: pdf._id,
+        actor: {
+          id: populatedPdf.userId?._id,
+          name: populatedPdf.userId?.name || "Sender",
+          email: populatedPdf.userId?.email || "",
+          ipAddress,
+          userAgent,
+        },
+        payload: {
+          pdf,
+          recipients: [nextRecipient],
+          sender: populatedPdf.userId,
+          customMessage: pdf.message,
+        },
+      });
     }
   }
 
@@ -280,45 +311,31 @@ export const declineRecipientSignature = async ({
   pdf.declineReason = reason;
   await pdf.save();
 
-  await PdfAudit.create({
-    pdfId: pdf._id,
-    recipientId: recipient._id,
-    event: "declined",
-    actorName: recipient.name,
-    actorEmail: recipient.email,
-    description: `${recipient.name} declined to sign the document: "${reason || 'No reason specified'}".`,
-    ipAddress,
-    userAgent,
-    signedAt: new Date(),
-  });
-
-  // 1. Notify Document Owner / Sender
   const populatedPdf = await Pdf.findById(pdf._id).populate("userId");
-  if (populatedPdf.userId?.email) {
-    sendDeclineEmail({
-      senderEmail: populatedPdf.userId.email,
-      pdf,
-      declinedRecipient: recipient,
-      reason,
-    }).catch(console.error);
-  }
-
-  // 2. Notify any other signers who had already signed that document is declined
   const priorSigners = await Recipient.find({
     pdfId: pdf._id,
     _id: { $ne: recipient._id },
     status: "signed",
   });
 
-  for (const priorSigner of priorSigners) {
-    sendCancellationNotificationEmail({
-      recipientEmail: priorSigner.email,
-      recipientName: priorSigner.name,
+  // Emit decline event
+  await eventBus.emitEvent(EventTypes.DOCUMENT_DECLINED, {
+    aggregateId: pdf._id,
+    actor: {
+      id: recipient._id,
+      name: recipient.name,
+      email: recipient.email,
+      ipAddress,
+      userAgent,
+    },
+    payload: {
       pdf,
-      eventType: "declined",
-      reason: `${recipient.name} declined: ${reason || 'No reason given'}`,
-    }).catch(console.error);
-  }
+      declinedRecipient: recipient,
+      senderEmail: populatedPdf.userId?.email,
+      reason,
+      priorSigners,
+    },
+  });
 
   notifyUserDocumentUpdate(pdf.userId, {
     pdfId: pdf._id,
@@ -331,9 +348,6 @@ export const declineRecipientSignature = async ({
   return { success: true };
 };
 
-/**
- * Service to update mistyped recipient email & re-dispatch token
- */
 export const updateRecipientEmailService = async ({
   recipientId,
   userId,
@@ -356,7 +370,7 @@ export const updateRecipientEmailService = async ({
   const pdf = await Pdf.findById(recipient.pdfId);
   if (!pdf) throw new ApiError(404, "Document not found");
 
-  if (pdf.userId.toString() !== userId) {
+  if (pdf.userId.toString() !== userId?.toString()) {
     throw new ApiError(403, "Unauthorized to modify this document's recipients");
   }
 
@@ -366,11 +380,10 @@ export const updateRecipientEmailService = async ({
 
   const oldEmail = recipient.email;
   recipient.email = cleanEmail;
-  recipient.token = uuidv4(); // rotate token for security
+  recipient.token = uuidv4();
   recipient.status = "sent";
   await recipient.save();
 
-  // Update associated field metadata
   if (Array.isArray(pdf.fields)) {
     pdf.fields = pdf.fields.map((f) => {
       if (f.recipientId?.toString() === recipient._id.toString() || f.recipientEmail?.toLowerCase() === oldEmail) {
@@ -384,26 +397,23 @@ export const updateRecipientEmailService = async ({
 
   const sender = await User.findById(userId);
 
-  // Dispatch new invite email to the updated email address
-  await sendSigningRequestEmail({
-    recipient,
-    pdf,
-    sender,
-    customMessage: pdf.message,
-  });
-
-  // Log audit
-  await PdfAudit.create({
-    pdfId: pdf._id,
-    recipientId: recipient._id,
-    userId,
-    event: "recipient_updated",
-    actorName: sender?.name || "Sender",
-    actorEmail: sender?.email || "",
-    description: `Recipient email updated from ${oldEmail} to ${cleanEmail}. Fresh signing link dispatched.`,
-    ipAddress,
-    userAgent,
-    signedAt: new Date(),
+  // Emit event
+  await eventBus.emitEvent(EventTypes.RECIPIENT_EMAIL_UPDATED, {
+    aggregateId: pdf._id,
+    actor: {
+      id: sender?._id,
+      name: sender?.name || "Sender",
+      email: sender?.email || "",
+      ipAddress,
+      userAgent,
+    },
+    payload: {
+      pdf,
+      recipient,
+      sender,
+      oldEmail,
+      newEmail: cleanEmail,
+    },
   });
 
   return {

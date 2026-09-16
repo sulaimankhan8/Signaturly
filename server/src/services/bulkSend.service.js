@@ -7,7 +7,7 @@ import { PdfAudit } from "../models/PdfAudit.model.js";
 import { User } from "../models/User.model.js";
 import { sha256FromBuffer } from "./hash.service.js";
 import { readFile, saveFile } from "./storage.service.js";
-import { sendSigningRequestEmail } from "./email.service.js";
+import { eventBus, EventTypes } from "../events/index.js";
 import { ApiError } from "../utils/ApiError.js";
 
 export const processBulkSendFromTemplate = async ({
@@ -62,7 +62,8 @@ export const processBulkSendFromTemplate = async ({
 
       // 1. Create Recipient record
       const token = crypto.randomBytes(32).toString("hex");
-      const recipientRole = template.roles?.[0]?.name || "Signer";
+      const rawRole = template.roles?.[0]?.name?.toLowerCase();
+      const recipientRole = ["signer", "viewer", "approver"].includes(rawRole) ? rawRole : "signer";
       const recipientColor = template.roles?.[0]?.color || "#3b82f6";
 
       // 2. Create PDF record first (placeholder fields)
@@ -111,29 +112,24 @@ export const processBulkSendFromTemplate = async ({
       pdf.recipients = [recipient._id];
       await pdf.save();
 
-      // 4. Send signing invitation email
-      try {
-        await sendSigningRequestEmail({
-          recipient,
+      // 4. Emit DOCUMENT_SENT event to trigger decoupled email dispatch & audit logging
+      await eventBus.emitEvent(EventTypes.DOCUMENT_SENT, {
+        aggregateId: pdf._id,
+        actor: {
+          id: user._id,
+          name: user.name || "Sender",
+          email: user.email,
+          ipAddress,
+          userAgent,
+        },
+        payload: {
           pdf,
+          recipients: [recipient],
           sender: user,
           customMessage,
-        });
-      } catch (mailErr) {
-        console.error(`Email dispatch failed for ${email}:`, mailErr.message);
-      }
-
-      // 5. Audit Trail
-      await PdfAudit.create({
-        pdfId: pdf._id,
-        userId,
-        event: "sent",
-        actorName: user.name || "Sender",
-        actorEmail: user.email,
-        description: `Dispatched in bulk batch ${batchId} to ${name} (${email})`,
-        ipAddress,
-        userAgent,
-        signedAt: new Date(),
+          recipientsCount: 1,
+          batchId,
+        },
       });
 
       dispatchedDocuments.push({

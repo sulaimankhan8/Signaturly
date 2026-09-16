@@ -1,5 +1,5 @@
 import { Pdf } from "../models/Pdf.model.js";
-import { PdfAudit } from "../models/PdfAudit.model.js";
+import { eventBus, EventTypes } from "../events/index.js";
 
 // Automated document expiration runner
 export const processAutomatedExpirations = async () => {
@@ -15,17 +15,20 @@ export const processAutomatedExpirations = async () => {
       pdf.status = "expired";
       await pdf.save();
 
-      await PdfAudit.create({
-        pdfId: pdf._id,
-        userId: pdf.userId,
-        event: "expired",
-        actorName: "Signaturly Automation",
-        actorEmail: "system@signaturly.com",
-        description: `Document marked expired as deadline (${new Date(pdf.expiresAt).toLocaleDateString()}) was reached.`,
-        signedAt: new Date(),
+      await eventBus.emitEvent(EventTypes.DOCUMENT_EXPIRED, {
+        aggregateId: pdf._id,
+        actor: {
+          id: pdf.userId,
+          name: "Signaturly Automation",
+          email: "system@signaturly.com",
+        },
+        payload: {
+          pdf,
+          deadline: pdf.expiresAt,
+        },
       });
 
-      console.log(`Document ${pdf._id} (${pdf.originalFileName}) marked as expired.`);
+      console.log(`[EventBus] Document ${pdf._id} (${pdf.originalFileName}) marked as expired.`);
     }
   } catch (error) {
     console.error("Error processing document expirations:", error);

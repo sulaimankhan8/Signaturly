@@ -1,9 +1,8 @@
 import { Pdf } from "../models/Pdf.model.js";
 import { Recipient } from "../models/Recipient.model.js";
-import { PdfAudit } from "../models/PdfAudit.model.js";
 import { User } from "../models/User.model.js";
-import { sendReminderEmail } from "./email.service.js";
 import { ApiError } from "../utils/ApiError.js";
+import { eventBus, EventTypes } from "../events/index.js";
 
 // Manual 1-click reminder trigger by document owner
 export const sendManualRecipientReminder = async ({
@@ -23,36 +22,35 @@ export const sendManualRecipientReminder = async ({
   const pdf = await Pdf.findById(recipient.pdfId);
   if (!pdf) throw new ApiError(404, "Associated document not found");
 
-  if (pdf.userId.toString() !== userId) {
+  if (pdf.userId.toString() !== userId?.toString()) {
     throw new ApiError(403, "You do not have permission to send reminders for this document");
   }
 
   const sender = await User.findById(userId);
-
-  // Send reminder email
-  await sendReminderEmail({
-    recipient,
-    pdf,
-    sender,
-    customMessage,
-  });
 
   // Update recipient last reminded timestamp
   recipient.lastRemindedAt = new Date();
   recipient.reminderCount = (recipient.reminderCount || 0) + 1;
   await recipient.save();
 
-  // Log in audit trail
-  await PdfAudit.create({
-    pdfId: pdf._id,
-    userId,
-    event: "reminder_sent",
-    actorName: sender?.name || "Sender",
-    actorEmail: sender?.email || "",
-    description: `Manual reminder #${recipient.reminderCount} dispatched to ${recipient.name} (${recipient.email})`,
-    ipAddress,
-    userAgent,
-    signedAt: new Date(),
+  // Emit event
+  await eventBus.emitEvent(EventTypes.REMINDER_DISPATCHED, {
+    aggregateId: pdf._id,
+    actor: {
+      id: sender?._id,
+      name: sender?.name || "Sender",
+      email: sender?.email || "",
+      ipAddress,
+      userAgent,
+    },
+    payload: {
+      recipient,
+      pdf,
+      sender,
+      customMessage,
+      recipientName: recipient.name,
+      recipientEmail: recipient.email,
+    },
   });
 
   return {
@@ -69,7 +67,6 @@ export const processAutomatedReminders = async () => {
     const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-    // Find pending and partially signed documents that are not expired
     const activePdfs = await Pdf.find({
       status: { $in: ["pending", "partially_signed"] },
       $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
@@ -79,7 +76,6 @@ export const processAutomatedReminders = async () => {
       const pendingRecipients = await Recipient.find({
         pdfId: pdf._id,
         status: { $in: ["sent", "viewed"] },
-        // Sent more than 48 hours ago AND (never reminded OR last reminded > 24 hours ago)
         createdAt: { $lt: twoDaysAgo },
         $or: [
           { lastRemindedAt: null },
@@ -92,28 +88,28 @@ export const processAutomatedReminders = async () => {
 
       for (const rec of pendingRecipients) {
         try {
-          await sendReminderEmail({
-            recipient: rec,
-            pdf,
-            sender,
-            customMessage: "Automated friendly reminder to review and sign this agreement.",
-          });
-
           rec.lastRemindedAt = new Date();
           rec.reminderCount = (rec.reminderCount || 0) + 1;
           await rec.save();
 
-          await PdfAudit.create({
-            pdfId: pdf._id,
-            userId: pdf.userId,
-            event: "automated_reminder",
-            actorName: "Signaturly Automation",
-            actorEmail: "system@signaturly.com",
-            description: `Automated reminder dispatched to ${rec.name} (${rec.email})`,
-            signedAt: new Date(),
+          await eventBus.emitEvent(EventTypes.REMINDER_DISPATCHED, {
+            aggregateId: pdf._id,
+            actor: {
+              id: sender._id,
+              name: "Signaturly Automation",
+              email: "system@signaturly.com",
+            },
+            payload: {
+              recipient: rec,
+              pdf,
+              sender,
+              customMessage: "Automated friendly reminder to review and sign this agreement.",
+              recipientName: rec.name,
+              recipientEmail: rec.email,
+            },
           });
         } catch (err) {
-          console.error(`Failed to send automated reminder to ${rec.email}:`, err.message);
+          console.error(`Failed to dispatch automated reminder to ${rec.email}:`, err.message);
         }
       }
     }

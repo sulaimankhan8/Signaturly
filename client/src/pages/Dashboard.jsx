@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import toast, { Toaster } from "react-hot-toast";
@@ -27,55 +27,86 @@ export default function Dashboard() {
   const [isRecipientsLoading, setIsRecipientsLoading] = useState(false);
   const [remindingRecipientId, setRemindingRecipientId] = useState(null);
 
-  const loadDocuments = async (showSpinner = true) => {
+  const lastSyncTimeRef = useRef(new Date().toISOString());
+
+  const loadDocuments = useCallback(async (showSpinner = true) => {
     try {
       if (showSpinner) setIsLoading(true);
       const data = await fetchMyPdfsApi();
       setDocuments(data || []);
+      lastSyncTimeRef.current = new Date().toISOString();
     } catch (err) {
       console.error("Failed to load user documents:", err);
       if (showSpinner) toast.error("Failed to load documents. Please try again.");
     } finally {
       if (showSpinner) setIsLoading(false);
     }
-  };
+  }, []);
 
+  const syncDeltaUpdates = useCallback(async () => {
+    try {
+      const res = await API.get("/pdf/sync/updates", {
+        params: { since: lastSyncTimeRef.current },
+        validateStatus: (status) => (status >= 200 && status < 300) || status === 304,
+      });
+
+      if (res.status === 200 && res.data?.data?.documents) {
+        setDocuments(res.data.data.documents);
+        if (res.data.data.serverTime) {
+          lastSyncTimeRef.current = res.data.data.serverTime;
+        }
+      }
+    } catch (e) {
+      // Background sync silent failure
+    }
+  }, []);
+
+  // Smart Visibility Delta Sync (Zero-Idle-Cost on Google Cloud Run)
   useEffect(() => {
     loadDocuments(true);
 
-    // Auto-refresh when returning to tab from signing in another tab
-    const handleFocus = () => {
-      loadDocuments(false);
-    };
-    window.addEventListener("focus", handleFocus);
+    let syncInterval = null;
 
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, []);
-
-  // Live real-time updates via Server-Sent Events (SSE) — Zero client-side interval polling
-  useEffect(() => {
-    if (!accessToken) return;
-
-    const sseUrl = `${import.meta.env.VITE_API_BASE_URL}/api/pdf/events?token=${accessToken}`;
-    const eventSource = new EventSource(sseUrl);
-
-    eventSource.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data);
-        if (payload.type === "DOCUMENT_UPDATED") {
-          loadDocuments(false);
-        }
-      } catch (e) {
-        // Heartbeat or raw ping
+    const startSync = () => {
+      syncDeltaUpdates();
+      if (!syncInterval) {
+        syncInterval = setInterval(syncDeltaUpdates, 15000);
       }
     };
 
-    return () => {
-      eventSource.close();
+    const stopSync = () => {
+      if (syncInterval) {
+        clearInterval(syncInterval);
+        syncInterval = null;
+      }
     };
-  }, [accessToken]);
+
+    // Auto-pause when tab is hidden so Cloud Run can scale down to 0 ($0.00 cost)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopSync();
+      } else {
+        startSync();
+      }
+    };
+
+    const handleFocus = () => {
+      startSync();
+    };
+
+    if (!document.hidden) {
+      startSync();
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      stopSync();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [loadDocuments, syncDeltaUpdates]);
 
   const handleVoid = async (id, title) => {
     if (

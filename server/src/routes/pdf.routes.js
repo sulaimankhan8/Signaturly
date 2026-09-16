@@ -3,6 +3,7 @@ import { upload } from "../config/multer.js";
 import {
   uploadPdfController,
   getMyPdfsController,
+  syncUpdatesController,
   deletePdfController,
   getPdfAuditController,
   getAuditCertificatePdfController,
@@ -12,10 +13,13 @@ import { registerSseClient } from "../services/sse.service.js";
 
 const router = Router();
 
-// Real-time SSE stream for instant status updates without polling
+// Fallback SSE stream (optional backward-compatibility)
 router.get("/events", protect, (req, res) => {
   registerSseClient(req.user.id, req, res);
 });
+
+// Lightweight Delta Sync Endpoint (Zero-Idle-Cost on Cloud Run)
+router.get("/sync/updates", protect, syncUpdatesController);
 
 router.post(
   "/upload",
