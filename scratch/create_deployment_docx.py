@@ -115,7 +115,21 @@ for row in data:
 
 doc.add_paragraph()
 
-add_h1("2. Docker & Container Architecture Crash Course")
+add_h1("2. Local Run & Development Playbook (Node.js & Docker Compose)")
+add_p("Signaturly Pro supports two local development workflows: Native Bare-Metal (Node.js + Vite) for instant hot-reloading, or Multi-Container Docker Compose for full production parity.")
+
+add_h2("Option A: Bare-Metal Local Development")
+add_p("1. Ensure Node.js v18+ and local MongoDB or Atlas connection are configured.")
+add_p("2. Setup server/.env with PORT=5000, MONGO_URI, and JWT secrets.")
+add_p("3. Run npm install and start both client and server concurrently:")
+add_code("""npm install\nnpm run dev""")
+add_p("• Frontend Application: http://localhost:5173\n• Backend Express API: http://localhost:5000\n• Public Health Check: http://localhost:5000/api/templates/public")
+
+add_h2("Option B: Local Docker Compose Orchestration")
+add_p("To run the containerized backend and dependencies locally in isolation:")
+add_code("""docker-compose up --build -d\ndocker-compose logs -f api\ndocker-compose down""")
+
+add_h1("3. Docker & Container Architecture Crash Course")
 add_h2("The 4 Core Docker Concepts")
 add_p("• Dockerfile: A plain text file containing step-by-step instructions for packaging your code, Node.js runtime, OS libraries, and dependencies (The Cooking Recipe).")
 add_p("• Docker Image: An immutable, standalone package created from building the Dockerfile (The Baked Meal Template).")

@@ -4,14 +4,15 @@
 
 ## 📌 Table of Contents
 1. [Cost Architecture ($0.00 / Month Free-Tier Matrix)](#1-cost-architecture-000--month-free-tier-matrix)
-2. [Docker Deep Dive & Container Architecture Crash Course](#2-docker-deep-dive--container-architecture-crash-course)
-3. [GCP Architecture Breakdown (Cloud Run, Artifact Registry, GCS, IAM)](#3-gcp-architecture-breakdown)
-4. [Step-by-Step GCP Deployment Playbook (Every Command & Flag Explained)](#4-step-by-step-gcp-deployment-playbook)
-5. [GitHub Actions CI/CD Pipeline (Sequential Execution Breakdown)](#5-github-actions-cicd-pipeline-sequential-execution-breakdown)
-6. [Keyless Security: Workload Identity Federation (WIF) Explained](#6-keyless-security-workload-identity-federation-wif-explained)
-7. [Frontend Deployment on Vercel & SPA Routing (`vercel.json`)](#7-frontend-deployment-on-vercel--spa-routing-verceljson)
-8. [Environment Variables Reference (`.env.production`)](#8-environment-variables-reference-envproduction)
-9. [Disaster Recovery, Tear Down & Project Migration Guide](#9-disaster-recovery-tear-down--project-migration-guide)
+2. [Local Run & Development Playbook (Node.js & Docker Compose)](#2-local-run--development-playbook-nodejs--docker-compose)
+3. [Docker Deep Dive & Container Architecture Crash Course](#3-docker-deep-dive--container-architecture-crash-course)
+4. [GCP Architecture Breakdown (Cloud Run, Artifact Registry, GCS, IAM)](#4-gcp-architecture-breakdown)
+5. [Step-by-Step GCP Deployment Playbook (Every Command & Flag Explained)](#5-step-by-step-gcp-deployment-playbook)
+6. [GitHub Actions CI/CD Pipeline (Sequential Execution Breakdown)](#6-github-actions-cicd-pipeline-sequential-execution-breakdown)
+7. [Keyless Security: Workload Identity Federation (WIF) Explained](#7-keyless-security-workload-identity-federation-wif-explained)
+8. [Frontend Deployment on Vercel & SPA Routing (`vercel.json`)](#8-frontend-deployment-on-vercel--spa-routing-verceljson)
+9. [Environment Variables Reference (`.env.production` & `.env.local`)](#9-environment-variables-reference-envproduction--envlocal)
+10. [Disaster Recovery, Tear Down & Project Migration Guide](#10-disaster-recovery-tear-down--project-migration-guide)
 
 ---
 
@@ -34,7 +35,107 @@ Signaturly Pro is engineered to run at **$0.00 / month** in production by taking
 
 ---
 
-## 🐳 2. Docker Deep Dive & Container Architecture Crash Course
+## 💻 2. Local Run & Development Playbook (Node.js & Docker Compose)
+
+Signaturly Pro can be run locally on your machine in two distinct modes: **Native Bare-Metal (Node.js + Vite)** for rapid development with hot module reloading (HMR), or **Multi-Container Docker Compose** for high-fidelity production parity.
+
+### Option A: Bare-Metal Local Run (Fast Development)
+
+#### 1. Prerequisites
+- **Node.js**: `v18.0.0` or higher (`node -v`)
+- **npm**: `v9.0.0` or higher (`npm -v`)
+- **MongoDB**: Running locally on `mongodb://localhost:27017` or remote MongoDB Atlas URI.
+
+#### 2. Local Environment Configuration
+Create `server/.env` based on `server/.env.example`:
+```ini
+PORT=5000
+NODE_ENV=development
+APP_NAME=Signaturly Local
+CLIENT_URL=http://localhost:5173
+CORS_ORIGIN=http://localhost:5173,http://localhost:5174
+
+# Database Connection (Local MongoDB or Atlas)
+MONGO_URI=mongodb://127.0.0.1:27017/signaturly
+
+# JWT Authentication Secrets
+JWT_ACCESS_SECRET=local_dev_access_secret_12345
+JWT_REFRESH_SECRET=local_dev_refresh_secret_67890
+ADMIN_SECRET_KEY=super_admin_vault_key_2026
+
+# Local Disk Storage Provider
+STORAGE_PROVIDER=local
+
+# Transactional Email (Optional for local testing, or use Gmail App Password)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+SMTP_FROM=Signaturly Dev <no-reply@signaturly.com>
+```
+
+#### 3. Install Dependencies & Start Services
+```bash
+# In Root Directory
+npm install
+
+# Start both Client and Server concurrently
+npm run dev
+```
+* **Frontend App**: `http://localhost:5173`
+* **Backend API**: `http://localhost:5000`
+* **API Health Check**: `http://localhost:5000/api/templates/public`
+
+---
+
+### Option B: Local Docker Compose (Production-Parity Orchestration)
+
+To spin up the entire backend containerized locally with a single command:
+
+#### 1. Verify `docker-compose.yml`
+```yaml
+version: "3.8"
+
+services:
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: signaturly-api-local
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=development
+      - PORT=5000
+      - MONGO_URI=mongodb+srv://suleman111111111111111_db_user:WOCfS74qN0fbJcc8@cluster0.0e0cvkg.mongodb.net/?appName=Cluster0
+      - JWT_ACCESS_SECRET=access_secret_123
+      - JWT_REFRESH_SECRET=refresh_secret_456
+      - STORAGE_PROVIDER=local
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=465
+      - SMTP_USER=suleman111111111111111@gmail.com
+      - SMTP_PASS=vgsatqmnxjowucfs
+      - SMTP_FROM=suleman111111111111111@gmail.com
+    volumes:
+      - ./server/uploads:/app/uploads
+```
+
+#### 2. Launch Docker Compose
+```bash
+# Build and run containers in background
+docker-compose up --build -d
+
+# View live container logs
+docker-compose logs -f api
+
+# Stop containers
+docker-compose down
+```
+
+---
+
+## 🐳 3. Docker Deep Dive & Container Architecture Crash Course
 
 ### A. The Core Metaphor
 * **`Dockerfile`** = The **recipe** (plain-text instructions).

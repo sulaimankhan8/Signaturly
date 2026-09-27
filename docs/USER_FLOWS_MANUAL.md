@@ -259,7 +259,7 @@ This manual documents the **complete end-to-end user journeys** across Signaturl
 ---
 
 ## Journey 8: Public Cryptographic Verification Flow
-**Full Sequence:** `[Step 1: /verify Page] ──► [Step 2: Upload PDF / Hash] ──► [Step 3: Non-Repudiation Certificate]`
+**Full Sequence:** `[Step 1: /verify Page or Certificate QR Scan] ──► [Step 2: Upload PDF / Hash Lookup] ──► [Step 3: Non-Repudiation Certificate]`
 
 ```
 [STEP 1 & 2: PUBLIC LOOKUP (/verify)]
@@ -283,4 +283,49 @@ This manual documents the **complete end-to-end user journeys** across Signaturl
 ```
 
 ---
+
+## Journey 9: Automated Expiration & Reminder Dispatch Flow
+**Full Sequence:** `[Step 1: Cron / Expiration Engine] ──► [Step 2: Event Bus Evaluation] ──► [Step 3: Automated Dispatch & Invalidation]`
+
+```
+[STEP 1: BACKGROUND CRON SCHEDULER]
++---------------------------------------------------------------------------------------+
+|  ⏰ Periodic Job Triggered Every 60 Minutes                                            |
+|  Evaluating active envelopes against expiration deadlines and reminder intervals      |
++---------------------------------------------------------------------------------------+
+                                          │
+                  ┌───────────────────────┴───────────────────────┐
+                  ▼                                               ▼
+[BRANCH A: REMINDER DUE]                         [BRANCH B: ENVELOPE EXPIRED]
++----------------------------------------+       +----------------------------------------+
+| Event: REMINDER_DUE                    |       | Event: DOCUMENT_EXPIRED                |
+| EmailConsumer dispatches reminder:     |       | Document status changed to 'expired'.  |
+| "Action Required: Please sign contract"|       | Signing links invalidated.             |
+| Includes active direct token link.     |       | Cancellation alert emailed to sender.  |
++----------------------------------------+       +----------------------------------------+
+```
+
+---
+
+## Journey 10: Real-Time SSE Multi-User Dashboard Synchronization
+**Full Sequence:** `[Signer Completes Action] ──► [Event Bus Triggers SSE] ──► [Sender Dashboard Auto-Updates]`
+
+```
+[SIGNER ROOM (/sign/:token)]                     [SENDER DASHBOARD (/dashboard)]
++------------------------------------+           +----------------------------------------+
+| Recipient clicks "Finish & Sign"   |           | Live SSE Connection: /api/v1/sse/stream|
+| PDF flattened & sealed             |           |                                        |
++──────────────────┬─────────────────+           | [🟡 In Progress]                       |
+                   │                             |                                        |
+                   ▼ (HTTP POST /sign)           |                 │                      |
+[BACKEND EVENT BUS]                              |                 ▼ (Live Instant Update)|
++────────────────────────────────────+           | [🟢 Completed - All Parties Signed]    |
+| Emits: RECIPIENT_SIGNED            |           |                                        |
+| Emits: DOCUMENT_COMPLETED          | ──(SSE)──►| Live badge turns Green, Metrics +1     |
+| SSE Service pushes update payload  |           | No page refresh required               |
++────────────────────────────────────+           +----------------------------------------+
+```
+
+---
 *End of Signaturly End-to-End User Journeys Manual.*
+
