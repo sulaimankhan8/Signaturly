@@ -24,6 +24,18 @@ export const getPublicSigningSessionController = asyncHandler(async (req, res) =
 
   const pdfUrl = `/uploads/${pdf.userId}/${currentFile}`;
 
+  // Check sender subscription plan to determine ad display
+  let showAds = true;
+  try {
+    const { Subscription } = await import("../models/Subscription.model.js");
+    const senderSub = await Subscription.findOne({ userId: pdf.userId });
+    if (senderSub && senderSub.plan !== "free" && senderSub.status === "active") {
+      showAds = false; // Suppress ads for paid senders
+    }
+  } catch (subErr) {
+    console.warn("Could not check sender subscription for ads:", subErr.message);
+  }
+
   res.status(200).json(
     new ApiResponse(
       {
@@ -47,6 +59,9 @@ export const getPublicSigningSessionController = asyncHandler(async (req, res) =
           fields: pdf.fields || [],
           message: pdf.message,
           expiresAt: pdf.expiresAt,
+        },
+        monetization: {
+          showAds,
         },
       },
       "Signing session loaded"

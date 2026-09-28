@@ -1,4 +1,15 @@
 User-agent: *
 Allow: /
+Allow: /pricing
+Allow: /compliance
+Allow: /verify
+Allow: /legal/*
+Disallow: /dashboard
+Disallow: /editor/*
+Disallow: /workspaces
+Disallow: /api-settings
+Disallow: /templates
+Disallow: /tools/*
+Disallow: /sign/*
 
-Sitemap: https://signaturly.vercel.app/sitemap.xml
+Sitemap: https://signaturly.pro/sitemap.xml

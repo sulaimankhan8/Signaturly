@@ -101,8 +101,8 @@ export default function UserGuide() {
           actionDescription: "Live dashboard monitoring: track real-time signer progression, send reminders, or download completed certificates.",
           callouts: [
             { pin: "①", title: "Live Progress Badges", text: "Real-time indicators show current stage (e.g. '1/2 Signed - Waiting Signer 2')." },
-            { pin: "②", title: "Send Reminder (🔔)", text: "Nudge pending recipients with 1-click automated reminder emails." },
-            { pin: "③", title: "Void Envelope (🚫)", text: "Cancel in-progress contracts with mandatory reason logging." },
+            { pin: "②", title: "Send Reminder", text: "Nudge pending recipients with 1-click automated reminder emails." },
+            { pin: "③", title: "Void Envelope", text: "Cancel in-progress contracts with mandatory reason logging." },
             { pin: "④", title: "Download Sealed PDF & Certificate", text: "Download tamper-evident executed contract with full forensic audit trail." },
           ],
         },
@@ -247,7 +247,7 @@ export default function UserGuide() {
           callouts: [
             { pin: "①", title: "Click 'Void Document'", text: "Opens danger confirmation modal." },
             { pin: "②", title: "Mandatory Reason Input", text: "Enter mandatory business reason for voiding (recorded in immutable audit log)." },
-            { pin: "③", title: "Confirm Cancellation", text: "Envelope status transitions to '🔴 VOIDED' and signers are notified." },
+            { pin: "③", title: "Confirm Cancellation", text: "Envelope status transitions to 'VOIDED' and signers are notified." },
           ],
         },
       ],
@@ -526,11 +526,66 @@ export default function UserGuide() {
                           {/* Palette Items */}
                           <div className="space-y-1">
                             {[
-                              { type: "signature", label: "Signature", desc: "Draw or cursive e-sign", color: "text-red-400", bg: "bg-red-500/10 border-red-500/30", icon: "✍️" },
-                              { type: "initials", label: "Initials", desc: "Compact initials stamp", color: "text-pink-400", bg: "bg-pink-500/10 border-pink-500/30", icon: "🔤" },
-                              { type: "text", label: "Text Field", desc: "Custom fillable text", color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/30", icon: "📝" },
-                              { type: "date", label: "Date Field", desc: "Auto-fill date / calendar", color: "text-yellow-400", bg: "bg-yellow-500/10 border-yellow-500/30", icon: "📅" },
-                              { type: "checkbox", label: "Checkbox", desc: "Mandatory/optional check", color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30", icon: "☑️" },
+                              {
+                                type: "signature",
+                                label: "Signature",
+                                desc: "Draw or cursive e-sign",
+                                color: "text-red-400",
+                                bg: "bg-red-500/10 border-red-500/30",
+                                icon: (
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                  </svg>
+                                ),
+                              },
+                              {
+                                type: "initials",
+                                label: "Initials",
+                                desc: "Compact initials stamp",
+                                color: "text-pink-400",
+                                bg: "bg-pink-500/10 border-pink-500/30",
+                                icon: (
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                  </svg>
+                                ),
+                              },
+                              {
+                                type: "text",
+                                label: "Text Field",
+                                desc: "Custom fillable text",
+                                color: "text-blue-400",
+                                bg: "bg-blue-500/10 border-blue-500/30",
+                                icon: (
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                ),
+                              },
+                              {
+                                type: "date",
+                                label: "Date Field",
+                                desc: "Auto-fill date / calendar",
+                                color: "text-yellow-400",
+                                bg: "bg-yellow-500/10 border-yellow-500/30",
+                                icon: (
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                ),
+                              },
+                              {
+                                type: "checkbox",
+                                label: "Checkbox",
+                                desc: "Mandatory/optional check",
+                                color: "text-emerald-400",
+                                bg: "bg-emerald-500/10 border-emerald-500/30",
+                                icon: (
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                ),
+                              },
                             ].map((tool) => (
                               <button
                                 key={tool.type}

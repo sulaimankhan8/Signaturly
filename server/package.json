@@ -5,14 +5,19 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node src/scripts/verify-v2-features.js && node src/scripts/verify-lifecycle.js",
+    "test:v2": "node src/scripts/verify-v2-features.js",
+    "test:lifecycle": "node src/scripts/verify-lifecycle.js",
+    "verify": "node src/scripts/verify-v2-features.js",
     "dev": "nodemon src/server.js",
     "dev:server": "nodemon src/server.js",
-    "start": "node src/server.js",
     "seed-admin": "node src/scripts/seed-admin.js",
+    "seed:admin": "node src/scripts/seed-admin.js",
     "create-admin": "node src/scripts/seed-admin.js",
     "nuke": "node src/scripts/nuke-db.js",
-    "nuke-db": "node src/scripts/nuke-db.js"
+    "nuke-db": "node src/scripts/nuke-db.js",
+    "db:nuke": "node src/scripts/nuke-db.js",
+    "wipe": "node src/scripts/nuke-db.js"
   },
   "keywords": [],
   "author": "",

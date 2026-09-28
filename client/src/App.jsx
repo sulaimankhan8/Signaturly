@@ -20,6 +20,9 @@ import Landing from "./pages/Landing";
 import FontTestLab from "./pages/FontTestLab";
 import UserGuide from "./pages/UserGuide";
 import PublicVerify from "./pages/PublicVerify";
+import Pricing from "./pages/Pricing";
+import TeamWorkspaces from "./pages/TeamWorkspaces";
+import ApiSettings from "./pages/ApiSettings";
 import { hydrateAuth } from "./store/authActions";
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
@@ -40,7 +43,10 @@ export default function App() {
       <Routes>
         <Route path="/" element={<HomeRedirect />} />
         <Route path="/landing" element={<Landing />} />
+        <Route path="/pricing" element={<Pricing />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/workspaces" element={<TeamWorkspaces />} />
+        <Route path="/developer" element={<ApiSettings />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />

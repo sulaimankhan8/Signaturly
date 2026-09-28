@@ -13,12 +13,13 @@
 8. [Frontend Deployment on Vercel & SPA Routing (`vercel.json`)](#8-frontend-deployment-on-vercel--spa-routing-verceljson)
 9. [Environment Variables Reference (`.env.production` & `.env.local`)](#9-environment-variables-reference-envproduction--envlocal)
 10. [Disaster Recovery, Tear Down & Project Migration Guide](#10-disaster-recovery-tear-down--project-migration-guide)
+11. [Production Go-Live, Telemetry & Cost Unit Economics (`PENDING_TASKS_AND_PRODUCTION_ROADMAP.md`)](../PENDING_TASKS_AND_PRODUCTION_ROADMAP.md)
 
 ---
 
 ## 💰 1. Cost Architecture ($0.00 / Month Free-Tier Matrix)
 
-Signaturly Pro is engineered to run at **$0.00 / month** in production by taking full advantage of the **Always-Free Tiers** of Google Cloud Platform, MongoDB Atlas, and Vercel Global Edge Network.
+Signaturly Pro is engineered to run at **$0.00 / month** in production by taking full advantage of the **Always-Free Tiers** of Google Cloud Platform, MongoDB Atlas, and Vercel Global Edge Network. For scaling cost estimates and unit economics ($/signed envelope), see [Production Roadmap & Unit Economics](../PENDING_TASKS_AND_PRODUCTION_ROADMAP.md#3-devops-cost-estimation-infrastructure-budget--unit-economics).
 
 ### 📊 Monthly Cost Breakdown Matrix
 

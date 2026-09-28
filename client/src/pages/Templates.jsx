@@ -7,6 +7,9 @@ import {
   deleteTemplateApi,
   createTemplateApi,
 } from "../api/template.api";
+import { fetchUserSubscription } from "../api/billing.api";
+import { UpgradeModal } from "../components/UpgradeModal";
+import ConfirmModal from "../components/ConfirmModal";
 import Navbar from "../components/Navbar";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -19,6 +22,14 @@ export default function Templates() {
   const [searchQuery, setSearchQuery] = useState("");
   const [importingId, setImportingId] = useState(null);
 
+  // Subscription & Paywall Modal State
+  const [subData, setSubData] = useState(null);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState("");
+
+  // Confirmation Delete Modal
+  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null);
+
   // Create Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -29,15 +40,24 @@ export default function Templates() {
     { id: "role-1", name: "Signer 1", color: "#3b82f6", signingOrder: 1 },
   ]);
 
+  const isProOrAbove = [
+    "pro_monthly",
+    "pro_annual",
+    "lifetime",
+    "enterprise",
+  ].includes(subData?.subscription?.plan);
+
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const [myData, prebuiltData] = await Promise.all([
+      const [myData, prebuiltData, sub] = await Promise.all([
         fetchMyTemplatesApi(),
         fetchPrebuiltTemplatesApi().catch(() => []),
+        fetchUserSubscription().catch(() => null),
       ]);
       setTemplates(myData || []);
       setPrebuiltTemplates(prebuiltData || []);
+      setSubData(sub);
     } catch (err) {
       console.error("Failed to load templates:", err);
       toast.error("Failed to load templates");
@@ -50,19 +70,49 @@ export default function Templates() {
     loadData();
   }, []);
 
-  const handleDelete = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to delete template "${name}"?`)) return;
+  const triggerPaywall = (reason) => {
+    setUpgradeReason(reason);
+    setUpgradeModalOpen(true);
+  };
+
+  const handleCreateButtonClick = () => {
+    if (!isProOrAbove) {
+      triggerPaywall(
+        "Creating custom reusable contract templates requires a Pro Creator ($5.99/mo), Lifetime Pass ($69), or Enterprise plan."
+      );
+      return;
+    }
+    setIsCreateModalOpen(true);
+  };
+
+  const handleDelete = (id, name) => {
+    setDeleteConfirmTarget({ id, name });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirmTarget) return;
     try {
-      await deleteTemplateApi(id);
-      setTemplates((prev) => prev.filter((t) => (t._id !== id && t.id !== id)));
-      toast.success("Template deleted");
+      await deleteTemplateApi(deleteConfirmTarget.id);
+      setTemplates((prev) => prev.filter((t) => t._id !== deleteConfirmTarget.id && t.id !== deleteConfirmTarget.id));
+      toast.success(`Template "${deleteConfirmTarget.name}" deleted`);
     } catch (err) {
       console.error("Delete template error:", err);
       toast.error("Failed to delete template");
+    } finally {
+      setDeleteConfirmTarget(null);
     }
   };
 
   const handleImportPrebuilt = async (prebuiltId, autoUse = false) => {
+    if (!isProOrAbove) {
+      triggerPaywall(
+        autoUse
+          ? "Prebuilt legal contract templates (NDAs, Offer Letters, Independent Contractor Agreements) are a Pro Creator & Enterprise feature. Upgrade to dispatch instant templates!"
+          : "Importing legal contracts into your workspace library requires a Pro Creator ($5.99/mo) or Lifetime Pass ($69) plan."
+      );
+      return;
+    }
+
     try {
       setImportingId(prebuiltId);
       const imported = await importPrebuiltTemplateApi(prebuiltId);
@@ -174,7 +224,7 @@ export default function Templates() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/templates/bulk")}
-              className="inline-flex items-center justify-center px-4 py-3 bg-[#1e2235] hover:bg-[#282d47] text-white font-black uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#000] border-2 border-white/20 text-xs transition-all hover:-translate-x-0.5 hover:-translate-y-0.5"
+              className="inline-flex items-center justify-center px-4 py-3 bg-[#1e2235] hover:bg-[#282d47] text-white font-black uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#000] border-2 border-white/20 text-xs transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 cursor-pointer"
             >
               <svg className="w-3.5 h-3.5 mr-1.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -183,8 +233,8 @@ export default function Templates() {
             </button>
 
             <button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="inline-flex items-center justify-center px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#facc15] hover:shadow-[4px_4px_0px_0px_#fff] border-2 border-black text-xs transition-all hover:-translate-x-0.5 hover:-translate-y-0.5"
+              onClick={handleCreateButtonClick}
+              className="inline-flex items-center justify-center px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#facc15] hover:shadow-[4px_4px_0px_0px_#fff] border-2 border-black text-xs transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 cursor-pointer"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
@@ -247,7 +297,6 @@ export default function Templates() {
           </div>
         </div>
 
-
         {/* Tab 1: User's Templates */}
         {activeTab === "my" && (
           <div>
@@ -265,19 +314,19 @@ export default function Templates() {
                 <div>
                   <h3 className="text-lg font-display font-bold text-white">No custom templates yet</h3>
                   <p className="text-gray-400 text-xs max-w-md mx-auto mt-1">
-                    Get started by choosing from our 5 prebuilt legal agreements, or upload your own contract!
+                    Get started by choosing from our 14 prebuilt legal agreements, or upload your own contract!
                   </p>
                 </div>
                 <div className="flex items-center justify-center gap-3">
                   <button
                     onClick={() => setActiveTab("library")}
-                    className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-800 text-white text-xs font-bold rounded-xl shadow-lg transition-all hover:scale-105"
+                    className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-800 text-white text-xs font-bold rounded-xl shadow-lg transition-all hover:scale-105 cursor-pointer"
                   >
-                    Browse Prebuilt Library (5 Contracts) →
+                    Browse Prebuilt Library ({prebuiltTemplates.length || 14} Contracts) →
                   </button>
                   <button
-                    onClick={() => setIsCreateModalOpen(true)}
-                    className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-xl border border-white/10 transition-all"
+                    onClick={handleCreateButtonClick}
+                    className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-white text-xs font-bold rounded-xl border border-white/10 transition-all cursor-pointer"
                   >
                     Upload Custom PDF
                   </button>
@@ -331,8 +380,14 @@ export default function Templates() {
                       {/* Actions */}
                       <div className="pt-4 border-t-2 border-white/10 flex items-center justify-between gap-2">
                         <button
-                          onClick={() => navigate(`/templates/use/${templateId}`)}
-                          className="flex-1 py-2 px-3 bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_#facc15] hover:shadow-[3px_3px_0px_0px_#fff] border-2 border-black transition-all flex items-center justify-center gap-1.5"
+                          onClick={() => {
+                            if (!isProOrAbove) {
+                              triggerPaywall("Using and generating contracts from templates requires a Pro Creator or Enterprise plan.");
+                              return;
+                            }
+                            navigate(`/templates/use/${templateId}`);
+                          }}
+                          className="flex-1 py-2 px-3 bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-[2px_2px_0px_0px_#facc15] hover:shadow-[3px_3px_0px_0px_#fff] border-2 border-black transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -341,8 +396,14 @@ export default function Templates() {
                         </button>
 
                         <button
-                          onClick={() => navigate(`/templates/bulk?templateId=${templateId}`)}
-                          className="w-8 h-8 bg-[#1e2235] hover:bg-[#282d47] text-white rounded-xl text-xs font-black border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
+                          onClick={() => {
+                            if (!isProOrAbove) {
+                              triggerPaywall("CSV Bulk Mail Merge is a Pro Creator and Enterprise feature.");
+                              return;
+                            }
+                            navigate(`/templates/bulk?templateId=${templateId}`);
+                          }}
+                          className="w-8 h-8 bg-[#1e2235] hover:bg-[#282d47] text-white rounded-xl text-xs font-black border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all cursor-pointer"
                           title="Bulk Send (CSV)"
                         >
                           <svg className="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -351,8 +412,14 @@ export default function Templates() {
                         </button>
 
                         <button
-                          onClick={() => navigate(`/templates/edit/${templateId}`)}
-                          className="w-8 h-8 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
+                          onClick={() => {
+                            if (!isProOrAbove) {
+                              triggerPaywall("Editing template structures requires a Pro Creator or Enterprise plan.");
+                              return;
+                            }
+                            navigate(`/templates/edit/${templateId}`);
+                          }}
+                          className="w-8 h-8 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all cursor-pointer"
                           title="Edit Template Layout & Fields"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -362,7 +429,7 @@ export default function Templates() {
 
                         <button
                           onClick={() => handleDelete(templateId, t.name)}
-                          className="w-8 h-8 bg-red-950 hover:bg-red-800 text-red-400 hover:text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
+                          className="w-8 h-8 bg-red-950 hover:bg-red-800 text-red-400 hover:text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all cursor-pointer"
                           title="Delete Template"
                         >
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -381,6 +448,41 @@ export default function Templates() {
         {/* Tab 2: Prebuilt Templates Library */}
         {activeTab === "library" && (
           <div className="space-y-6">
+            {/* Pro Upgrade Callout for Free Tier */}
+            {!isProOrAbove && (
+              <div className="bg-gradient-to-r from-[#1b122c] via-[#141224] to-[#12192e] border-2 border-purple-500/50 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center shrink-0 border border-purple-500/40">
+                    <svg className="w-5 h-5 text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-white uppercase tracking-wide">
+                        Vetted Contract Suite (14 Prebuilt Templates)
+                      </span>
+                      <span className="bg-yellow-400 text-black text-[9px] font-black uppercase px-2 py-0.5 rounded-full border border-black">
+                        PRO TIER
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-300 mt-0.5">
+                      Preview all 14 standard legal contracts below. Upgrade to Pro Creator ($5.99/mo) or Lifetime Pass ($69) to dispatch instant templates!
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => triggerPaywall("Unlock full instant dispatch for all 14 attorney-vetted legal contracts with Pro Creator.")}
+                  className="px-5 py-2.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#000] border-2 border-black transition-all shrink-0 cursor-pointer flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <span>Unlock All Templates</span>
+                </button>
+              </div>
+            )}
+
             <div className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-[4px_4px_0px_0px_#000]">
               <div>
                 <span className="text-[10px] uppercase font-black text-yellow-400 tracking-wider">
@@ -452,7 +554,7 @@ export default function Templates() {
                       <button
                         onClick={() => handleImportPrebuilt(tpl.id, true)}
                         disabled={isImporting}
-                        className="w-full py-2.5 px-4 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#facc15] hover:shadow-[4px_4px_0px_0px_#fff] border-2 border-black transition-all flex items-center justify-center gap-2"
+                        className="w-full py-2.5 px-4 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#facc15] hover:shadow-[4px_4px_0px_0px_#fff] border-2 border-black transition-all flex items-center justify-center gap-2 cursor-pointer"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -463,7 +565,7 @@ export default function Templates() {
                       <button
                         onClick={() => handleImportPrebuilt(tpl.id, false)}
                         disabled={isImporting}
-                        className="w-full py-2 px-3 bg-[#1e2235] hover:bg-[#282d47] text-gray-200 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] transition-all flex items-center justify-center gap-1.5"
+                        className="w-full py-2 px-3 bg-[#1e2235] hover:bg-[#282d47] text-gray-200 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <svg className="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -488,7 +590,7 @@ export default function Templates() {
               <h3 className="text-xl font-black text-white uppercase">Create Custom Template</h3>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="text-gray-400 hover:text-white font-black text-lg"
+                className="text-gray-400 hover:text-white font-black text-lg cursor-pointer"
               >
                 ✕
               </button>
@@ -547,7 +649,7 @@ export default function Templates() {
                   <button
                     type="button"
                     onClick={addRole}
-                    className="text-xs text-yellow-400 hover:text-yellow-300 font-black uppercase tracking-wider"
+                    className="text-xs text-yellow-400 hover:text-yellow-300 font-black uppercase tracking-wider cursor-pointer"
                   >
                     + Add Role
                   </button>
@@ -574,7 +676,7 @@ export default function Templates() {
                         <button
                           type="button"
                           onClick={() => removeRole(r.id)}
-                          className="text-gray-400 hover:text-red-400 p-1 text-xs font-black"
+                          className="text-gray-400 hover:text-red-400 p-1 text-xs font-black cursor-pointer"
                         >
                           ✕
                         </button>
@@ -588,14 +690,14 @@ export default function Templates() {
                 <button
                   type="button"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="px-4 py-2.5 bg-[#1e2235] hover:bg-[#282d47] text-white rounded-xl text-xs font-black uppercase tracking-wider border-2 border-white/20 shadow-[2px_2px_0px_0px_#000]"
+                  className="px-4 py-2.5 bg-[#1e2235] hover:bg-[#282d47] text-white rounded-xl text-xs font-black uppercase tracking-wider border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isCreating}
-                  className="px-6 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#facc15] border-2 border-black"
+                  className="px-6 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#facc15] border-2 border-black cursor-pointer"
                 >
                   {isCreating ? "Uploading Template..." : "Save & Place Fields →"}
                 </button>
@@ -605,6 +707,28 @@ export default function Templates() {
         </div>
       )}
 
+      {/* Confirmation Delete Modal */}
+      <ConfirmModal
+        isOpen={!!deleteConfirmTarget}
+        title="Delete Document Template"
+        message={`Are you sure you want to permanently delete template "${deleteConfirmTarget?.name}"? All predefined roles and anchor fields will be removed.`}
+        confirmText="Delete Template"
+        cancelText="Keep Template"
+        type="danger"
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirmTarget(null)}
+      />
+
+      {/* Upgrade Paywall Modal */}
+      <UpgradeModal
+        isOpen={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        reason={upgradeReason}
+        onUpgraded={() => {
+          loadData();
+          setUpgradeModalOpen(false);
+        }}
+      />
     </div>
   );
 }

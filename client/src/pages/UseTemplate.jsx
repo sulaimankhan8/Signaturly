@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { fetchTemplateDetailsApi, useTemplateApi } from "../api/template.api";
+import { fetchUserSubscription } from "../api/billing.api";
 import Navbar from "../components/Navbar";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -11,6 +12,7 @@ export default function UseTemplate() {
   const authUser = useSelector((state) => state.auth.user);
 
   const [template, setTemplate] = useState(null);
+  const [subData, setSubData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [roleSigners, setRoleSigners] = useState({});
@@ -18,11 +20,22 @@ export default function UseTemplate() {
   const [message, setMessage] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
 
+  const isProOrAbove = [
+    "pro_monthly",
+    "pro_annual",
+    "lifetime",
+    "enterprise",
+  ].includes(subData?.subscription?.plan);
+
   useEffect(() => {
     const loadTemplate = async () => {
       try {
-        const data = await fetchTemplateDetailsApi(templateId);
+        const [data, sub] = await Promise.all([
+          fetchTemplateDetailsApi(templateId),
+          fetchUserSubscription().catch(() => null),
+        ]);
         setTemplate(data);
+        setSubData(sub);
 
         // Initialize role signers map
         const initialMap = {};
@@ -71,6 +84,12 @@ export default function UseTemplate() {
   const handleSend = async (e) => {
     e.preventDefault();
 
+    if (!isProOrAbove) {
+      toast.error("Dispatching template contracts requires a Pro Creator or Lifetime Pass subscription.");
+      navigate("/pricing");
+      return;
+    }
+
     // Validate that each role has a valid email and name
     for (const role of template?.roles || []) {
       const signer = roleSigners[role.id];
@@ -113,6 +132,53 @@ export default function UseTemplate() {
       <div className="min-h-screen bg-[#08090d] flex items-center justify-center">
         <Toaster position="top-right" />
         <div className="w-10 h-10 border-4 border-white/10 border-t-red-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Free Tier Lock Screen
+  if (subData && !isProOrAbove) {
+    return (
+      <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans selection:bg-yellow-400 selection:text-black">
+        <Toaster position="top-right" />
+        <Navbar />
+
+        <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-14 space-y-8">
+          <div className="bg-[#13151f] border-2 border-yellow-400 rounded-3xl p-8 sm:p-12 shadow-[8px_8px_0px_0px_#ef4444] text-center space-y-8">
+            <div className="w-16 h-16 rounded-2xl bg-yellow-400 text-black border-2 border-black flex items-center justify-center mx-auto shadow-[4px_4px_0px_0px_#fff]">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div className="max-w-xl mx-auto space-y-3">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-yellow-400 text-black px-3 py-1 rounded-full border border-black font-black">
+                Pro Creator Feature
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black text-white uppercase">
+                Template Dispatch Requires Pro Tier
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-300">
+                You are currently on the Free Starter plan. Upgrade to <strong>Pro Creator ($5.99/mo)</strong> or <strong>Lifetime Pass ($69 LTD)</strong> to dispatch <strong>"{template?.name}"</strong> and all 14 vetted contract templates with 1-click legal compliance.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button
+                type="button"
+                onClick={() => navigate("/pricing")}
+                className="px-8 py-3.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_#ef4444] transition-all cursor-pointer"
+              >
+                Upgrade to Pro ($5.99) →
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/templates")}
+                className="px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Back to Template Library
+              </button>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }

@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { RECIPIENT_PALETTE } from "../utils/constants";
 import API from "../api/axios";
+import { fetchUserSubscription } from "../api/billing.api";
+import { UpgradeModal } from "../components/UpgradeModal";
 import Navbar from "../components/Navbar";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -10,11 +12,23 @@ export default function SendDocument() {
   const navigate = useNavigate();
 
   const [docMeta, setDocMeta] = useState(null);
+  const [subData, setSubData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [signingOrder, setSigningOrder] = useState(false);
+  const [emailSubject, setEmailSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [reminderCadence, setReminderCadence] = useState("none");
   const [expiresAt, setExpiresAt] = useState("");
   const [savedContacts, setSavedContacts] = useState([]);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState("");
+
+  const isProOrAbove = [
+    "pro_monthly",
+    "pro_annual",
+    "lifetime",
+    "enterprise",
+  ].includes(subData?.subscription?.plan);
 
   const [recipients, setRecipients] = useState([
     {
@@ -39,8 +53,12 @@ export default function SendDocument() {
 
     const fetchDoc = async () => {
       try {
-        const res = await API.get(`/pdf/${pdfId}`);
-        setDocMeta(res.data.data);
+        const [docRes, sub] = await Promise.all([
+          API.get(`/pdf/${pdfId}`),
+          fetchUserSubscription().catch(() => null),
+        ]);
+        setDocMeta(docRes.data.data);
+        setSubData(sub);
       } catch (err) {
         console.error("Error fetching PDF meta:", err);
         toast.error("Failed to load document details");
@@ -133,7 +151,9 @@ export default function SendDocument() {
           signingOrder: idx + 1,
         })),
         signingOrder,
+        emailSubject,
         message,
+        reminderCadence,
         expiresAt,
       },
     });
@@ -172,7 +192,7 @@ export default function SendDocument() {
 
           <button
             onClick={proceedToFieldAssignment}
-            className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-950/50 border border-red-500/30 transition-all hover:scale-[1.02] active:scale-95"
+            className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-950/50 border border-red-500/30 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
           >
             <span>Next: Place Form Fields</span>
             <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -319,9 +339,9 @@ export default function SendDocument() {
                       recipient.authType !== "none" ? "border-red-500/50 bg-red-950/20" : "border-white/10 focus:border-red-500"
                     }`}
                   >
-                    <option value="none">⚡ Standard (Direct Link)</option>
-                    <option value="otp">✉️ Email OTP (6-Digit)</option>
-                    <option value="passcode">🔑 Access Passcode</option>
+                    <option value="none">Standard (Direct Secure Link)</option>
+                    <option value="otp">Email OTP (6-Digit Verification)</option>
+                    <option value="passcode">Access Passcode Required</option>
                   </select>
                 </div>
 
@@ -362,7 +382,7 @@ export default function SendDocument() {
           <button
             type="button"
             onClick={addRecipient}
-            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-300 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-300 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -372,13 +392,47 @@ export default function SendDocument() {
         </div>
 
         {/* Message & Expiration Settings Card */}
-        <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
-          <h2 className="text-base font-display font-bold text-white">Email &amp; Expiration Settings</h2>
+        <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="flex items-center justify-between border-b border-white/10 pb-4">
+            <div>
+              <h2 className="text-base font-display font-bold text-white">Email &amp; Expiration Settings</h2>
+              <p className="text-gray-400 text-xs mt-0.5">Customize email delivery notes and automated reminder cadences.</p>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* Custom Email Subject */}
+            <div className="sm:col-span-2">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[10px] uppercase font-bold text-gray-400">
+                  Custom Email Subject Line (Optional)
+                </label>
+                {!isProOrAbove && (
+                  <span className="text-[9px] font-bold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/30">
+                    PRO FEATURE
+                  </span>
+                )}
+              </div>
+              <input
+                type="text"
+                placeholder={`e.g. [Urgent] Please review and sign: ${docMeta?.originalFileName || "Agreement"}`}
+                value={emailSubject}
+                onChange={(e) => {
+                  if (!isProOrAbove && e.target.value.length > 0) {
+                    setUpgradeReason("Custom branded email subject lines require a Pro Creator ($5.99/mo) or Lifetime Pass ($69) plan.");
+                    setUpgradeModalOpen(true);
+                    return;
+                  }
+                  setEmailSubject(e.target.value);
+                }}
+                className="w-full px-3.5 py-2.5 bg-[#08090d] border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-red-500"
+              />
+            </div>
+
+            {/* Personal Invitation Note */}
             <div className="sm:col-span-2">
               <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">
-                Personal Invitation Note (Included in Email)
+                Personal Invitation Note (Included in Signer Email)
               </label>
               <textarea
                 rows={3}
@@ -389,6 +443,38 @@ export default function SendDocument() {
               />
             </div>
 
+            {/* Automated Email Reminders */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-[10px] uppercase font-bold text-gray-400">
+                  Automated Email Reminders
+                </label>
+                {!isProOrAbove && (
+                  <span className="text-[9px] font-bold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/30">
+                    PRO FEATURE
+                  </span>
+                )}
+              </div>
+              <select
+                value={reminderCadence}
+                onChange={(e) => {
+                  if (!isProOrAbove && e.target.value !== "none") {
+                    setUpgradeReason("Automated recurring email reminders to signers require a Pro Creator ($5.99/mo) or Lifetime Pass ($69) plan.");
+                    setUpgradeModalOpen(true);
+                    return;
+                  }
+                  setReminderCadence(e.target.value);
+                }}
+                className="w-full px-3.5 py-2.5 bg-[#08090d] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-red-500"
+              >
+                <option value="none">No Automated Reminders (Standard)</option>
+                <option value="3days">Remind Every 3 Days (PRO)</option>
+                <option value="5days">Remind Every 5 Days (PRO)</option>
+                <option value="daily">Daily Reminders Until Signed (ENTERPRISE)</option>
+              </select>
+            </div>
+
+            {/* Expiration Date */}
             <div>
               <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">
                 Expiration Date (Optional)
@@ -407,12 +493,23 @@ export default function SendDocument() {
         <div className="flex justify-end pt-4">
           <button
             onClick={proceedToFieldAssignment}
-            className="px-8 py-3.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-950/50 border border-red-500/30 transition-all hover:scale-105"
+            className="px-8 py-3.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-950/50 border border-red-500/30 transition-all hover:scale-105 cursor-pointer"
           >
             Proceed to Field Placement →
           </button>
         </div>
       </main>
+
+      {/* Upgrade Paywall Modal */}
+      <UpgradeModal
+        isOpen={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        reason={upgradeReason}
+        onUpgraded={() => {
+          fetchUserSubscription().then(setSubData);
+          setUpgradeModalOpen(false);
+        }}
+      />
     </div>
   );
 }

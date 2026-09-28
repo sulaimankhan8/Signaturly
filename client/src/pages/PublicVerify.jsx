@@ -547,21 +547,30 @@ export default function PublicVerify() {
               {activeLedgerTab === "legal" && (
                 <div className="space-y-4 text-xs text-gray-300">
                   <div className="p-4 rounded-2xl bg-[#090b12] border border-white/10 space-y-2">
-                    <p className="font-bold text-white text-sm">🇮🇳 India Statutory Enforceability</p>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-orange-500/20 text-orange-300 text-[10px] font-mono font-bold uppercase border border-orange-500/30">IN</span>
+                      <p className="font-bold text-white text-sm">India Statutory Enforceability</p>
+                    </div>
                     <p className="text-gray-400 leading-relaxed">
                       {result.legalStanding?.indiaStatute || "Section 10A IT Act, 2000 & Section 63 Bharatiya Sakshya Adhiniyam, 2023."}
                     </p>
                   </div>
 
                   <div className="p-4 rounded-2xl bg-[#090b12] border border-white/10 space-y-2">
-                    <p className="font-bold text-white text-sm">🇺🇸 United States & Global Standing</p>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 text-[10px] font-mono font-bold uppercase border border-blue-500/30">US</span>
+                      <p className="font-bold text-white text-sm">United States &amp; Global Standing</p>
+                    </div>
                     <p className="text-gray-400 leading-relaxed">
                       {result.legalStanding?.usStatute || "15 U.S.C. § 7001 (US ESIGN Act) and Uniform Electronic Transactions Act (UETA)."}
                     </p>
                   </div>
 
                   <div className="p-4 rounded-2xl bg-[#090b12] border border-white/10 space-y-2">
-                    <p className="font-bold text-white text-sm">🇪🇺 European Union Standing</p>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 text-[10px] font-mono font-bold uppercase border border-indigo-500/30">EU</span>
+                      <p className="font-bold text-white text-sm">European Union Standing</p>
+                    </div>
                     <p className="text-gray-400 leading-relaxed">
                       {result.legalStanding?.euStatute || "eIDAS Regulation (EU) No 910/2014 for electronic signature validity."}
                     </p>

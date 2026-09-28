@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { performLogout } from "../store/authActions";
+import { UpgradeModal } from "./UpgradeModal";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export default function Navbar() {
   const [activeDropdown, setActiveDropdown] = useState(null); // 'docs' | 'templates' | 'tools' | 'user' | null
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileExpandedSection, setMobileExpandedSection] = useState(null);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const navRef = useRef(null);
 
   // Close dropdown on click outside
@@ -46,14 +48,15 @@ export default function Navbar() {
     isPathActive("/upload") ||
     isPathActive("/editor") ||
     isPathActive("/send") ||
-    isPathActive("/assign") ||
-    (location.pathname === "/dashboard" && activeDropdown === "docs");
+    isPathActive("/assign");
 
   const isTemplatesActive =
     isPathActive("/templates") || isPathActive("/templates/bulk");
 
   const isToolsActive =
     isPathActive("/signature-remover") ||
+    isPathActive("/workspaces") ||
+    isPathActive("/developer") ||
     isPathActive("/verify") ||
     isPathActive("/userguide");
 
@@ -65,20 +68,33 @@ export default function Navbar() {
     setMobileExpandedSection((prev) => (prev === name ? null : name));
   };
 
+  // Zero-layout-shift button class helper with spacious, comfortable dimensions
+  const getNavBtnClass = (isActive, dropdownName) => {
+    const isDropdownOpen = activeDropdown === dropdownName;
+    const base = "px-5 py-2.5 text-xs font-extrabold uppercase tracking-wide rounded-xl transition-colors duration-150 border-2 flex items-center gap-2.5 select-none shrink-0";
+    if (isActive) {
+      return `${base} bg-red-600 text-white border-black shadow-[2px_2px_0px_0px_#facc15]`;
+    }
+    if (isDropdownOpen) {
+      return `${base} bg-white/10 text-white border-transparent shadow-[2px_2px_0px_0px_transparent]`;
+    }
+    return `${base} text-gray-300 hover:text-white hover:bg-white/10 border-transparent shadow-[2px_2px_0px_0px_transparent]`;
+  };
+
   return (
     <header
       ref={navRef}
       className="sticky top-0 z-50 bg-[#090a0f]/95 backdrop-blur-xl border-b-2 border-white/20"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+      <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
         {/* Brand / Logo */}
         <div
           onClick={() => navigate("/dashboard")}
-          className="flex items-center space-x-3 cursor-pointer group select-none"
+          className="flex items-center space-x-3 cursor-pointer group select-none shrink-0"
         >
-          <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center border-2 border-black shadow-[3px_3px_0px_0px_#ffffff] group-hover:rotate-[-2deg] transition-all">
+          <div className="w-10 h-10 bg-red-600 rounded-xl flex items-center justify-center border-2 border-black shadow-[2px_2px_0px_0px_#ffffff] group-hover:rotate-[-2deg] transition-all">
             <svg
-              className="w-6 h-6 text-white"
+              className="w-5 h-5 text-white"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -102,18 +118,14 @@ export default function Navbar() {
         </div>
 
         {/* Desktop Center Navigation with Categorized Dropdowns */}
-        <nav className="hidden md:flex items-center space-x-1.5 bg-[#151722] p-1.5 rounded-2xl border-2 border-white/20 shadow-[3px_3px_0px_0px_#000]">
+        <nav className="hidden md:flex items-center w-max shrink-0 space-x-2.5 bg-[#13151f] p-2 rounded-2xl border-2 border-white/15 shadow-[3px_3px_0px_0px_#000]">
           {/* 1. Dashboard Direct Link */}
           <button
             onClick={() => navigate("/dashboard")}
-            className={`px-3.5 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 ${
-              location.pathname === "/dashboard"
-                ? "bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_#facc15]"
-                : "text-gray-300 hover:text-white hover:bg-white/10"
-            }`}
+            className={getNavBtnClass(location.pathname === "/dashboard", null)}
           >
             <svg
-              className="w-3.5 h-3.5 text-current"
+              className="w-4 h-4 text-current shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -129,18 +141,14 @@ export default function Navbar() {
           </button>
 
           {/* 2. Documents ▾ Dropdown */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               onClick={() => toggleDropdown("docs")}
               onMouseEnter={() => setActiveDropdown("docs")}
-              className={`px-3.5 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 ${
-                isDocsActive
-                  ? "bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_#facc15]"
-                  : "text-gray-300 hover:text-white hover:bg-white/10"
-              }`}
+              className={getNavBtnClass(isDocsActive, "docs")}
             >
               <svg
-                className="w-3.5 h-3.5"
+                className="w-4 h-4 shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -154,7 +162,7 @@ export default function Navbar() {
               </svg>
               <span>Documents</span>
               <svg
-                className={`w-3 h-3 transition-transform duration-200 ${
+                className={`w-3.5 h-3.5 shrink-0 opacity-80 transition-transform duration-200 ${
                   activeDropdown === "docs" ? "rotate-180" : ""
                 }`}
                 fill="none"
@@ -173,7 +181,7 @@ export default function Navbar() {
             {activeDropdown === "docs" && (
               <div
                 onMouseLeave={() => setActiveDropdown(null)}
-                className="absolute left-0 mt-2 w-64 bg-[#12141e] border-2 border-white/20 rounded-2xl shadow-[5px_5px_0px_0px_#000] p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1"
+                className="absolute top-full left-0 mt-2 w-64 bg-[#12141e] border-2 border-white/20 rounded-2xl shadow-[5px_5px_0px_0px_#000] p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1"
               >
                 <button
                   onClick={() => {
@@ -243,18 +251,14 @@ export default function Navbar() {
           </div>
 
           {/* 3. Templates ▾ Dropdown */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               onClick={() => toggleDropdown("templates")}
               onMouseEnter={() => setActiveDropdown("templates")}
-              className={`px-3.5 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 ${
-                isTemplatesActive
-                  ? "bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_#facc15]"
-                  : "text-gray-300 hover:text-white hover:bg-white/10"
-              }`}
+              className={getNavBtnClass(isTemplatesActive, "templates")}
             >
               <svg
-                className="w-3.5 h-3.5"
+                className="w-4 h-4 shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -268,7 +272,7 @@ export default function Navbar() {
               </svg>
               <span>Templates</span>
               <svg
-                className={`w-3 h-3 transition-transform duration-200 ${
+                className={`w-3.5 h-3.5 shrink-0 opacity-80 transition-transform duration-200 ${
                   activeDropdown === "templates" ? "rotate-180" : ""
                 }`}
                 fill="none"
@@ -287,7 +291,7 @@ export default function Navbar() {
             {activeDropdown === "templates" && (
               <div
                 onMouseLeave={() => setActiveDropdown(null)}
-                className="absolute left-0 mt-2 w-64 bg-[#12141e] border-2 border-white/20 rounded-2xl shadow-[5px_5px_0px_0px_#000] p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1"
+                className="absolute top-full left-0 mt-2 w-64 bg-[#12141e] border-2 border-white/20 rounded-2xl shadow-[5px_5px_0px_0px_#000] p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1"
               >
                 <button
                   onClick={() => {
@@ -357,18 +361,14 @@ export default function Navbar() {
           </div>
 
           {/* 4. Tools ▾ Dropdown (Includes Signature Studio, Verify, User Guide, Font Lab) */}
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               onClick={() => toggleDropdown("tools")}
               onMouseEnter={() => setActiveDropdown("tools")}
-              className={`px-3.5 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center gap-1.5 ${
-                isToolsActive
-                  ? "bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_#facc15]"
-                  : "text-gray-300 hover:text-white hover:bg-white/10"
-              }`}
+              className={getNavBtnClass(isToolsActive, "tools")}
             >
               <svg
-                className="w-3.5 h-3.5"
+                className="w-4 h-4 shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -388,7 +388,7 @@ export default function Navbar() {
               </svg>
               <span>Tools</span>
               <svg
-                className={`w-3 h-3 transition-transform duration-200 ${
+                className={`w-3.5 h-3.5 shrink-0 opacity-80 transition-transform duration-200 ${
                   activeDropdown === "tools" ? "rotate-180" : ""
                 }`}
                 fill="none"
@@ -407,7 +407,7 @@ export default function Navbar() {
             {activeDropdown === "tools" && (
               <div
                 onMouseLeave={() => setActiveDropdown(null)}
-                className="absolute left-0 mt-2 w-72 bg-[#12141e] border-2 border-white/20 rounded-2xl shadow-[5px_5px_0px_0px_#000] p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1"
+                className="absolute top-full left-0 md:left-auto md:right-0 mt-2 w-72 bg-[#12141e] border-2 border-white/20 rounded-2xl shadow-[5px_5px_0px_0px_#000] p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1"
               >
                 <button
                   onClick={() => {
@@ -436,7 +436,61 @@ export default function Navbar() {
                       Signature Studio
                     </span>
                     <span className="text-[10px] text-gray-400 block leading-tight">
-                      AI background remover & signature pad
+                      AI background remover &amp; signature pad
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    navigate("/workspaces");
+                    setActiveDropdown(null);
+                  }}
+                  className="w-full text-left p-2.5 rounded-xl hover:bg-white/10 flex items-start gap-3 group transition-all"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black text-white block uppercase tracking-wide">
+                        Workspaces
+                      </span>
+                      <span className="text-[8px] font-mono font-black bg-blue-500/30 text-blue-300 px-1.5 py-0.2 rounded">
+                        ENTERPRISE
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-gray-400 block leading-tight">
+                      Team members &amp; white-label branding
+                    </span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => {
+                    navigate("/developer");
+                    setActiveDropdown(null);
+                  }}
+                  className="w-full text-left p-2.5 rounded-xl hover:bg-white/10 flex items-start gap-3 group transition-all"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-amber-600/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0 group-hover:bg-amber-600 group-hover:text-white transition-all">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black text-white block uppercase tracking-wide">
+                        Developer API
+                      </span>
+                      <span className="text-[8px] font-mono font-black bg-amber-500/30 text-amber-300 px-1.5 py-0.2 rounded">
+                        API KEYS
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-gray-400 block leading-tight">
+                      REST API tokens &amp; outgoing webhooks
                     </span>
                   </div>
                 </button>
@@ -468,7 +522,7 @@ export default function Navbar() {
                       Verify Document
                     </span>
                     <span className="text-[10px] text-gray-400 block leading-tight">
-                      Cryptographic hash & proof validator
+                      Cryptographic hash &amp; proof validator
                     </span>
                   </div>
                 </button>
@@ -505,7 +559,7 @@ export default function Navbar() {
                       </span>
                     </div>
                     <span className="text-[10px] text-gray-300 block leading-tight">
-                      Interactive workflows, manuals & FAQs
+                      Interactive workflows, manuals &amp; FAQs
                     </span>
                   </div>
                 </button>
@@ -514,18 +568,32 @@ export default function Navbar() {
           </div>
         </nav>
 
-        {/* User Profile & Settings Menu */}
-        <div className="flex items-center space-x-3">
-          <div className="relative">
+        {/* User Profile & Right Action Area */}
+        <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+          {/* Persistent Upgrade to Pro Button */}
+          <button
+            onClick={() => navigate("/pricing")}
+            className="px-3.5 py-2 text-xs font-black uppercase tracking-wider text-black bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-300 border-2 border-black shadow-[2px_2px_0px_0px_#ef4444] hover:shadow-[3px_3px_0px_0px_#ef4444] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer transform hover:-translate-y-0.5 shrink-0"
+            title="Upgrade to Pro &amp; Unlimited Sending"
+          >
+            <svg className="w-3.5 h-3.5 text-black shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span className="hidden sm:inline">Upgrade</span>
+            <span className="sm:hidden">Pro</span>
+          </button>
+
+          {/* User Profile Menu */}
+          <div className="relative shrink-0">
             <button
               onClick={() => toggleDropdown("user")}
-              className="hidden sm:flex items-center space-x-2 text-xs font-bold text-gray-200 bg-[#151722] hover:bg-[#1f2233] px-3 py-1.5 rounded-xl border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] cursor-pointer transition-colors"
-              title="Manage Profile & Settings"
+              className="flex items-center space-x-2 text-xs font-bold text-gray-200 bg-[#151722] hover:bg-[#1f2233] px-3 py-1.5 rounded-xl border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] cursor-pointer transition-colors shrink-0"
+              title="Manage Profile &amp; Settings"
             >
               <div className="w-6 h-6 rounded-lg bg-yellow-400 text-black border border-black flex items-center justify-center text-xs font-black uppercase">
                 {(user?.name || user?.email || "U")[0]}
               </div>
-              <span className="font-black text-xs max-w-[120px] truncate">
+              <span className="font-black text-xs max-w-[100px] truncate hidden md:inline">
                 {user?.name || user?.email || "Account"}
               </span>
               <svg
@@ -547,7 +615,7 @@ export default function Navbar() {
 
             {/* Profile Dropdown Menu */}
             {activeDropdown === "user" && (
-              <div className="absolute right-0 mt-2 w-64 bg-[#12141e] border-2 border-white/20 rounded-2xl shadow-[5px_5px_0px_0px_#000] p-3 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2">
+              <div className="absolute top-full right-0 mt-2 w-64 bg-[#12141e] border-2 border-white/20 rounded-2xl shadow-[5px_5px_0px_0px_#000] p-3 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2">
                 <div className="p-2 bg-white/5 rounded-xl border border-white/10">
                   <p className="text-xs font-black text-white truncate">
                     {user?.name || "Signaturly User"}
@@ -555,9 +623,20 @@ export default function Navbar() {
                   <p className="text-[11px] text-gray-400 truncate">
                     {user?.email || "user@signaturly.pro"}
                   </p>
-                  <span className="mt-1.5 inline-block text-[9px] font-mono font-bold uppercase tracking-wider text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/30">
-                    Pro Verified Plan
-                  </span>
+                  <div className="mt-1.5 flex items-center justify-between">
+                    <span className="inline-block text-[9px] font-mono font-bold uppercase tracking-wider text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/30">
+                      Signaturly Account
+                    </span>
+                    <button
+                      onClick={() => {
+                        navigate("/pricing");
+                        setActiveDropdown(null);
+                      }}
+                      className="text-[10px] text-yellow-400 hover:underline font-bold"
+                    >
+                      View Plans →
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-1">
@@ -568,26 +647,50 @@ export default function Navbar() {
                     }}
                     className="w-full text-left px-3 py-2 text-xs font-bold text-gray-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors flex items-center gap-2"
                   >
-                    <svg
-                      className="w-4 h-4 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <span>Account Settings</span>
+                    <span>Account &amp; Billing</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      navigate("/pricing");
+                      setActiveDropdown(null);
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs font-bold text-yellow-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                    <span>Pricing &amp; Subscriptions</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      navigate("/workspaces");
+                      setActiveDropdown(null);
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs font-bold text-blue-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    <span>Team Workspaces</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      navigate("/developer");
+                      setActiveDropdown(null);
+                    }}
+                    className="w-full text-left px-3 py-2 text-xs font-bold text-amber-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <span>Developer REST API</span>
                   </button>
 
                   <button
@@ -597,20 +700,10 @@ export default function Navbar() {
                     }}
                     className="w-full text-left px-3 py-2 text-xs font-bold text-gray-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors flex items-center gap-2"
                   >
-                    <svg
-                      className="w-4 h-4 text-yellow-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                      />
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>
-                    <span>User Guide & Manual</span>
+                    <span>User Guide &amp; Manual</span>
                   </button>
                 </div>
 
@@ -715,6 +808,20 @@ export default function Navbar() {
             </div>
           </div>
 
+          {/* Mobile Upgrade CTA */}
+          <button
+            onClick={() => {
+              navigate("/pricing");
+              setMobileMenuOpen(false);
+            }}
+            className="w-full py-2.5 px-4 text-xs font-black uppercase tracking-wider text-black bg-gradient-to-r from-yellow-400 to-amber-400 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#ef4444] flex items-center justify-center gap-2"
+          >
+            <svg className="w-4 h-4 text-black shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span>Upgrade to Pro &bull; Unlimited</span>
+          </button>
+
           <div className="space-y-1">
             {/* Dashboard */}
             <button
@@ -722,13 +829,58 @@ export default function Navbar() {
                 navigate("/dashboard");
                 setMobileMenuOpen(false);
               }}
-              className={`w-full text-left px-4 py-2.5 text-xs font-black uppercase rounded-xl transition-all ${
+              className={`w-full text-left px-4 py-2.5 text-xs font-black uppercase rounded-xl transition-all flex items-center gap-2.5 ${
                 location.pathname === "/dashboard"
                   ? "bg-red-600 text-white border-2 border-black"
                   : "text-gray-300 hover:bg-white/5"
               }`}
             >
-              📊 Dashboard
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+              <span>Dashboard</span>
+            </button>
+
+            {/* Pricing */}
+            <button
+              onClick={() => {
+                navigate("/pricing");
+                setMobileMenuOpen(false);
+              }}
+              className="w-full text-left px-4 py-2.5 text-xs font-black uppercase text-yellow-300 hover:bg-white/5 rounded-xl transition-all flex items-center gap-2.5"
+            >
+              <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+              <span>Plans &amp; Pricing</span>
+            </button>
+
+            {/* Workspaces */}
+            <button
+              onClick={() => {
+                navigate("/workspaces");
+                setMobileMenuOpen(false);
+              }}
+              className="w-full text-left px-4 py-2.5 text-xs font-black uppercase text-blue-300 hover:bg-white/5 rounded-xl transition-all flex items-center gap-2.5"
+            >
+              <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <span>Team Workspaces</span>
+            </button>
+
+            {/* Developer */}
+            <button
+              onClick={() => {
+                navigate("/developer");
+                setMobileMenuOpen(false);
+              }}
+              className="w-full text-left px-4 py-2.5 text-xs font-black uppercase text-amber-300 hover:bg-white/5 rounded-xl transition-all flex items-center gap-2.5"
+            >
+              <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>Developer REST API</span>
             </button>
 
             {/* Documents Accordion */}
@@ -737,7 +889,12 @@ export default function Navbar() {
                 onClick={() => toggleMobileSection("docs")}
                 className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-black uppercase text-gray-200 bg-white/5"
               >
-                <span>📁 Documents</span>
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>Documents</span>
+                </div>
                 <span className="text-gray-400">
                   {mobileExpandedSection === "docs" ? "−" : "+"}
                 </span>
@@ -749,18 +906,24 @@ export default function Navbar() {
                       navigate("/upload");
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white rounded-lg hover:bg-white/5"
+                    className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white rounded-lg hover:bg-white/5 flex items-center gap-2"
                   >
-                    📄 Upload PDF
+                    <svg className="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    <span>Upload PDF</span>
                   </button>
                   <button
                     onClick={() => {
                       navigate("/dashboard");
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white rounded-lg hover:bg-white/5"
+                    className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white rounded-lg hover:bg-white/5 flex items-center gap-2"
                   >
-                    📑 All Documents Vault
+                    <svg className="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                    <span>All Documents Vault</span>
                   </button>
                 </div>
               )}
@@ -772,7 +935,12 @@ export default function Navbar() {
                 onClick={() => toggleMobileSection("templates")}
                 className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-black uppercase text-gray-200 bg-white/5"
               >
-                <span>📑 Templates & Bulk</span>
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                  </svg>
+                  <span>Templates &amp; Bulk</span>
+                </div>
                 <span className="text-gray-400">
                   {mobileExpandedSection === "templates" ? "−" : "+"}
                 </span>
@@ -784,18 +952,24 @@ export default function Navbar() {
                       navigate("/templates");
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white rounded-lg hover:bg-white/5"
+                    className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white rounded-lg hover:bg-white/5 flex items-center gap-2"
                   >
-                    📚 Template Library
+                    <svg className="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                    <span>Template Library</span>
                   </button>
                   <button
                     onClick={() => {
                       navigate("/templates/bulk");
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white rounded-lg hover:bg-white/5"
+                    className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white rounded-lg hover:bg-white/5 flex items-center gap-2"
                   >
-                    📬 Bulk Send (CSV)
+                    <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <span>Bulk Send (CSV)</span>
                   </button>
                 </div>
               )}
@@ -807,7 +981,13 @@ export default function Navbar() {
                 onClick={() => toggleMobileSection("tools")}
                 className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-black uppercase text-gray-200 bg-white/5"
               >
-                <span>🛠️ Tools & Guide</span>
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span>Tools &amp; Guide</span>
+                </div>
                 <span className="text-gray-400">
                   {mobileExpandedSection === "tools" ? "−" : "+"}
                 </span>
@@ -819,27 +999,36 @@ export default function Navbar() {
                       navigate("/signature-remover");
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white rounded-lg hover:bg-white/5"
+                    className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white rounded-lg hover:bg-white/5 flex items-center gap-2"
                   >
-                    ✍️ Signature Studio
+                    <svg className="w-3.5 h-3.5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                    <span>Signature Studio</span>
                   </button>
                   <button
                     onClick={() => {
                       navigate("/verify");
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white rounded-lg hover:bg-white/5"
+                    className="w-full text-left px-3 py-2 text-xs text-gray-300 hover:text-white rounded-lg hover:bg-white/5 flex items-center gap-2"
                   >
-                    🛡️ Verify Document
+                    <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                    <span>Verify Document</span>
                   </button>
                   <button
                     onClick={() => {
                       navigate("/userguide");
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs text-yellow-300 hover:text-yellow-200 rounded-lg hover:bg-white/5 font-bold"
+                    className="w-full text-left px-3 py-2 text-xs text-yellow-300 hover:text-yellow-200 rounded-lg hover:bg-white/5 font-bold flex items-center gap-2"
                   >
-                    📘 Interactive User Guide
+                    <svg className="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    <span>Interactive User Guide</span>
                   </button>
                 </div>
               )}
@@ -851,15 +1040,19 @@ export default function Navbar() {
                 navigate("/settings");
                 setMobileMenuOpen(false);
               }}
-              className="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-300 hover:bg-white/5 rounded-xl transition-all"
+              className="w-full text-left px-4 py-2.5 text-xs font-bold text-gray-300 hover:bg-white/5 rounded-xl transition-all flex items-center gap-2.5"
             >
-              ⚙️ Account Settings
+              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>Account &amp; Billing</span>
             </button>
           </div>
 
           <button
             onClick={handleLogout}
-            className="w-full mt-3 px-4 py-3 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all flex items-center justify-center gap-2"
+            className="w-full mt-3 px-4 py-3 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
             <svg
               className="w-4 h-4"
@@ -878,6 +1071,13 @@ export default function Navbar() {
           </button>
         </div>
       )}
+
+      {/* Global Upgrade Modal Mount */}
+      <UpgradeModal
+        isOpen={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        reason="Upgrade your workspace for unlimited envelopes, ad-free signing, and enterprise tools."
+      />
     </header>
   );
 }

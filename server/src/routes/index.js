@@ -11,6 +11,12 @@ import otpRoutes from "./otp.routes.js";
 import verifyRoutes from "./verify.routes.js";
 import adminRoutes from "./admin.routes.js";
 
+import billingRoutes from "./billing.routes.js";
+import webhookRoutes from "./webhook.routes.js";
+
+import workspaceRoutes from "./workspace.routes.js";
+import developerRoutes from "./api.routes.js";
+
 const router = Router();
 router.use("/auth", authRoutes);
 router.use("/pdf", pdfRoutes);
@@ -23,6 +29,10 @@ router.use("/bulk", bulkRoutes);
 router.use("/sign/otp", otpRoutes);
 router.use("/verify", verifyRoutes);
 router.use("/admin", adminRoutes);
+router.use("/billing", billingRoutes);
+router.use("/webhooks", webhookRoutes);
+router.use("/workspaces", workspaceRoutes);
+router.use("/developer", developerRoutes);
 
 export default router;
 

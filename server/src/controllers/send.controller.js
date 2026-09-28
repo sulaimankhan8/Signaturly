@@ -23,6 +23,14 @@ export const sendDocumentController = asyncHandler(async (req, res) => {
     userAgent: req.headers["user-agent"],
   });
 
+  // Track monthly usage for subscription quota
+  try {
+    const { incrementUsage } = await import("../services/subscription.service.js");
+    await incrementUsage(req.user.id, 1);
+  } catch (quotaErr) {
+    console.warn("Could not increment quota usage:", quotaErr.message);
+  }
+
   res.status(200).json(new ApiResponse(result, "Document dispatched to recipients successfully"));
 });
 

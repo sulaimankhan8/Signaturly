@@ -4,6 +4,9 @@ import { useSelector } from "react-redux";
 import toast, { Toaster } from "react-hot-toast";
 import { fetchMyPdfsApi, deletePdfApi, fetchPdfAuditApi } from "../api/pdf.api";
 import { remindRecipientApi, fetchDocumentDetailsApi } from "../api/send.api";
+import { fetchUserSubscription } from "../api/billing.api";
+import { UpgradeModal } from "../components/UpgradeModal";
+import ConfirmModal from "../components/ConfirmModal";
 import API from "../api/axios";
 import Navbar from "../components/Navbar";
 
@@ -26,14 +29,63 @@ export default function Dashboard() {
   const [isRecipientsModalOpen, setIsRecipientsModalOpen] = useState(false);
   const [isRecipientsLoading, setIsRecipientsLoading] = useState(false);
   const [remindingRecipientId, setRemindingRecipientId] = useState(null);
+  const [subData, setSubData] = useState(null);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState(null);
+  const [isPlanBannerDismissed, setIsPlanBannerDismissed] = useState(() => {
+    try {
+      const userId = user?._id || user?.id || "guest";
+      const plan = user?.subscription?.plan;
+      if (plan && plan !== "free") {
+        return localStorage.getItem(`dismissed_plan_banner_${userId}`) === plan;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      const plan = subData?.subscription?.plan || user?.subscription?.plan;
+      const userId = user?._id || user?.id || "guest";
+      if (plan && plan !== "free") {
+        const saved = localStorage.getItem(`dismissed_plan_banner_${userId}`);
+        if (saved === plan) {
+          setIsPlanBannerDismissed(true);
+        } else {
+          setIsPlanBannerDismissed(false);
+        }
+      } else {
+        setIsPlanBannerDismissed(false);
+      }
+    } catch {
+      setIsPlanBannerDismissed(false);
+    }
+  }, [subData, user]);
+
+  const handleDismissPlanBanner = (currentPlan) => {
+    try {
+      const userId = user?._id || user?.id || "guest";
+      localStorage.setItem(`dismissed_plan_banner_${userId}`, currentPlan);
+      setIsPlanBannerDismissed(true);
+      toast.success("Plan status banner dismissed");
+    } catch (e) {
+      setIsPlanBannerDismissed(true);
+    }
+  };
 
   const lastSyncTimeRef = useRef(new Date().toISOString());
 
   const loadDocuments = useCallback(async (showSpinner = true) => {
     try {
       if (showSpinner) setIsLoading(true);
-      const data = await fetchMyPdfsApi();
-      setDocuments(data || []);
+      const [docs, sub] = await Promise.all([
+        fetchMyPdfsApi().catch(() => []),
+        fetchUserSubscription().catch(() => null),
+      ]);
+      setDocuments(docs || []);
+      if (sub) setSubData(sub);
       lastSyncTimeRef.current = new Date().toISOString();
     } catch (err) {
       console.error("Failed to load user documents:", err);
@@ -108,50 +160,54 @@ export default function Dashboard() {
     };
   }, [loadDocuments, syncDeltaUpdates]);
 
-  const handleVoid = async (id, title) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to legally VOID and cancel "${title}"?\n\n• All recipient signing links will be revoked immediately.\n• A cancellation email will be dispatched to signers.\n• A "Voided" event is logged in the tamper-evident audit ledger.\n• The document will be kept in your "Declined/Void" archive for compliance.`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      setDeletingId(id);
-      await API.post(`/send/${id}/void`);
-      toast.success("Document legally voided and revoked");
-      setDocuments((prev) =>
-        prev.map((doc) => (doc._id === id || doc.id === id ? { ...doc, status: "voided" } : doc))
-      );
-    } catch (err) {
-      console.error("Void document error:", err);
-      toast.error(err.response?.data?.message || "Failed to void document");
-    } finally {
-      setDeletingId(null);
-    }
+  const handleVoid = (id, title) => {
+    setConfirmModalConfig({
+      title: "Legally Void Agreement",
+      message: `Are you sure you want to legally VOID and cancel "${title}"? All recipient signing links will be revoked immediately and a cancellation notice will be logged in the immutable audit trail.`,
+      confirmText: "Void Document",
+      cancelText: "Keep Active",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          setDeletingId(id);
+          await API.post(`/send/${id}/void`);
+          toast.success("Document legally voided and revoked");
+          setDocuments((prev) =>
+            prev.map((doc) => (doc._id === id || doc.id === id ? { ...doc, status: "voided" } : doc))
+          );
+        } catch (err) {
+          console.error("Void document error:", err);
+          toast.error(err.response?.data?.message || "Failed to void document");
+        } finally {
+          setDeletingId(null);
+          setConfirmModalConfig(null);
+        }
+      },
+    });
   };
 
-  const handleDelete = async (id, title) => {
-    if (
-      !window.confirm(
-        `Delete "${title}" from your workspace?\n\n• Permanently purges the PDF file from cloud storage.\n• Removes this document record from your dashboard.`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      setDeletingId(id);
-      await deletePdfApi(id);
-      setDocuments((prev) => prev.filter((doc) => doc._id !== id && doc.id !== id));
-      toast.success("Document purged from workspace");
-    } catch (err) {
-      console.error("Delete document error:", err);
-      toast.error(err.response?.data?.message || "Failed to delete document");
-    } finally {
-      setDeletingId(null);
-    }
+  const handleDelete = (id, title) => {
+    setConfirmModalConfig({
+      title: "Permanently Delete Document",
+      message: `Are you sure you want to permanently delete "${title}"? The source PDF file will be purged from storage and removed from your dashboard.`,
+      confirmText: "Delete Permanently",
+      cancelText: "Cancel",
+      type: "danger",
+      onConfirm: async () => {
+        try {
+          setDeletingId(id);
+          await deletePdfApi(id);
+          setDocuments((prev) => prev.filter((doc) => doc._id !== id && doc.id !== id));
+          toast.success("Document purged from workspace");
+        } catch (err) {
+          console.error("Delete document error:", err);
+          toast.error(err.response?.data?.message || "Failed to delete document");
+        } finally {
+          setDeletingId(null);
+          setConfirmModalConfig(null);
+        }
+      },
+    });
   };
 
   const handleOpenAudit = async (id) => {
@@ -258,26 +314,38 @@ export default function Dashboard() {
     switch (status) {
       case "signed":
         return (
-          <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-emerald-500 text-black shadow-[2px_2px_0px_0px_#fff]">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-emerald-500 text-black shadow-[2px_2px_0px_0px_#fff]">
+            <svg className="w-3 h-3 text-black stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
             Signed & Sealed
           </span>
         );
       case "pending":
       case "partially_signed":
         return (
-          <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-yellow-400 text-black shadow-[2px_2px_0px_0px_#ef4444]">
-            ⏳ In Progress
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-yellow-400 text-black shadow-[2px_2px_0px_0px_#ef4444]">
+            <svg className="w-3 h-3 text-black stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            In Progress
           </span>
         );
       case "declined":
         return (
-          <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-red-600 text-white shadow-[2px_2px_0px_0px_#fff]">
-            ✕ Declined
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-red-600 text-white shadow-[2px_2px_0px_0px_#fff]">
+            <svg className="w-3 h-3 text-white stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Declined
           </span>
         );
       case "voided":
         return (
-          <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-gray-800 text-gray-300 shadow-[2px_2px_0px_0px_#000]">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-gray-800 text-gray-300 shadow-[2px_2px_0px_0px_#000]">
+            <svg className="w-3 h-3 text-gray-400 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
             Voided
           </span>
         );
@@ -334,6 +402,171 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+
+        {/* Dynamic Quota, Past Due, & Upgrade Banner */}
+        {(() => {
+          // Prevent any banner flash before subscription data finishes initial load
+          if (isLoading && !subData) {
+            return null;
+          }
+
+          const subscription = subData?.subscription || user?.subscription;
+          if (!subscription) {
+            return null;
+          }
+
+          const plan = subscription?.plan || "free";
+          const status = subscription?.status || "active";
+          const envelopesUsed = subData?.quota?.envelopesUsedThisMonth || 0;
+          const monthlyLimit = subData?.quota?.monthlyLimit || 15;
+          const percentage = Math.min(100, Math.round((envelopesUsed / monthlyLimit) * 100));
+
+          const userId = user?._id || user?.id || "guest";
+          const isDismissed =
+            isPlanBannerDismissed ||
+            (plan !== "free" && localStorage.getItem(`dismissed_plan_banner_${userId}`) === plan);
+
+          // 1. Past Due Grace Period Alert Banner (High Priority, Non-Dismissible)
+          if (status === "past_due") {
+            const graceEnd = subscription?.gracePeriodEnd ? new Date(subscription.gracePeriodEnd).toLocaleDateString() : null;
+            return (
+              <div className="bg-amber-950/50 border-2 border-amber-500/80 rounded-3xl p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-400 flex items-center justify-center shrink-0">
+                    <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black uppercase tracking-wider text-amber-300">
+                        Payment Past Due &bull; Grace Period Active
+                      </span>
+                      {graceEnd && (
+                        <span className="text-[10px] font-mono font-bold bg-amber-500/20 text-amber-200 px-2 py-0.5 rounded border border-amber-500/40">
+                          Expires {graceEnd}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-300 mt-0.5">
+                      Your subscription renewal payment could not be processed. Your features remain temporarily active. Please renew to avoid automatic downgrade.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => navigate("/pricing")}
+                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider rounded-xl shadow transition-all whitespace-nowrap cursor-pointer shrink-0"
+                >
+                  Update Billing &amp; Renew →
+                </button>
+              </div>
+            );
+          }
+
+          if (plan === "free" || status === "expired" || status === "canceled") {
+            return (
+              <div className="bg-gradient-to-r from-[#181226] via-[#12141c] to-[#151724] border-2 border-yellow-400/40 rounded-3xl p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+                <div className="space-y-2 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-black uppercase px-2.5 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/40">
+                      <svg className="w-3 h-3 text-yellow-400 fill-current" viewBox="0 0 20 20">
+                        <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.381z" />
+                      </svg>
+                      Free Starter Plan
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {envelopesUsed} of {monthlyLimit} envelopes used this month
+                    </span>
+                  </div>
+                  <div className="w-full max-w-md bg-black/50 h-2.5 rounded-full overflow-hidden border border-white/10">
+                    <div
+                      className={`h-full transition-all rounded-full ${
+                        percentage > 80 ? "bg-red-500" : "bg-gradient-to-r from-yellow-400 to-amber-500"
+                      }`}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-gray-400">
+                    Need more than 15 documents/month or ad-free signing for your recipients?
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/pricing")}
+                    className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_#ef4444] hover:shadow-[4px_4px_0px_0px_#ef4444] transition-all whitespace-nowrap cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5 text-black fill-current" viewBox="0 0 20 20">
+                      <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.381z" />
+                    </svg>
+                    Upgrade to Pro ($5.99)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/pricing")}
+                    className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_#000] transition-all whitespace-nowrap cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
+                    Lifetime ($69)
+                  </button>
+                </div>
+              </div>
+            );
+          }
+
+          // If Active Paid Plan and user has dismissed it, don't render it
+          if (isDismissed) {
+            return null;
+          }
+
+          return (
+            <div className="bg-gradient-to-r from-emerald-950/40 via-[#12141c] to-[#12141c] border-2 border-emerald-500/30 rounded-3xl p-4 sm:p-5 flex items-center justify-between shadow-lg relative group transition-all">
+              <div className="flex items-center gap-3 pr-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider text-white">
+                      {plan.toUpperCase()} Plan Active
+                    </span>
+                    <span className="text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/40">
+                      Unlimited
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-400">
+                    Unlimited document signing, 100% ad-free signer experience, and verified SHA-256 seals.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  onClick={() => navigate("/pricing")}
+                  className="text-xs text-emerald-400 hover:text-emerald-300 font-bold underline px-2 py-1 transition-colors"
+                >
+                  View Plan Details
+                </button>
+                <button
+                  onClick={() => handleDismissPlanBanner(plan)}
+                  className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors border border-transparent hover:border-white/20 cursor-pointer"
+                  title="Dismiss banner"
+                  aria-label="Dismiss banner"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
@@ -600,10 +833,12 @@ export default function Dashboard() {
                       <button
                         onClick={() => handleVoid(docId, doc.originalFileName)}
                         disabled={deletingId === docId}
-                        className="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 rounded-xl text-xs font-black border-2 border-amber-500/40 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#f59e0b] flex items-center justify-center gap-1 transition-all disabled:opacity-50"
+                        className="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 rounded-xl text-xs font-black border-2 border-amber-500/40 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#f59e0b] flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
                         title="Legally Void & Revoke Agreement"
                       >
-                        <span className="text-sm">🚫</span>
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                        </svg>
                         <span className="text-[11px] font-bold uppercase">Void</span>
                       </button>
                     )}
@@ -634,7 +869,9 @@ export default function Dashboard() {
           <div className="bg-[#12141c] border border-white/10 rounded-3xl max-w-2xl w-full p-6 space-y-6 shadow-2xl relative">
             <div className="flex items-center justify-between border-b border-white/10 pb-4">
               <h3 className="text-lg font-display font-bold text-white flex items-center gap-2">
-                <span className="text-purple-400">👥</span>
+                <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
                 Signer Roster & Real-Time Status
               </h3>
               <button
@@ -718,9 +955,11 @@ export default function Dashboard() {
                     setIsRecipientsModalOpen(false);
                     handleVoid(recipientsDoc._id, recipientsDoc.originalFileName);
                   }}
-                  className="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-400 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow"
+                  className="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-400 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow"
                 >
-                  <span>🚫</span>
+                  <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                  </svg>
                   <span>Void & Cancel Agreement</span>
                 </button>
               ) : (
@@ -847,6 +1086,26 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* In-Dashboard Upgrade Modal */}
+      <UpgradeModal
+        isOpen={upgradeModalOpen}
+        onClose={() => setUpgradeModalOpen(false)}
+        reason="Upgrade your workspace for unlimited envelopes, ad-free signing, and team tools."
+        onUpgraded={() => loadDocuments(false)}
+      />
+
+      {/* Action Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!confirmModalConfig}
+        title={confirmModalConfig?.title || "Confirm Action"}
+        message={confirmModalConfig?.message || "Are you sure you want to proceed?"}
+        confirmText={confirmModalConfig?.confirmText || "Confirm"}
+        cancelText={confirmModalConfig?.cancelText || "Cancel"}
+        type={confirmModalConfig?.type || "danger"}
+        onConfirm={confirmModalConfig?.onConfirm}
+        onCancel={() => setConfirmModalConfig(null)}
+      />
     </div>
   );
 }

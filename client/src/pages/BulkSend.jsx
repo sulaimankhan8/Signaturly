@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { fetchMyTemplatesApi, fetchTemplateDetailsApi } from "../api/template.api";
 import { bulkSendFromTemplateApi } from "../api/bulk.api";
+import { fetchUserSubscription } from "../api/billing.api";
 import Navbar from "../components/Navbar";
 
 const BulkSend = () => {
@@ -13,6 +14,7 @@ const BulkSend = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState(initialTemplateId || "");
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [subData, setSubData] = useState(null);
 
   const [inputMode, setInputMode] = useState("csv"); // 'csv' | 'paste'
   const [csvText, setCsvText] = useState("");
@@ -24,6 +26,7 @@ const BulkSend = () => {
 
   useEffect(() => {
     fetchTemplates();
+    fetchUserSubscription().then((data) => setSubData(data)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -173,8 +176,41 @@ const BulkSend = () => {
           </div>
         )}
 
-        {/* Success Modal / Card */}
-        {resultBatch ? (
+        {/* Free Starter Tier Lock Screen */}
+        {subData && subData.subscription?.plan === "free" ? (
+          <div className="bg-[#13151f] border-2 border-yellow-400 rounded-3xl p-8 sm:p-12 shadow-[8px_8px_0px_0px_#ef4444] text-center space-y-8">
+            <div className="w-16 h-16 rounded-2xl bg-yellow-400 text-black border-2 border-black flex items-center justify-center text-3xl mx-auto shadow-[4px_4px_0px_0px_#fff]">
+              ⚡
+            </div>
+            <div className="max-w-xl mx-auto space-y-3">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-yellow-400 text-black px-3 py-1 rounded-full border border-black font-black">
+                Pro Creator Feature
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black text-white uppercase">
+                CSV Bulk Mail Merge is a Pro Feature
+              </h2>
+              <p className="text-xs sm:text-sm text-gray-300">
+                You are currently on the Free Starter plan. Upgrade to Pro Creator ($5.99/mo) or Lifetime Pass ($69 LTD) to dispatch customized contracts to up to 150 signers per batch with automated tracking.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <button
+                type="button"
+                onClick={() => navigate("/pricing")}
+                className="px-8 py-3.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_#ef4444] transition-all cursor-pointer"
+              >
+                Upgrade to Pro ($5.99) →
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/templates")}
+                className="px-6 py-3.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Back to Templates
+              </button>
+            </div>
+          </div>
+        ) : resultBatch ? (
           <div className="bg-[#13151f] border-2 border-emerald-500 rounded-3xl p-8 shadow-[8px_8px_0px_0px_#22c55e] text-center space-y-6">
             <div className="w-16 h-16 bg-emerald-500 text-black border-2 border-black rounded-2xl flex items-center justify-center mx-auto shadow-[4px_4px_0px_0px_#fff]">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">

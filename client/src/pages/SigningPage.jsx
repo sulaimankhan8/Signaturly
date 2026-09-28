@@ -10,6 +10,8 @@ import {
 } from "../api/signing.api";
 import toast, { Toaster } from "react-hot-toast";
 import { OtpVerificationModal } from "../components/OtpVerificationModal";
+import { AdInterstitialModal } from "../components/ads/AdInterstitialModal";
+import { AdBanner } from "../components/ads/AdBanner";
 
 export default function SigningPage() {
   const { token } = useParams();
@@ -174,7 +176,7 @@ export default function SigningPage() {
       setCurrentPage(nextField.page);
     }
     setSelectedFieldId(nextField.id);
-    toast(`Focused on field: ${nextField.type} (Page ${nextField.page})`, { icon: "👉" });
+    toast.success(`Focused on field: ${nextField.type} (Page ${nextField.page})`);
   };
 
   const handleSubmitSignature = async () => {
@@ -338,6 +340,13 @@ export default function SigningPage() {
               <span>Download Signed Copy</span>
             </a>
           </div>
+
+          {/* Post-Signing Ad Banner for Free Envelopes */}
+          {session?.monetization?.showAds !== false && (
+            <div className="pt-2 text-left">
+              <AdBanner compact={true} />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -361,6 +370,14 @@ export default function SigningPage() {
   return (
     <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans flex flex-col selection:bg-red-600 selection:text-white">
       <Toaster position="top-right" />
+
+      {/* Pre-Signing 10s Sponsor Interstitial Gate for Free Documents */}
+      {session?.monetization?.showAds !== false && (
+        <AdInterstitialModal
+          documentName={session?.document?.originalFileName}
+          show={true}
+        />
+      )}
 
       {/* Header */}
       <header className="bg-[#08090d]/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
@@ -596,14 +613,20 @@ export default function SigningPage() {
                 onClick={jumpToNextUnfilledField}
                 className="px-4 py-3 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-full shadow-2xl shadow-red-950 flex items-center gap-2 border border-red-400/40 animate-pulse transition-all"
               >
-                <span>👉 Next Field ({unfilledMyFields.length} left)</span>
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+                <span>Next Field ({unfilledMyFields.length} left)</span>
               </button>
             ) : (
               <button
                 onClick={handleSubmitSignature}
                 className="px-5 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-full shadow-2xl flex items-center gap-2 border border-emerald-400/40 transition-all"
               >
-                <span>✓ All Filled &bull; Finish &amp; Sign</span>
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span>All Filled &bull; Finish &amp; Sign</span>
               </button>
             )}
           </div>

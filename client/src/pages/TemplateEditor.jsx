@@ -4,6 +4,8 @@ import PdfViewer from "../components/PdfViewer";
 import FieldPalette from "../components/FieldPalette";
 import DraggableField from "../components/DraggableField";
 import { fetchTemplateDetailsApi, updateTemplateApi } from "../api/template.api";
+import { fetchUserSubscription } from "../api/billing.api";
+import Navbar from "../components/Navbar";
 import toast, { Toaster } from "react-hot-toast";
 
 export default function TemplateEditor() {
@@ -11,6 +13,8 @@ export default function TemplateEditor() {
   const navigate = useNavigate();
 
   const [template, setTemplate] = useState(null);
+  const [subData, setSubData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [pdfUrl, setPdfUrl] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -21,11 +25,22 @@ export default function TemplateEditor() {
   const [selectedFieldId, setSelectedFieldId] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  const isProOrAbove = [
+    "pro_monthly",
+    "pro_annual",
+    "lifetime",
+    "enterprise",
+  ].includes(subData?.subscription?.plan);
+
   useEffect(() => {
     const loadTemplate = async () => {
       try {
-        const data = await fetchTemplateDetailsApi(templateId);
+        const [data, sub] = await Promise.all([
+          fetchTemplateDetailsApi(templateId),
+          fetchUserSubscription().catch(() => null),
+        ]);
         setTemplate(data);
+        setSubData(sub);
         setTotalPages(data.pageCount || 1);
         setRoles(data.roles || []);
         setActiveRoleId(data.roles?.[0]?.id || null);
@@ -37,6 +52,8 @@ export default function TemplateEditor() {
         console.error("Error loading template details:", err);
         toast.error("Failed to load template layout");
         navigate("/templates");
+      } finally {
+        setIsLoading(false);
       }
     };
     loadTemplate();
@@ -113,11 +130,58 @@ export default function TemplateEditor() {
     }
   };
 
-  if (!pdfUrl) {
+  if (isLoading || !pdfUrl) {
     return (
       <div className="min-h-screen bg-[#08090d] flex items-center justify-center">
         <Toaster position="top-right" />
         <div className="w-10 h-10 border-4 border-white/10 border-t-red-600 rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Free Tier Lock Screen
+  if (subData && !isProOrAbove) {
+    return (
+      <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans selection:bg-yellow-400 selection:text-black">
+        <Toaster position="top-right" />
+        <Navbar />
+
+        <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
+          <div className="bg-[#13151f] border-2 border-yellow-400 rounded-2xl p-6 sm:p-8 shadow-[4px_4px_0px_0px_#ef4444] text-center space-y-4">
+            <div className="w-12 h-12 rounded-xl bg-yellow-400 text-black border-2 border-black flex items-center justify-center mx-auto shadow-[2px_2px_0px_0px_#fff]">
+              <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </div>
+            <div className="max-w-md mx-auto space-y-2">
+              <span className="text-[9px] font-mono font-bold uppercase tracking-wider bg-yellow-400 text-black px-2.5 py-0.5 rounded-full border border-black font-black">
+                Pro Creator Feature
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-white uppercase">
+                Template Editor Requires Pro Tier
+              </h2>
+              <p className="text-xs text-gray-300">
+                Custom reusable template creation, role configuration, and field anchoring require a <strong>Pro Creator ($5.99/mo)</strong> or <strong>Lifetime Pass ($69 LTD)</strong> subscription.
+              </p>
+            </div>
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate("/pricing")}
+                className="px-6 py-2.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_#ef4444] transition-all cursor-pointer"
+              >
+                Upgrade to Pro ($5.99) →
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/templates")}
+                className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+              >
+                Back to Templates
+              </button>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }

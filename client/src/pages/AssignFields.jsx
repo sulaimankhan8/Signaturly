@@ -143,7 +143,9 @@ export default function AssignFields() {
       await sendDocumentApi(pdfId, {
         recipients,
         fields,
+        emailSubject: workflowConfig.emailSubject,
         message: workflowConfig.message,
+        reminderCadence: workflowConfig.reminderCadence,
         expiresAt: workflowConfig.expiresAt,
         signingOrder: workflowConfig.signingOrder,
       });

@@ -88,9 +88,24 @@ export const processAutomatedReminders = async () => {
 
       for (const rec of pendingRecipients) {
         try {
-          rec.lastRemindedAt = new Date();
-          rec.reminderCount = (rec.reminderCount || 0) + 1;
-          await rec.save();
+          // Atomic lock: claim the recipient first to prevent double-sends on restarts or multi-instance deployments
+          const claimedRecipient = await Recipient.findOneAndUpdate(
+            {
+              _id: rec._id,
+              status: { $in: ["sent", "viewed"] },
+              $or: [
+                { lastRemindedAt: null },
+                { lastRemindedAt: { $lt: oneDayAgo } },
+              ],
+            },
+            {
+              $set: { lastRemindedAt: new Date() },
+              $inc: { reminderCount: 1 },
+            },
+            { new: true }
+          );
+
+          if (!claimedRecipient) continue; // Already claimed by another process or prior execution
 
           await eventBus.emitEvent(EventTypes.REMINDER_DISPATCHED, {
             aggregateId: pdf._id,
@@ -100,12 +115,12 @@ export const processAutomatedReminders = async () => {
               email: "system@signaturly.com",
             },
             payload: {
-              recipient: rec,
+              recipient: claimedRecipient,
               pdf,
               sender,
               customMessage: "Automated friendly reminder to review and sign this agreement.",
-              recipientName: rec.name,
-              recipientEmail: rec.email,
+              recipientName: claimedRecipient.name,
+              recipientEmail: claimedRecipient.email,
             },
           });
         } catch (err) {
