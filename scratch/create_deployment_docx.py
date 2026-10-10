@@ -182,7 +182,7 @@ add_code("""gcloud run deploy signaturly-api \\
   --min-instances 0 \\
   --max-instances 1 \\
   --memory 512Mi \\
-  --set-env-vars="NODE_ENV=production,CORS_ORIGIN=*,MONGO_URI=mongodb+srv://suleman111111111111111_db_user:WOCfS74qN0fbJcc8@cluster0.0e0cvkg.mongodb.net/?appName=Cluster0,JWT_ACCESS_SECRET=access_secret_123,JWT_REFRESH_SECRET=refresh_secret_456,ADMIN_SECRET_KEY=signaturly-superadmin-secret,STORAGE_PROVIDER=gcs,GCP_PROJECT_ID=project-9aac115a-73f9-4e8a-9a7,GCS_BUCKET_NAME=signaturly-vault-project-9aac115a-73f9-4e8a-9a7,GCS_SIGNED_URL_EXPIRES=900,SMTP_HOST=smtp.gmail.com,SMTP_PORT=465,SMTP_USER=suleman111111111111111@gmail.com,SMTP_PASS=vgsatqmnxjowucfs,SMTP_FROM=suleman111111111111111@gmail.com" \\
+  --set-env-vars="NODE_ENV=production,CORS_ORIGIN=*,MONGO_URI=mongodb+srv://<user>:<password>@<cluster>/<database>,JWT_ACCESS_SECRET=<stored-in-secret-manager>,JWT_REFRESH_SECRET=<stored-in-secret-manager>,ADMIN_SECRET_KEY=<stored-in-secret-manager>,STORAGE_PROVIDER=gcs,GCP_PROJECT_ID=project-9aac115a-73f9-4e8a-9a7,GCS_BUCKET_NAME=signaturly-vault-project-9aac115a-73f9-4e8a-9a7,GCS_SIGNED_URL_EXPIRES=900,SMTP_HOST=smtp.gmail.com,SMTP_PORT=465,SMTP_USER=<stored-in-secret-manager>,SMTP_PASS=<stored-in-secret-manager>,SMTP_FROM=suleman111111111111111@gmail.com" \\
   --project project-9aac115a-73f9-4e8a-9a7""")
 add_p("Deploys container to serverless Cloud Run with min-instances 0 (scale-to-zero) and max-instances 1 (hard billing ceiling).")
 
@@ -231,7 +231,7 @@ add_h1("7. Superadmin Governance Portal Credentials")
 add_p("• Admin Portal: client/admin on Vercel or localhost:5174")
 add_p("• Admin Email: admin@signaturly.com")
 add_p("• Admin Password: Admin@123456")
-add_p("• Admin Secret Key: signaturly-superadmin-secret")
+add_p("• Admin Secret Key: the ADMIN_SECRET_KEY value you generated")
 
 add_h1("8. Disaster Recovery & Clean Migration Playbook")
 add_p("To delete all cloud resources:")

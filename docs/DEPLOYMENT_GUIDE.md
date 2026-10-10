@@ -2,6 +2,19 @@
 
 ---
 
+> **Updated 11 October 2026.** This guide was written before the security audit and has only been corrected where it was unsafe.
+> The current, correct list of secrets, settings, scheduler jobs and webhook paths is in section 7 of
+> [`PENDING_TASKS_AND_PRODUCTION_ROADMAP.md`](../PENDING_TASKS_AND_PRODUCTION_ROADMAP.md). Where the two disagree, that file is right.
+>
+> Earlier versions of this guide contained the live database password and other production secrets.
+> They have been removed here but remain in git history: every one of them must be rotated.
+>
+> Known differences from the text below: the API now refuses to start with missing or placeholder secrets;
+> stored files are served only through short-lived signed links; scheduled work is triggered by Cloud Scheduler
+> through `/api/internal/*`; the container health check is `/api/health`; a full rewrite is planned with the rename to PactDoc.
+
+---
+
 ## 📌 Table of Contents
 1. [Cost Architecture ($0.00 / Month Free-Tier Matrix)](#1-cost-architecture-000--month-free-tier-matrix)
 2. [Local Run & Development Playbook (Node.js & Docker Compose)](#2-local-run--development-playbook-nodejs--docker-compose)
@@ -108,14 +121,14 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=5000
-      - MONGO_URI=mongodb+srv://suleman111111111111111_db_user:WOCfS74qN0fbJcc8@cluster0.0e0cvkg.mongodb.net/?appName=Cluster0
-      - JWT_ACCESS_SECRET=access_secret_123
-      - JWT_REFRESH_SECRET=refresh_secret_456
+      - MONGO_URI=mongodb+srv://<user>:<password>@<cluster>/<database>
+      - JWT_ACCESS_SECRET=<stored-in-secret-manager>
+      - JWT_REFRESH_SECRET=<stored-in-secret-manager>
       - STORAGE_PROVIDER=local
       - SMTP_HOST=smtp.gmail.com
       - SMTP_PORT=465
-      - SMTP_USER=suleman111111111111111@gmail.com
-      - SMTP_PASS=vgsatqmnxjowucfs
+      - SMTP_USER=<stored-in-secret-manager>
+      - SMTP_PASS=<stored-in-secret-manager>
       - SMTP_FROM=suleman111111111111111@gmail.com
     volumes:
       - ./server/uploads:/app/uploads
@@ -366,7 +379,8 @@ gcloud run deploy signaturly-api \
   --min-instances 0 \
   --max-instances 1 \
   --memory 512Mi \
-  --set-env-vars="NODE_ENV=production,CORS_ORIGIN=*,MONGO_URI=mongodb+srv://suleman111111111111111_db_user:WOCfS74qN0fbJcc8@cluster0.0e0cvkg.mongodb.net/?appName=Cluster0,JWT_ACCESS_SECRET=access_secret_123,JWT_REFRESH_SECRET=refresh_secret_456,ADMIN_SECRET_KEY=signaturly-superadmin-secret,STORAGE_PROVIDER=gcs,GCP_PROJECT_ID=project-9aac115a-73f9-4e8a-9a7,GCS_BUCKET_NAME=signaturly-vault-project-9aac115a-73f9-4e8a-9a7,GCS_SIGNED_URL_EXPIRES=900,SMTP_HOST=smtp.gmail.com,SMTP_PORT=465,SMTP_USER=suleman111111111111111@gmail.com,SMTP_PASS=vgsatqmnxjowucfs,SMTP_FROM=suleman111111111111111@gmail.com" \
+  --set-env-vars="^@^NODE_ENV=production@STORAGE_PROVIDER=gcs@GCP_PROJECT_ID=<project-id>@GCS_BUCKET_NAME=<bucket>@SMTP_HOST=<host>@SMTP_PORT=465@SMTP_FROM=<from-address>@CORS_ORIGIN=https://app.pactdoc.com,https://admin.pactdoc.com@APP_URL=https://app.pactdoc.com" \
+  --set-secrets="MONGO_URI=MONGO_URI:latest,JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,ADMIN_SECRET_KEY=ADMIN_SECRET_KEY:latest,ADMIN_JWT_SECRET=ADMIN_JWT_SECRET:latest,AUDIT_HMAC_KEY=AUDIT_HMAC_KEY:latest,SEAL_P12_BASE64=SEAL_P12_BASE64:latest,SEAL_P12_PASSWORD=SEAL_P12_PASSWORD:latest,INTERNAL_JOB_SECRET=INTERNAL_JOB_SECRET:latest,SMTP_USER=SMTP_USER:latest,SMTP_PASS=SMTP_PASS:latest" \
   --project project-9aac115a-73f9-4e8a-9a7
 ```
 * `--platform managed`: Managed serverless orchestration, load balancers, and SSL handled by GCP.
@@ -374,7 +388,8 @@ gcloud run deploy signaturly-api \
 * `--min-instances 0`: **Scale-to-Zero** — stops all compute instances when idle ($0.00 cost).
 * `--max-instances 1`: **Hard Billing Ceiling** — limits maximum instances to 1, preventing DDoS attacks or unexpected traffic spikes from generating surprise bills.
 * `--memory 512Mi`: Optimal memory allocation for sub-second container initialization.
-* `--set-env-vars`: Passes all database connections, cryptographic secrets, GCS vault settings, and SMTP relay configurations.
+* `--set-env-vars`: Passes plain settings only. The `^@^` prefix makes `@` the separator, so the origin list can contain commas.
+* `--set-secrets`: Reads every secret from Google Secret Manager at start-up. No secret value is ever written in a command, a workflow file or this guide.
 
 ---
 

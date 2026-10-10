@@ -1,185 +1,290 @@
-# 🚀 Signaturly Pro — $0.00/Mo Production Roadmap & Essential DevOps Guide
+# PactDoc — Pending Tasks and Production Roadmap
 
-A clean, practical, **100% Zero-Cost ($0.00/month)** production deployment and monitoring guide for **Signaturly Pro**. No complicated enterprise bloat or paid SaaS dependencies — only the essential signals and automated cold backups that matter.
+**Status as of 11 October 2026.** PactDoc is the product name; the code, emails and old documents still say Signaturly until the rename in phase 3.
 
----
+The security fixes (phase 1) are almost complete and the core of the trust layer (phase 2) is built, with 153 automated tests passing. None of it is committed or deployed yet, and the product is **not safe to put in front of real users** until the blockers below are cleared.
 
-## 📌 Executive Architecture & Cost Summary
+Related documents in this folder:
 
-Signaturly Pro runs on an **Always-Free Tier** cloud architecture with **$0.00 fixed monthly cost**:
-
-```
-                               ┌────────────────────────────────────────┐
-                               │       Cloudflare Free Edge (DNS)       │
-                               │  - Free SSL/TLS & DDoS Protection      │
-                               │  - Free Web Analytics (Zero Cookies)   │
-                               │  - Free Edge Uptime & Latency Monitors │
-                               └──────────────────┬─────────────────────┘
-                                                  │
-                       ┌──────────────────────────┴──────────────────────────┐
-                       ▼                                                     ▼
-        ┌─────────────────────────────┐                       ┌─────────────────────────────┐
-        │     Vercel (Hobby Free)     │                       │  GCP Cloud Run (Free Tier)  │
-        │  - Customer App (client/)   │                       │  - Serverless Node.js API   │
-        │  - Admin Portal (admin/)    │                       │  - 2M requests/mo ($0.00)   │
-        │  - Global Edge CDN ($0.00)  │                       │  - Scale-to-Zero ($0.00)    │
-        └─────────────────────────────┘                       └──────────────┬──────────────┘
-                                                                             │
-                                             ┌───────────────────────────────┴───────────────────────────────┐
-                                             ▼                                                               ▼
-                              ┌─────────────────────────────┐                                 ┌─────────────────────────────┐
-                              │    MongoDB Atlas (M0 Free)  │                                 │  Google Cloud Storage (GCS) │
-                              │  - 512 MB Free Cluster      │                                 │  - 5 GB Standard Storage    │
-                              │  - Automated TLS ($0.00)    │                                 │  - Free PDF Vault ($0.00)   │
-                              └──────────────┬──────────────┘                                 └──────────────┬──────────────┘
-                                             │                                                               │
-                                             └───────────────────────────────┬───────────────────────────────┘
-                                                                             ▼
-                                                              ┌─────────────────────────────┐
-                                                              │  GCS Coldline / S3 Glacier  │
-                                                              │  - Daily & Weekly DB Dumps  │
-                                                              │  - Permanent Audit Archive  │
-                                                              │  - Cost: ~$0.001 / GB       │
-                                                              └─────────────────────────────┘
-```
-
-| Cloud Layer | Provider & Tier | Quota & Specs | Fixed Cost |
-| :--- | :--- | :--- | :---: |
-| **Backend API (`server/`)** | **GCP Cloud Run** | 2,000,000 requests/mo free, scale-to-zero when idle | **$0.00** |
-| **Customer App (`client/`)** | **Vercel Hobby** | Global Edge CDN, 100 GB bandwidth, auto SSL | **$0.00** |
-| **Admin Portal (`admin/`)** | **Vercel Hobby** | Isolated governance & analytics dashboard | **$0.00** |
-| **Primary Database** | **MongoDB Atlas M0** | 512 MB storage, shared RAM, replica set | **$0.00** |
-| **Document Vault** | **Google Cloud Storage (GCS)** | 5 GB standard storage in `us-central1` | **$0.00** |
-| **Cold Backup Archive** | **GCS Coldline / AWS Glacier** | Daily DB dumps & 90-day cold snapshots | **~$0.00 / mo** |
-| **Edge DNS & Uptime** | **Cloudflare Free** | Global CDN, unlimited traffic, origin health stats | **$0.00** |
-| **Transactional Email** | **Standard In-House SMTP** | Gmail App Password / Standard SMTP relay | **$0.00** |
-| **Payment Gateway** | **Stripe & Razorpay** | Pay-as-you-go per transaction (zero monthly fee) | **$0.00 fixed** |
-| **TOTAL FIXED MONTHLY BILL** | | | **$0.00 / month** |
+| Document | What it is |
+| --- | --- |
+| `PACTDOC_IMPLEMENTATION_PLAN.md` | Every task with its id, files and test. The ids below (P1-07, P2-03) refer to it. |
+| `PACTDOC_PRODUCT_TECHNOLOGY_AUDIT.md` | The audit findings (C1 to M10) the fixes answer. Do not publish while the repo is public. |
+| `PACTDOC_INDIA_STRATEGY_BUILD_PLAN.md` | Market, industries, templates, plans. |
+| `PACTDOC_BUSINESS_MARKET_REPORT.md` | Competitors and pricing. |
 
 ---
 
-## ⚡ Executive Status: What is DONE vs. What is PENDING
+## 1. Where things stand
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                   HIGH-LEVEL PRODUCTION STATUS OVERVIEW                                         │
-├───────────────────────────────────────────────────┬─────────────────────────────────────────────────────────────┤
-│ 🟢 COMPLETED & VERIFIED (DONE)                    │ 🟡 ACTION REQUIRED FOR GO-LIVE (PENDING)                    │
-├───────────────────────────────────────────────────┼─────────────────────────────────────────────────────────────┤
-│ • 100% Code & Features (Editor, Multi-Signer,     │ • 💳 Stripe Live Keys & Price IDs (Manual Dashboard Task)   │
-│   Audit Certificates, Templates, Bulk Send,       │ • ⚡ Razorpay Live KYC Whitelisting (Manual Dashboard Task) │
-│   Subscriptions, Superadmin Dashboard)            │ • 🍃 MongoDB Atlas `0.0.0.0/0` IP Whitelist                 │
-│ • Docker Multi-Stage Container Setup              │ • ☁️ GCS Bucket `signaturly-legal-vault-prod` Creation      │
-│ • GitHub Actions CI/CD Pipeline (WIF)             │ • 📧 Production Gmail 16-Char App Password                  │
-│ • Cloud Run Serverless Configuration              │ • 🌐 Cloudflare Edge DNS & Web Analytics Toggle             │
-│ • Google Sheets 24h Telemetry Aggregator Schema   │ • 📊 Connect Google Sheets API for Live Daily SRE Logging   │
-└───────────────────────────────────────────────────┴─────────────────────────────────────────────────────────────┘
-```
+| Phase | Goal | Tasks | Done | Partly | Not started |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Setup | Test harness, CI, environments | 13 | 4 | 2 | 7 |
+| 0. Emergency | Leaked credentials are dead | 8 | 0 | 1 | 7 |
+| 1. Secure | Access-control and abuse bugs fixed | 32 | 29 | 3 | 0 |
+| 2. Trust | Sealed PDFs, audit log, jobs, billing | 22 | 9 | 7 | 6 |
+| 3. India fit | Languages, WhatsApp and SMS, India hosting, rename | 14 | 0 | 0 | 14 |
+| 4. Templates and plans | Template engine, first packs, new pricing | 17 | 0 | 0 | 17 |
+| 5. Teams | Workspace-owned documents and roles | 11 | 0 | 0 | 11 |
+| 6. Strong signatures and API | Aadhaar eSign, public API, Enterprise | 15 | 0 | 0 | 15 |
+| **Total** | | **132** | **42** | **13** | **77** |
 
-### ✅ 1. Features & Platform Capabilities (100% DONE)
-- [x] **72 DPI Fabric.js PDF Signing Canvas**: Drag-and-drop signature, initials, date, text, and checkbox fields.
-- [x] **Multi-Signer Sequential & Parallel Routing**: Signer execution order, color-coded assignments, and token links.
-- [x] **Signer 2FA Security**: Cryptographic 6-digit email OTP challenge before accessing sensitive contracts.
-- [x] **Section 65B Audit Trail & Certificate**: Tamper-evident PDF certificate with SHA-256 pre/post hashes & IP timestamps.
-- [x] **Subscription & Quota Engine**: Free (15/mo), Pro ($5.99), Annual ($49), Lifetime ($69), Enterprise ($14.99/seat).
-- [x] **3-Day Billing Grace Period**: Automatic `past_due` grace handling before downgrading to free tier.
-- [x] **Workspace Multi-Tenancy**: Team invitations, role permissions, and read-only seat governance.
-- [x] **Developer REST API & Outbound Webhooks**: Scoped API key generation (`sig_live_...`) and HMAC event dispatches.
-- [x] **Superadmin Governance Portal (`/admin`)**: Real-time user lookup, envelope inspector, and revenue telemetry.
+Where the work lives: branch `fix/phase1-security`, uncommitted. Run the tests with `npm --prefix server test`.
+
+Checked so far: 153 automated API tests, and both web apps build. Not checked: clicking through the app in a browser, the signing record's printed layout, and how the seal appears in Adobe Acrobat.
 
 ---
 
-### ⏳ 2. Production Credentials & API Whitelisting (PENDING)
-- [ ] **Stripe Live Activation**: Switch from Test to Live mode, copy `sk_live_...`, `pk_live_...`, and create 4 Price IDs.
-- [ ] **Stripe Webhook Secret**: Add live endpoint `https://api.signaturly.pro/api/v1/payments/stripe/webhook` and copy `whsec_...`.
-- [ ] **Razorpay KYC Whitelisting**: Complete business KYC & bank verification in Razorpay dashboard, generate Live Key & Secret.
-- [ ] **Razorpay Webhook Secret**: Add live webhook URL in Razorpay dashboard and subscribe to payment/subscription events.
-- [ ] **MongoDB Atlas Network Whitelist**: Ensure `0.0.0.0/0` (Allow Anywhere) is active in Atlas Network Access.
-- [ ] **Production Gmail App Password**: Enable 2FA on production Google Account and generate 16-character SMTP App Password.
-- [ ] **GCS Service Account Key**: Create `signaturly-api-sa` in GCP with `Storage Object Admin` and download `gcs-key.json`.
+## 2. Blockers before any real user
+
+| # | Blocker | Who | Detail |
+| --- | --- | --- | --- |
+| 1 | Leaked credentials are still live | You | The database password, SMTP password and other values were committed in `.github/workflows/deploy-backend.yml`, `docs/DEPLOYMENT_GUIDE.md`, `scratch/create_deployment_docx.py` and `docs/CLOUD_DEPLOYMENT_DOCKER_GCP_MASTERCLASS.docx`. All four files are now cleaned in the working tree, but the values remain in git history on a public repository. Rotate every one. |
+| 2 | Production ran on placeholder secrets | You | The deployed JWT secrets were short, guessable placeholder values and the admin key was the built-in default, which the admin login page also pre-filled. Anyone could have forged a login. The new code refuses to start with such values. |
+| 3 | New secrets do not exist yet | You | The deploy now reads 11 secrets from Secret Manager (section 7). Until they are created, a deploy fails. |
+| 4 | No backups | You | The free database tier has none. Move to a tier with backups and run one restore. |
+| 5 | Nothing is committed | You decide | About 100 changed files sit uncommitted on one branch. |
+| 6 | Legal wording and templates unreviewed | You | A lawyer has not reviewed the terms, privacy notice, consent text or certificates. |
+| 7 | No browser test | Code | The fixes are tested through the API only. A click-through, then Playwright tests, are still owed. |
 
 ---
 
-### ⏳ 3. DevOps, Monitoring & Infrastructure Setup (PENDING)
-- [ ] **Cloudflare Nameserver Switch**: Point domain registrar nameservers to Cloudflare and toggle SSL to *Full (Strict)*.
-- [ ] **DNS Record Configuration**: Add CNAME records for Vercel frontend (`@`, `www`, `admin`) and GCP Cloud Run (`api`).
-- [ ] **Cloudflare Web Analytics Activation**: Enable cookie-free web analytics in Cloudflare dashboard for visitor tracking.
-- [ ] **Google Sheets SRE Dashboard**: Create live workbook `DevOps_Master_Report_2026` and grant editor access to service account.
-- [ ] **Google Search Console Verification**: Add domain in Search Console and submit `https://signaturly.pro/sitemap.xml`.
+## 3. Your to-do list
+
+Tasks only the account owner can do, in the order they block things.
+
+- [ ] Make the GitHub repository private (P0-01)
+- [ ] Change the MongoDB password and review who can reach the database (P0-02)
+- [ ] Generate new JWT access and refresh secrets, at least 32 characters each (P0-03)
+- [ ] Generate a new admin key and a new SMTP app password (P0-04)
+- [ ] Change the password of the account that was hardcoded in the old test scripts, wherever it is used (P0-05)
+- [ ] Check the database for misuse: unknown admin users, plan upgrades with no payment (P0-08)
+- [ ] Decide: fresh private repository, or rewrite the history of this one (P0-07)
+- [ ] Create the Secret Manager secrets and GitHub variables listed in section 7
+- [ ] Run `npm --prefix server run seal:generate` once per environment and store both values
+- [ ] Create the four Cloud Scheduler jobs listed in section 7
+- [ ] Set a real `ADMIN_SECRET_KEY` in your local `server/.env` (the server will not start with the placeholder)
+- [ ] Create the admin account with the seed script and a password of your choice; the default password is gone
+- [ ] Create separate staging and production projects (S-01)
+- [ ] Protect `main`: pull requests only, CI required (S-10)
+- [ ] Choose a database tier with backups (P2-18)
+- [ ] Choose a transactional email provider and add SPF, DKIM and DMARC for pactdoc.com (P2-13)
+- [ ] Engage a contracts lawyer: terms, privacy notice, consent text, certificates, template packs
+- [ ] Register the business and for tax; run a trademark search on PactDoc
+- [ ] Interview 20 to 30 small organisations before building phases 4 to 6
+- [ ] Decide the account-deletion policy (item A-08 in section 6)
 
 ---
 
-### ⏳ 4. Future Post-Launch Enhancements (BACKLOG)
-- [ ] **P1: Automated Envelope Expiration Cron**: Nightly job to mark uncompleted envelopes older than 30 days as expired.
-- [ ] **P2: Visual WebP PDF Thumbnail Pre-renderer**: Auto-generate lightweight WebP page 1 preview upon upload.
-- [ ] **P3: Public Standalone Signing Links**: Self-serve public URL for high-volume standard agreements/NDAs.
-- [ ] **P4: Enterprise Custom Email White-Labeling**: Allow Enterprise teams to display their custom company header logo.
+## 4. Done
+
+### Phase 1: secure (29 of 32)
+
+| Area | What now holds | Tasks |
+| --- | --- | --- |
+| Files | Stored files are private. They are served only through short-lived signed links or to the owner by header token. Path traversal is rejected. | P1-07, P1-08, P1-11 |
+| Signer checks | OTP and passcode are enforced on the server. The passcode locks after five wrong tries. The audit entry records the method really used. | P1-04, P1-05, P1-06, P1-20 |
+| Signing rules | Signing order, document state, viewer role, required fields and field ownership are checked on the server. Consent is stored. The PDF is stamped before the signer is marked signed, under a database lock. | P1-13 to P1-17 |
+| Money | Payment webhooks must be signed and are ignored on replay. The self-upgrade route and mock checkout cannot run in production. Billing is off there by default. | P1-01, P1-02, P1-03 |
+| Own documents | Only the owner can self-sign, and only an unsent document. Signature images cannot be remote links or file paths. | P1-09, P1-10 |
+| Accounts | 10-character passwords, email confirmation before sending, hashed and rotating refresh tokens, hashed single-use reset tokens. | P1-23, P1-24 |
+| Admin | No automatic promotion. Admin sessions use their own secret. Configuration is validated at start-up. | P1-26 (and most of P1-25) |
+| Platform | Rate limits, security headers, strict origin list, no tokens in URLs, upload limits, atomic plan quota, reminder de-duplication, public health check. | P1-19, P1-21, P1-22, P1-28 to P1-31 |
+| Verification page | Returns masked names only: no emails, IP addresses or download link. | P1-27 |
+| Wording | Unsupported claims removed, with a test that keeps them out. Adverts removed from the signing page. | P1-32 |
+
+### Phase 2: trust (9 of 22)
+
+| What now holds | Tasks |
+| --- | --- |
+| The original upload is never overwritten; each signer's stamp is a stored version | P2-04 |
+| Verification checks an uploaded file's own hash and its seal, and opens from a QR link | P2-05 |
+| One hash-chained, keyed audit log for every event; edits, removals and insertions are detected; entries cannot be changed through the app | P2-06 |
+| Deleting a document keeps its record and audit log | P2-07 |
+| A job queue stored in the database, with retries and a failure state; emails go through it | P2-09, P2-10 |
+| The in-memory live-update stream is gone | P2-12 |
+| Renewals, failed charges and cancellations from Stripe and Razorpay drive plan state; a payments ledger exists | P2-15 |
+| Admin plan grants record which admin made them | P2-17 |
+
+### Setup (4 of 13)
+
+Test harness with an in-memory database (S-03), test helpers (S-04), email outbox for tests (S-05), and a CI workflow that runs tests, builds and a secret scan on every pull request (S-08).
+
+### Bugs found and fixed that were not in the audit
+
+- Request values were passed unchecked into database lookups on the OTP routes.
+- Real-looking credentials were hardcoded in two test scripts (now deleted).
+- A forged PDF that quoted a genuine hash was reported as authentic.
+- Any signed-in user could download any document's audit certificate.
+- A template could be created from another user's document.
+- A signer name in a non-Latin script crashed certificate generation.
+- A signer whose email was corrected never received the new invitation.
+- A document with a viewer could never reach "completed".
+- The download button after signing gave the copy from before the signature.
+- The document owner was never told a document was complete.
+- Names and messages were placed into email HTML without escaping.
 
 ---
 
-## 🔑 1. Required Production Credentials & Step-by-Step Acquisition Guide
+## 5. Partly done
 
-Below is the complete inventory of production secrets and the exact step-by-step instructions for obtaining, whitelisting, and testing each service.
+| Task | Done | Still to do |
+| --- | --- | --- |
+| P0-06 Secrets out of the workflow | The workflow reads secrets from Secret Manager | You create the secrets |
+| S-09 Deploy gated by tests | Tests must pass before deploy | Separate staging and production deploys |
+| S-13 Retire old scripts | The two credential-bearing scripts are deleted | Remove `verify-*.js` and `nuke-db` from the production image |
+| P1-12 Validate all input | A global guard rejects database-operator input; schemas on all public and sign-in routes | Schemas on the remaining signed-in routes |
+| P1-18 Link expiry | 30-day expiry, random 64-character tokens, no links in the bulk-send response | A new token on every reminder was dropped by design: only an email change issues a new link |
+| P1-25 Admin lock-down | No promotion, separate secret, seeded admins only, login rate limit | Authenticator-app 2FA |
+| P2-01 Signing library | `@signpdf` chosen and in use | A written decision note; it does not add timestamps by itself |
+| P2-02 Seal key | Certificate loaded from a secret; development certificate generated automatically | Key held in a key-management service |
+| P2-03 Seal on completion | Signing record appended, whole file signed, sealed copy is the download, retry job if sealing fails | Trusted timestamp; check in Adobe Acrobat and `pdfsig` |
+| P2-08 Certificates from the full log | Signing record rebuilt with real identity check, consent and QR code | The Section 63 evidence certificate still uses its old layout |
+| P2-11 Scheduled work | Protected endpoints for jobs, reminders, expiry and subscriptions | You create the Cloud Scheduler jobs |
+| P2-14 Provider-driven billing | Plan state changes only through verified events or an admin | Checkout for Razorpay Subscriptions; plan ids in one catalogue |
+| P2-19 Privacy | Account export and account deletion on the server | Buttons in the app, a retention job, the privacy notice page |
+
+---
+
+## 6. Not started, and items added along the way
+
+### Not started in phases already begun
+
+| Task | What | Needs |
+| --- | --- | --- |
+| P0-01 to P0-05, P0-08 | Rotation and misuse check | You |
+| P0-07 | Remove secrets from git history | Your decision on how |
+| S-01, S-10 | Staging project; branch protection | You |
+| S-02 | Local `docker-compose.dev.yml` | Code |
+| S-06 | Component tests for the web apps | Code |
+| S-07 | Playwright browser tests | Code |
+| S-11 | Database migrations tool | Code |
+| S-12 | Structured logger with redaction; error tracking | Code, plus an error-tracking account |
+| P2-13 | Transactional email provider and bounce handling | Your provider choice |
+| P2-16 | Billing page: plan, invoices, cancel | Code, after P2-14 |
+| P2-18 | Database tier with backups; restore drill | You |
+| P2-20 | Saved signatures and contacts on the server, not in the browser | Code |
+| P2-21 | Storage encryption key and file access log | Code and cloud settings |
+| P2-22 | Optional 2FA for senders | Code |
+
+### Added along the way (not in the original plan)
+
+| Id | Task | Suggested phase |
+| --- | --- | --- |
+| A-01 | Trusted timestamp on the seal | 2 |
+| A-02 | Buy a seal certificate from a recognised authority, so PDF readers show the signature as trusted | When customers ask |
+| A-03 | Open a sealed PDF in Adobe Acrobat and add `pdfsig` validation to CI | 2 |
+| A-04 | App screens for: account export and deletion, "invitation undelivered" flag, "sealed" badge, resend-confirmation banner | 2 |
+| A-05 | Fix the client's 543 existing lint errors, then make lint a CI gate | 2 |
+| A-06 | Rebuild the Section 63 evidence certificate from the full log and have the lawyer review it | 2 |
+| A-07 | Wipe or migrate development data before launch: old audit entries were never chained and show as unconfirmed | Before launch |
+| A-08 | Policy decision: when an account is deleted, completed agreements are kept but other parties' links stop. Should those parties keep access? | You and the lawyer |
+| A-09 | Remove dead code left by the fixes: `quota.middleware.js`, `sse.service.js` | 2 |
+| A-10 | Names in non-Latin scripts print as "?" on the signing record until Unicode fonts land | 3 (with P3-02) |
+| A-11 | Rewrite the user guide, deployment guide and Word documents after the rename; they describe features inaccurately | 3 |
+| A-12 | Rotate-certificate procedure: documents sealed with an old certificate stop showing as "sealed by this service" | 2 |
 
 ---
 
-### 📋 Production Environment Variable Blueprint
+## 7. Production configuration (current and correct)
 
-#### A. Backend API (`server/.env` & GCP Cloud Run Secret Manager)
-```env
-# Server Runtime
-PORT=5000
-NODE_ENV=production
-APP_NAME=Signaturly
-CLIENT_URL=https://signaturly.pro
-ADMIN_URL=https://admin.signaturly.pro
-CORS_ORIGIN=https://signaturly.pro,https://admin.signaturly.pro
+### Secrets, in Google Secret Manager
 
-# Primary Database (MongoDB Atlas M0 Free)
-MONGO_URI=mongodb+srv://<db_user>:<db_password>@cluster0.mongodb.net/signaturly?retryWrites=true&w=majority
+| Name | What it is | How to create |
+| --- | --- | --- |
+| `MONGO_URI` | Database connection string | From Atlas, after changing the password |
+| `JWT_ACCESS_SECRET` | Signs login tokens | `openssl rand -hex 32` |
+| `JWT_REFRESH_SECRET` | Signs refresh tokens | `openssl rand -hex 32` |
+| `ADMIN_SECRET_KEY` | Typed at admin login | `openssl rand -hex 32` |
+| `ADMIN_JWT_SECRET` | Signs admin sessions; must differ from the access secret | `openssl rand -hex 32` |
+| `AUDIT_HMAC_KEY` | Keys the audit log's hash chain. Never change it once in use. | `openssl rand -hex 32` |
+| `SEAL_P12_BASE64` | Certificate that seals completed PDFs | `npm --prefix server run seal:generate` |
+| `SEAL_P12_PASSWORD` | Password for that certificate | Printed by the same command |
+| `INTERNAL_JOB_SECRET` | Lets the scheduler call the internal endpoints | `openssl rand -hex 32` |
+| `SMTP_USER` | Mail account | From your mail provider |
+| `SMTP_PASS` | Mail password | From your mail provider |
 
-# JWT Authentication Secrets (Generate with: openssl rand -hex 32)
-JWT_ACCESS_SECRET=your_64_character_hex_access_secret
-JWT_REFRESH_SECRET=your_64_character_hex_refresh_secret
-ADMIN_SECRET_KEY=your_64_character_hex_admin_secret
+The server refuses to start in production if any of these is missing, apart from the certificate password and the two mail values. It also refuses known placeholder values, and token secrets shorter than 32 characters.
 
-# Primary Document Vault (GCP Cloud Storage)
-STORAGE_PROVIDER=gcs
-GCS_PROJECT_ID=signaturly-prod
-GCS_BUCKET_NAME=signaturly-legal-vault-prod
-GOOGLE_APPLICATION_CREDENTIALS=/app/gcs-key.json
+### Plain settings, as GitHub repository variables
 
-# Stripe Live Keys & Price IDs
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_PUBLISHABLE_KEY=pk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_PRO_MONTHLY_PRICE_ID=price_...
-STRIPE_PRO_ANNUAL_PRICE_ID=price_...
-STRIPE_LIFETIME_PRICE_ID=price_...
-STRIPE_ENTERPRISE_PRICE_ID=price_...
+| Name | Example |
+| --- | --- |
+| `CORS_ORIGIN` | `https://app.pactdoc.com,https://admin.pactdoc.com` (exact origins, never `*`) |
+| `APP_URL` | `https://app.pactdoc.com` |
+| `GCS_BUCKET_NAME` | your bucket name |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` | from your mail provider |
 
-# Razorpay Live Keys & Webhook
-RAZORPAY_KEY_ID=rzp_live_...
-RAZORPAY_KEY_SECRET=...
-RAZORPAY_WEBHOOK_SECRET=...
+Optional: `BILLING_ENABLED` (off by default in production), `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `SIGNING_LINK_TTL_DAYS` (30), `FILE_URL_TTL_SECONDS` (3600), `TRUST_PROXY` (1 on Cloud Run).
 
-# In-House Transactional Email (Gmail App Password / Custom SMTP)
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=465
-EMAIL_SECURE=true
-EMAIL_USER=contracts.signaturly@gmail.com
-EMAIL_PASS=your-16-char-app-password
-EMAIL_FROM="Signaturly Contracts <contracts.signaturly@gmail.com>"
-```
+### Scheduler jobs
 
-#### B. Frontend Client (`client/.env.production` & Vercel Dashboard)
-```env
-VITE_API_URL=https://api.signaturly.pro/api/v1
-VITE_STRIPE_PUBLISHABLE_KEY=pk_live_...
-VITE_RAZORPAY_KEY_ID=rzp_live_...
-```
+Each sends a `POST` with the header `X-Internal-Secret: <INTERNAL_JOB_SECRET>`.
+
+| Path | How often |
+| --- | --- |
+| `/api/internal/jobs/run` | Every minute |
+| `/api/internal/cron/reminders` | Every 4 hours |
+| `/api/internal/cron/expirations` | Hourly |
+| `/api/internal/cron/subscriptions` | Hourly |
+
+### Web apps
+
+Both use `VITE_API_BASE_URL`, set to the API's address without `/api` (for example `https://api.pactdoc.com`). The app and the API must share a parent domain, or sign-in will not survive a page reload.
+
+### Payment webhooks
+
+`/api/webhooks/stripe` and `/api/webhooks/razorpay`. Both reject unsigned requests, and reject everything when no webhook secret is configured.
 
 ---
+
+## 8. What changed for people using the app
+
+- Everyone is signed out once when this ships, because sessions are stored differently.
+- New passwords need 10 characters. New accounts must confirm their email before sending documents.
+- A document that is out for signature cannot be re-sent or deleted; void it first.
+- Signers must tick the consent box, and the server now checks it.
+- Signing links expire after 30 days.
+- Completed documents download as a sealed copy with the signing record attached.
+- Deleting a document hides it but keeps its audit log.
+- Paid plans cannot be bought in production until billing is switched on.
+- The free plan's limit of 15 documents a month is now enforced exactly, and bulk send counts against it.
+
+---
+
+## 9. Later phases
+
+Full task lists are in `PACTDOC_IMPLEMENTATION_PLAN.md`. Each phase is gated by something outside the code.
+
+| Phase | Tasks | First thing to settle | Outside dependency |
+| --- | ---: | --- | --- |
+| 3. India fit | 14 | Whether the PDF library renders Hindi, Tamil and similar scripts correctly (P3-01) | SMS sender registration, WhatsApp business verification, translators, DNS |
+| 4. Templates and plans | 17 | Which engine renders guided templates (P4-02) | Lawyer for template packs; tax registration for invoices |
+| 5. Teams | 11 | Access-matrix tests before the data migration (P5-03) | None |
+| 6. Strong signatures and API | 15 | Quotes and sandbox access from two eSign providers (P6-01) | Provider contract; registered business |
+
+Market order agreed on 11 October 2026: India first; then the Middle East, South-East Asia and Japan; then Europe and the US. The later markets need right-to-left and CJK text, which should be kept in mind when the font and translation work is done in phase 3.
+
+---
+
+## Appendix: earlier reference material
+
+Everything below was written before the October 2026 audit and has **not been re-verified**. It is kept for the step-by-step account set-up notes. The old status tables that sat here were removed because they marked unfinished features as complete. Where this appendix disagrees with sections 1 to 9 above, the sections above are right.
+
+Known corrections:
+
+| The appendix says | Correct |
+| --- | --- |
+| Env names `EMAIL_HOST`, `EMAIL_USER`, `EMAIL_PASS` | The code reads `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` |
+| `VITE_API_URL=https://api.../api/v1` | `VITE_API_BASE_URL=https://api...` with no path; there is no `/api/v1` |
+| Webhook URLs under `/api/v1/payments/...` | `/api/webhooks/stripe` and `/api/webhooks/razorpay` |
+| Download a `gcs-key.json` service-account key | Not needed. On Cloud Run the service's own identity is used. Do not create key files. |
+| Allow database access from `0.0.0.0/0` | That leaves the password as the only barrier. Acceptable only with a strong, rotated password; restrict by address once a fixed outbound address is affordable. |
+| Secrets passed with `--set-env-vars` | Secrets come from Secret Manager with `--set-secrets`; see section 7 |
+| Everything runs at $0.00 a month | True for a demo only. Production needs a database tier with backups and a transactional email service. |
+| Domain `signaturly.pro` | The product is PactDoc; plan for `app.`, `api.` and `admin.pactdoc.com` |
+| "Section 65B" certificates | The current law is Section 63 of the Bharatiya Sakshya Adhiniyam, 2023 |
+| Workspaces, developer API and webhooks are complete | They are shells; see phases 5 and 6 |
 
 ### 🛠️ Step-by-Step Credentials Acquisition Playbook
 
@@ -689,109 +794,6 @@ To achieve **100% zero-cost** and maximum simplicity with zero extra bucket main
 
 ---
 
-## 📋 6. Comprehensive Master Task Audit: COMPLETED (DONE) vs. PENDING
-
-Below is the full exhaustive audit of all platform capabilities, distinguishing what is **100% Implemented & Tested (DONE)** from what is **Queued / Optional Future Backlog (PENDING)**.
-
----
-
-### 📊 Master System Status Matrix
-
-| Module / Capability | Status | Implementation Details | Test Coverage |
-| :--- | :---: | :--- | :---: |
-| **Visual 72 DPI PDF Editor** | ✅ **DONE** | Fabric.js coordinate-perfect placement, drag-drop fields, multi-page canvas | 100% |
-| **Field Types (Signature, Initials, Date, Text, Checkbox)** | ✅ **DONE** | Vector SVG signature drawing, typed cursive fonts, auto-formatted dates | 100% |
-| **Multi-Signer Sequential Routing** | ✅ **DONE** | Signer order (1 → 2 → 3), color-coded fields, parallel vs. sequential modes | 100% |
-| **Unique Signer Tokens & Public Signing Link** | ✅ **DONE** | Secure UUID signer URLs (`/sign/:token`), zero-login signer experience | 100% |
-| **Signer 2FA Security (Email OTP Verification)** | ✅ **DONE** | 6-digit cryptographic OTP challenge before viewing/signing contracts | 100% |
-| **Section 65B Cryptographic Audit Certificate** | ✅ **DONE** | SHA-256 pre/post document hashes, IP addresses, timestamps, tamper seal | 100% |
-| **pdf-lib Real-Time Document Flattening** | ✅ **DONE** | Server-side flattening into immutable, standards-compliant PDF/A | 100% |
-| **14 Built-in Business Contract Templates** | ✅ **DONE** | NDA, SaaS Agreement, Employment Offer, Contractor Agreement, etc. | 100% |
-| **CSV Bulk Send Engine** | ✅ **DONE** | Upload CSV roster, auto-generate customized envelopes for 100s of signers | 100% |
-| **AI Signature Background Eraser** | ✅ **DONE** | Automated transparent PNG extraction for wet physical signature scans | 100% |
-| **Subscription Lifecycle Engine** | ✅ **DONE** | Free (15/mo), Pro Monthly ($5.99), Pro Annual ($49), Lifetime ($69), Enterprise ($14.99) | 100% |
-| **3-Day Billing Grace Period (`past_due`)** | ✅ **DONE** | Automatic grace window before downgrading to free tier | 100% |
-| **Workspace Roster & Read-Only Seat Governance** | ✅ **DONE** | Multi-tenant workspace roster cleanup and owner controls | 100% |
-| **Developer REST API (`sig_live_...`)** | ✅ **DONE** | Scoped API key generation, rate limiting, and developer dashboard | 100% |
-| **Outbound Webhooks Engine** | ✅ **DONE** | HMAC SHA-256 signed event dispatches for `envelope.completed`, etc. | 100% |
-| **In-House Superadmin Portal (`/admin`)** | ✅ **DONE** | Global user search, envelope inspector, revenue breakdown, system metrics | 100% |
-| **GCP Cloud Run Serverless Containerization** | ✅ **DONE** | Multi-stage Dockerfile, Node.js 18, scale-to-zero, $0.00 base cost | 100% |
-| **Keyless CI/CD Pipeline (GitHub Actions + WIF)** | ✅ **DONE** | Automated test & deploy on push to main using Workload Identity Federation | 100% |
-| **GCP Cloud Storage (GCS) Document Vault** | ✅ **DONE** | 5 GB standard encrypted bucket with signed upload/download URLs | 100% |
-| **Cloudflare Edge DNS & Web Analytics** | ✅ **DONE** | DDoS protection, automated SSL, cookie-free visitor & latency tracking | 100% |
-| **Stripe Live Production Credentials** | ⏳ **PENDING** | Toggle to Live Mode in Stripe dashboard, generate live keys & price IDs | Manual Ops |
-| **Razorpay Live KYC Whitelisting** | ⏳ **PENDING** | Submit business KYC documents in Razorpay dashboard for live activation | Manual Ops |
-| **Custom Domain DNS Record Mapping** | ⏳ **PENDING** | Point nameservers to Cloudflare and add CNAMEs for Vercel & Cloud Run | Manual Ops |
-| **Automated Envelope Expiration Cron (P1)** | ⏳ **PENDING** | Background job to void/expire uncompleted envelopes older than 30 days | Optional v2.1 |
-| **Visual WebP PDF Thumbnail Generator (P2)** | ⏳ **PENDING** | Generate instant page 1 WebP thumbnail on upload for faster grid load | Optional v2.1 |
-| **Public Reusable Standalone Signing Links (P3)** | ⏳ **PENDING** | Self-serve static URL for high-volume standard public waivers/NDAs | Optional v2.2 |
-| **Enterprise White-Label Email Branding (P4)** | ⏳ **PENDING** | Allow Enterprise tier organizations to upload custom email header logos | Optional v2.2 |
-
----
-
-### 📂 Detailed Status by Functional Category
-
-```
-┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                   DETAILED MODULE COMPLETION AUDIT                                     │
-└────────────────────────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-#### 1. ✍️ Document Editor & Canvas Engine
-* [x] **DONE**: 72 DPI Fabric.js interactive document canvas with zoom & pan controls.
-* [x] **DONE**: Signature, Initials, Date Signed, Text Input, Name, Email, and Checkbox fields.
-* [x] **DONE**: Custom drawn vector signatures with stroke smoothing.
-* [x] **DONE**: Type-to-sign cursive typography library (Caveat, Dancing Script, Great Vibes, Alex Brush).
-* [x] **DONE**: Multi-page PDF pagination and responsive page thumbnail navigation.
-* [x] **DONE**: Exact coordinate transformation matching server-side `pdf-lib` placement.
-
-#### 2. 👥 Recipient Workflows & Signing Process
-* [x] **DONE**: Multi-signer recipient assignment with distinct visual color badges.
-* [x] **DONE**: Sequential signing routing (Signer 1 must complete before Signer 2 receives email).
-* [x] **DONE**: Parallel signing routing (all signers receive links simultaneously).
-* [x] **DONE**: One-click signer authentication via secure UUID token (zero password friction).
-* [x] **DONE**: Optional 2FA Email OTP challenge before accessing confidential contracts.
-* [x] **DONE**: Signer "Decline to Sign" workflow with mandatory decline reason audit logging.
-* [ ] **PENDING**: Automated 30-day envelope auto-expiration reminder emails (Backlog P1).
-
-#### 3. 🛡️ Security, Hashing & Section 65B Audit Trail
-* [x] **DONE**: Cryptographic SHA-256 checksum computed on initial PDF upload.
-* [x] **DONE**: Cryptographic SHA-256 checksum computed on finalized signed PDF.
-* [x] **DONE**: Comprehensive audit trail capturing IP Address, User Agent, Timestamp (UTC), and Action.
-* [x] **DONE**: Tamper-evident Section 65B Electronic Evidence Completion Certificate appended to PDF.
-* [x] **DONE**: Public certificate verification endpoint (`/verify` or `/api/v1/verify/:certificateId`).
-
-#### 4. 💳 Subscription, Quota & Payment Engine
-* [x] **DONE**: Multi-tier quota enforcement:
-  - Free: 15 envelopes/month
-  - Pro Monthly ($5.99/mo): Unlimited envelopes
-  - Pro Annual ($49/yr): Unlimited envelopes + priority support
-  - Lifetime ($69 one-time): Unlimited envelopes forever
-  - Enterprise ($14.99/seat/mo): Multi-seat workspaces + custom audit SLA
-* [x] **DONE**: Stripe Checkout Session integration for cards, Apple Pay, Google Pay.
-* [x] **DONE**: Razorpay Payment integration for UPI, NetBanking, and India domestic cards.
-* [x] **DONE**: Stripe webhook receiver for `customer.subscription.updated` / `invoice.payment_failed`.
-* [x] **DONE**: 3-day billing grace period before automatic downgrade to Free tier.
-* [ ] **PENDING**: Switching live API keys and whitelisting KYC in Stripe & Razorpay dashboards (Ops Task).
-
-#### 5. 🏢 Multi-Tenant Workspaces & Developer API
-* [x] **DONE**: Workspace creation, team member invitations, and role management (Owner, Admin, Member).
-* [x] **DONE**: Read-only seat governance (suspended billing locks member editing while preserving files).
-* [x] **DONE**: Developer REST API key generation (`sig_live_...`) with SHA-256 hashed storage.
-* [x] **DONE**: REST endpoints for programmatic document upload, template population, and status polling.
-* [x] **DONE**: Real-time outbound webhooks with HMAC signature verification.
-
-#### 6. ⚙️ Cloud DevOps, CI/CD & Production Infrastructure
-* [x] **DONE**: Docker multi-stage container optimization for Node.js API (`server/Dockerfile`).
-* [x] **DONE**: GCP Cloud Run serverless deployment configuration with scale-to-zero ($0.00 cost).
-* [x] **DONE**: Google Cloud Storage (GCS) standard bucket integration for encrypted document vault.
-* [x] **DONE**: GitHub Actions automated CI/CD pipeline using keyless Workload Identity Federation (WIF).
-* [x] **DONE**: Cloudflare Edge DNS, HTTPS Full/Strict SSL, and cookie-free Web Analytics setup.
-* [x] **DONE**: In-House Superadmin monitoring portal (`/admin`) for real-time telemetry and revenue metrics.
-* [ ] **PENDING**: Custom Domain DNS mapping at registrar (Ops Task).
-
----
-
 ## 🏷️ 7. Brand Name & Domain Suggestions (Replacing Taken `Signaturly.com`)
 
 Because `signaturly.com` is already an existing commercial SaaS trademark, launching under an original, distinctive name protects against trademark infringement (USPTO conflicts) and improves search engine ranking.
@@ -830,4 +832,3 @@ Because `signaturly.com` is already an existing commercial SaaS trademark, launc
 3. **`DocSeal` (`docseal.pro` / `docseal.io`)**
    - **Why it wins**: Crisp, 2-syllable name that directly communicates what the product does: signs and seals PDF documents with Section 65B legal certificates.
    - **Tagline**: *"Sign, seal, and verify agreements with cryptographic proof."*
-

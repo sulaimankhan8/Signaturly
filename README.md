@@ -12,6 +12,16 @@
 
 ---
 
+> **Project status, 11 October 2026.** This product is being renamed **PactDoc** and is **not yet ready for real users**.
+> A security audit found serious issues; most are fixed on branch `fix/phase1-security` but not deployed.
+> The feature and compliance descriptions below were written before that audit and overstate what is finished.
+>
+> - What is done and what is pending: [`PENDING_TASKS_AND_PRODUCTION_ROADMAP.md`](PENDING_TASKS_AND_PRODUCTION_ROADMAP.md)
+> - Task-by-task plan: [`PACTDOC_IMPLEMENTATION_PLAN.md`](PACTDOC_IMPLEMENTATION_PLAN.md)
+> - Run the automated tests: `npm --prefix server test` (uses a throwaway in-memory database)
+> - The API will not start without real values for the secrets listed in `server/.env.example`
+
+
 ## 📑 Table of Contents
 1. [Overview](#-overview)
 2. [Key Capabilities & Features](#-key-capabilities--features)

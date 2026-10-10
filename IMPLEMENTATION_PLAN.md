@@ -522,8 +522,8 @@ Remove the `uploadToCloudinary` function entirely (lines 24-49). The base64 data
 **File:** `server/.env` [MODIFY]
 
 ```diff
-- JWT_ACCESS_SECRET=access_secret_123
-- JWT_REFRESH_SECRET=refresh_secret_456
+- JWT_ACCESS_SECRET=<generate: openssl rand -hex 32>
+- JWT_REFRESH_SECRET=<generate: openssl rand -hex 32>
 + JWT_ACCESS_SECRET=<generate a 64-char random hex string>
 + JWT_REFRESH_SECRET=<generate a different 64-char random hex string>
 ```
