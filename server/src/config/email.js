@@ -27,7 +27,15 @@ if (env.smtpUser && env.smtpPass) {
   }
 }
 
+// In tests every message lands here so codes and links can be read back
+export const emailOutbox = [];
+
 export const sendEmail = async ({ to, subject, html, text }) => {
+  if (env.isTest) {
+    emailOutbox.push({ to, subject, html, text });
+    return { test: true, to, subject };
+  }
+
   if (transporter) {
     try {
       const info = await transporter.sendMail({
@@ -37,13 +45,16 @@ export const sendEmail = async ({ to, subject, html, text }) => {
         html,
         text: text || subject,
       });
-      console.log("📧 [Email Sent via Gmail]:", { to, messageId: info.messageId });
+      console.log("📧 [Email Sent]:", { messageId: info.messageId });
       return info;
     } catch (err) {
       console.error("❌ [Email Error]:", err.message);
-      // Fallback log to console if network error occurs
-      console.log(`[Email Fallback Info]: URL for ${to} dispatched.`);
+      // Surface the failure so callers and job retries can react
+      throw err;
     }
+  } else if (env.isProd) {
+    // Never print message contents (codes, links) to production logs
+    throw new Error("Email is not configured: set SMTP_USER and SMTP_PASS");
   } else {
     console.log("\n==================== 📧 MOCK EMAIL NOTIFICATION ====================");
     console.log(`To: ${to}`);

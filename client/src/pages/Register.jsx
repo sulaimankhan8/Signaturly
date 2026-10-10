@@ -17,7 +17,7 @@ export default function Register() {
 
     try {
       await registerApi({ name: name.trim(), email: email.trim().toLowerCase(), password });
-      toast.success("Account created! Please sign in.");
+      toast.success("Account created. Check your email to confirm your address, then sign in.", { duration: 6000 });
       navigate("/login");
     } catch (err) {
       console.error("Register error:", err);
@@ -128,7 +128,7 @@ export default function Register() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
                   required
-                  minLength={6}
+                  minLength={10}
                   className="block w-full pl-10 pr-10 py-3 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-yellow-400 text-xs font-medium transition-colors"
                   placeholder="••••••••"
                   value={password}

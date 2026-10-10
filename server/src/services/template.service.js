@@ -31,7 +31,8 @@ export const createTemplate = async ({
     const pdfDoc = await PDFDocument.load(file.buffer);
     pageCount = pdfDoc.getPageCount();
   } else if (sourcePdfId) {
-    const existingPdf = await Pdf.findById(sourcePdfId);
+    // Only the caller's own document can become a template
+    const existingPdf = await Pdf.findOne({ _id: String(sourcePdfId), userId, deletedAt: null });
     if (!existingPdf) throw new ApiError(404, "Source PDF not found");
     sourcePdfPath = existingPdf.storagePath;
     originalFileName = existingPdf.originalFileName;
@@ -211,7 +212,8 @@ export const instantiateDocumentFromTemplate = async ({
   });
 
   return {
-    pdf: sendResult.pdf,
-    recipients: sendResult.recipients,
+    pdfId: sendResult.pdfId,
+    status: sendResult.status,
+    recipientsCount: sendResult.recipientsCount,
   };
 };

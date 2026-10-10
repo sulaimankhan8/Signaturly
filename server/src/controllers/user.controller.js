@@ -2,6 +2,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/User.model.js";
+import { revokeSessions } from "../services/auth.service.js";
+import { exportAccountData, deleteAccount } from "../services/privacy.service.js";
 
 export const getUserProfileController = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.id);
@@ -14,6 +16,7 @@ export const getUserProfileController = asyncHandler(async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        emailVerified: user.emailVerified !== false,
         createdAt: user.createdAt,
       },
       "Profile fetched"
@@ -51,8 +54,8 @@ export const changePasswordController = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Current and new passwords are required");
   }
 
-  if (newPassword.length < 6) {
-    throw new ApiError(400, "New password must be at least 6 characters long");
+  if (typeof newPassword !== "string" || newPassword.length < 10) {
+    throw new ApiError(400, "New password must be at least 10 characters long");
   }
 
   const user = await User.findById(req.user.id).select("+password");
@@ -66,5 +69,27 @@ export const changePasswordController = asyncHandler(async (req, res) => {
   user.password = newPassword;
   await user.save();
 
+  // Other devices are signed out; this one signs in again with the new password
+  await revokeSessions(user._id);
+
   res.status(200).json(new ApiResponse(null, "Password changed successfully"));
+});
+
+// A copy of everything held about the account, as a downloadable JSON file
+export const exportAccountController = asyncHandler(async (req, res) => {
+  const data = await exportAccountData(req.user.id);
+
+  res.setHeader("Content-Disposition", 'attachment; filename="account-export.json"');
+  res.status(200).json(new ApiResponse(data, "Account data exported"));
+});
+
+export const deleteAccountController = asyncHandler(async (req, res) => {
+  const result = await deleteAccount(req.user.id, {
+    password: req.body?.password,
+    ipAddress: req.ip || req.socket?.remoteAddress,
+    userAgent: req.headers["user-agent"],
+  });
+
+  res.clearCookie("refreshToken", { path: "/" });
+  res.status(200).json(new ApiResponse(result, "Account deleted"));
 });

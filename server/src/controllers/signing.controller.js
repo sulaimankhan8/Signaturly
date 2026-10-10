@@ -1,13 +1,20 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import {
-  getRecipientByToken,
   recordRecipientView,
   submitRecipientSignature,
   declineRecipientSignature,
+  isRecipientVerified,
+  CONSENT_VERSION,
 } from "../services/recipient.service.js";
-import path from "path";
-import fs from "fs";
+import { getFileUrl } from "../services/storage.service.js";
+import { currentKeyOf, downloadKeyOf } from "../services/documentFiles.service.js";
+
+const maskEmail = (email = "") => {
+  const [local, domain] = String(email).split("@");
+  if (!domain) return "";
+  return `${local.slice(0, 1)}***@${domain}`;
+};
 
 export const getPublicSigningSessionController = asyncHandler(async (req, res) => {
   const { token } = req.params;
@@ -17,24 +24,38 @@ export const getPublicSigningSessionController = asyncHandler(async (req, res) =
     userAgent: req.headers["user-agent"],
   });
 
-  const fileName = path.basename(pdf.storagePath);
-  const signedFileName = fileName.replace(/\.pdf$/i, "-signed.pdf");
-  const signedPath = pdf.storagePath.replace(/\.pdf$/i, "-signed.pdf");
-  const currentFile = fs.existsSync(signedPath) ? signedFileName : fileName;
-
-  const pdfUrl = `/uploads/${pdf.userId}/${currentFile}`;
-
-  // Check sender subscription plan to determine ad display
-  let showAds = true;
-  try {
-    const { Subscription } = await import("../models/Subscription.model.js");
-    const senderSub = await Subscription.findOne({ userId: pdf.userId });
-    if (senderSub && senderSub.plan !== "free" && senderSub.status === "active") {
-      showAds = false; // Suppress ads for paid senders
-    }
-  } catch (subErr) {
-    console.warn("Could not check sender subscription for ads:", subErr.message);
+  // Until the signer passes the check the sender asked for, reveal nothing about the document's content
+  if (!isRecipientVerified(recipient)) {
+    return res.status(200).json(
+      new ApiResponse(
+        {
+          recipient: {
+            name: recipient.name,
+            email: maskEmail(recipient.email),
+            status: recipient.status,
+            authType: recipient.authType,
+            authVerified: false,
+          },
+          document: {
+            originalFileName: pdf.originalFileName,
+            pageCount: pdf.pageCount,
+            status: pdf.status,
+            pdfUrl: null,
+            fields: [],
+          },
+          verificationRequired: true,
+        },
+        "Identity verification required"
+      )
+    );
   }
+
+  // While signing is in progress the signer sees the latest signed version;
+  // once everyone has signed, they get the sealed copy with its signing record.
+  const key = pdf.status === "signed" ? await downloadKeyOf(pdf) : await currentKeyOf(pdf);
+
+  // A short-lived link for this signer only
+  const pdfUrl = await getFileUrl(key);
 
   res.status(200).json(
     new ApiResponse(
@@ -46,22 +67,23 @@ export const getPublicSigningSessionController = asyncHandler(async (req, res) =
           role: recipient.role,
           color: recipient.color,
           status: recipient.status,
-          token: recipient.token,
           authType: recipient.authType || "none",
-          authVerified: Boolean(recipient.authVerified),
+          authVerified: true,
         },
         document: {
           id: pdf._id,
           originalFileName: pdf.originalFileName,
           pageCount: pdf.pageCount,
           status: pdf.status,
+          isSealed: Boolean(pdf.sealedKey),
           pdfUrl,
           fields: pdf.fields || [],
           message: pdf.message,
           expiresAt: pdf.expiresAt,
         },
+        consentVersion: CONSENT_VERSION,
         monetization: {
-          showAds,
+          showAds: false,
         },
       },
       "Signing session loaded"
@@ -71,11 +93,13 @@ export const getPublicSigningSessionController = asyncHandler(async (req, res) =
 
 export const submitPublicSignatureController = asyncHandler(async (req, res) => {
   const { token } = req.params;
-  const { fields } = req.body;
+  const { fields, consent, consentVersion } = req.body;
 
   const result = await submitRecipientSignature({
     token,
     filledFields: fields,
+    consent,
+    consentVersion,
     ipAddress: req.ip || req.socket?.remoteAddress,
     userAgent: req.headers["user-agent"],
   });

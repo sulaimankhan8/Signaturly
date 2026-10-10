@@ -103,7 +103,7 @@ export default function UserGuide() {
             { pin: "①", title: "Live Progress Badges", text: "Real-time indicators show current stage (e.g. '1/2 Signed - Waiting Signer 2')." },
             { pin: "②", title: "Send Reminder", text: "Nudge pending recipients with 1-click automated reminder emails." },
             { pin: "③", title: "Void Envelope", text: "Cancel in-progress contracts with mandatory reason logging." },
-            { pin: "④", title: "Download Sealed PDF & Certificate", text: "Download tamper-evident executed contract with full forensic audit trail." },
+            { pin: "④", title: "Download Sealed PDF & Certificate", text: "Download tamper-evident executed contract with full audit trail." },
           ],
         },
       ],
@@ -236,7 +236,7 @@ export default function UserGuide() {
             { pin: "①", title: "Signer Progress", text: "Shows executed signers vs. waiting signers (e.g. 1/2 Signed)." },
             { pin: "②", title: "Send Reminder", text: "Sends immediate nudge notification email to pending signers." },
             { pin: "③", title: "Download Sealed PDF", text: "Download tamper-evident PDF with all stamps burned." },
-            { pin: "④", title: "Download Audit Certificate", text: "Forensic Certificate of Completion with IP logs and timestamps." },
+            { pin: "④", title: "Download Audit Certificate", text: "Certificate of Completion with IP logs and timestamps." },
           ],
         },
         {
@@ -246,7 +246,7 @@ export default function UserGuide() {
           actionDescription: "Cancel an in-progress envelope and permanently disable all outstanding signing links.",
           callouts: [
             { pin: "①", title: "Click 'Void Document'", text: "Opens danger confirmation modal." },
-            { pin: "②", title: "Mandatory Reason Input", text: "Enter mandatory business reason for voiding (recorded in immutable audit log)." },
+            { pin: "②", title: "Mandatory Reason Input", text: "Enter mandatory business reason for voiding (recorded in audit log)." },
             { pin: "③", title: "Confirm Cancellation", text: "Envelope status transitions to 'VOIDED' and signers are notified." },
           ],
         },
@@ -302,7 +302,7 @@ export default function UserGuide() {
       title: "Public Cryptographic Verification Journey",
       badge: "Compliance Vault",
       color: "border-teal-500",
-      desc: "Audit flow: Upload signed PDF or enter hash ➔ Instant court-admissible certificate & tamper verification.",
+      desc: "Audit flow: Upload signed PDF or enter hash ➔ Instant audit certificate & tamper verification.",
       steps: [
         {
           title: "Step 1: Public Document Verification Portal",
@@ -313,7 +313,7 @@ export default function UserGuide() {
             { pin: "①", title: "PDF Upload Dropzone", text: "Drop signed PDF file to run client-side SHA-256 checksum calculation." },
             { pin: "②", title: "SHA-256 Hash Input", text: "Or paste 64-character hexadecimal certificate hash directly." },
             { pin: "③", title: "Run Verification", text: "Validates tamper status, signer IP addresses, and exact UTC timestamps." },
-            { pin: "④", title: "Download Forensic Certificate", text: "Standalone court-admissible Certificate of Completion under IT Act / US ESIGN." },
+            { pin: "④", title: "Download Audit Certificate", text: "Standalone Certificate of Completion under IT Act / US ESIGN." },
           ],
         },
       ],

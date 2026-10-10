@@ -18,9 +18,14 @@ async function seedAdmin() {
   }, {});
 
   const email = (args.email || process.env.ADMIN_EMAIL || "admin@signaturly.pro").trim().toLowerCase();
-  const password = args.password || process.env.ADMIN_PASSWORD || "Admin@123456";
+  const password = args.password || process.env.ADMIN_PASSWORD;
   const name = args.name || process.env.ADMIN_NAME || "System Superadmin";
-  const adminSecret = env.adminSecret || process.env.ADMIN_SECRET || "signaturly-superadmin-secret";
+
+  // No default password: an admin account must never be created with a value that is in the source code
+  if (!password || password.length < 12) {
+    console.error("❌ ERROR: Provide an admin password of at least 12 characters with --password=... or ADMIN_PASSWORD.");
+    process.exit(1);
+  }
 
   try {
     if (!env.mongoUri) {
@@ -75,8 +80,8 @@ async function seedAdmin() {
     console.log("=======================================================");
     console.log(`  Admin Portal URL: http://localhost:5174/login`);
     console.log(`  Admin Email     : ${email}`);
-    console.log(`  Password        : ${password}`);
-    console.log(`  Admin Secret Key: ${adminSecret}`);
+    console.log("  Password        : the one you supplied");
+    console.log("  Admin Secret Key: the ADMIN_SECRET_KEY value from your environment");
     console.log("=======================================================\n");
 
     await mongoose.disconnect();

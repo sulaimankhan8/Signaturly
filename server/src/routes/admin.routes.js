@@ -13,44 +13,39 @@ import { env } from "../config/env.js";
 import { generateBsaEvidenceCertificate } from "../services/bsaCertificate.service.js";
 import { upgradeUserPlan, getOrCreateSubscription } from "../services/subscription.service.js";
 
+import { validate, schemas } from "../middlewares/validate.middleware.js";
+import { adminLoginLimiter } from "../middlewares/rateLimit.middleware.js";
+import { safeEqual } from "../utils/tokens.js";
+
 const router = express.Router();
 
 // POST /api/admin/login - Dedicated Isolated Admin Portal Authentication
-router.post("/login", async (req, res) => {
+router.post("/login", adminLoginLimiter, validate({ body: schemas.adminLogin }), async (req, res) => {
   try {
     const { email, password, adminSecret } = req.body;
-
-    if (!email || !password || !adminSecret) {
-      return res.status(400).json({ error: "Email, password, and Admin Security Key are required." });
-    }
+    const invalid = () => res.status(401).json({ error: "Invalid admin credentials." });
 
     // 1. Verify Admin Security Key
-    if (adminSecret.trim() !== env.adminSecret) {
-      return res.status(401).json({ error: "INVALID_ADMIN_KEY: The provided Admin Security Key is incorrect." });
+    if (!env.adminSecret || !safeEqual(adminSecret.trim(), env.adminSecret)) {
+      return invalid();
     }
 
-    // 2. Find User
+    // 2. Find User and verify password
     const user = await User.findOne({ email }).select("+password");
-    if (!user) {
-      return res.status(401).json({ error: "Invalid admin email or password." });
+    if (!user || !(await bcrypt.compare(password, user.password))) {
+      return invalid();
     }
 
-    // 3. Verify Password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({ error: "Invalid admin email or password." });
-    }
-
-    // 4. Ensure Superadmin Role
+    // 3. The account must already be an admin. Nobody is promoted by logging in;
+    //    admins are created only with the seed script.
     if (user.role !== "superadmin" && user.role !== "admin") {
-      user.role = "superadmin";
-      await user.save();
+      return invalid();
     }
 
-    // 5. Issue Dedicated Admin Access Token
+    // 4. Issue Dedicated Admin Access Token, signed with a secret user tokens never use
     const adminToken = jwt.sign(
-      { id: user._id, role: "superadmin", isAdmin: true },
-      env.accessSecret,
+      { id: user._id, role: user.role, isAdmin: true },
+      env.adminJwtSecret,
       { expiresIn: "8h" }
     );
 
@@ -64,7 +59,7 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Admin login error:", error);
+    console.error("Admin login error:", error.message);
     return res.status(500).json({ error: "Admin authentication process failed." });
   }
 });
@@ -212,7 +207,7 @@ router.get("/analytics", async (req, res) => {
           uptimeSeconds: Math.floor(process.uptime()),
           nodeVersion: process.version,
           complianceMode: "Section 10A IT Act + Section 63 BSA + eIDAS Standard",
-          merkleIntegrity: "APPEND_ONLY_SHA256_VERIFIED",
+          auditChain: "APPEND_ONLY_SHA256_VERIFIED",
         },
       },
     });
@@ -322,6 +317,8 @@ router.patch("/users/:id/plan", async (req, res) => {
       amount: plan === "lifetime" ? 69 : plan === "pro_monthly" ? 5.99 : plan === "enterprise" ? 14.99 : 0,
     });
 
+    sub.adminGrants.push({ adminId: req.user.id, plan });
+
     if (customQuota && !isNaN(customQuota)) {
       sub.monthlyQuota = parseInt(customQuota, 10);
     }
@@ -379,7 +376,7 @@ router.get("/documents", async (req, res) => {
   }
 });
 
-// GET /api/admin/audit-logs - System-wide immutable audit trail inspection
+// GET /api/admin/audit-logs - System-wide audit trail inspection
 router.get("/audit-logs", async (req, res) => {
   try {
     const logs = await PdfAudit.find()

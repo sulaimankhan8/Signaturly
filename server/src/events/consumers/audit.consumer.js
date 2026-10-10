@@ -1,59 +1,74 @@
 import mongoose from "mongoose";
 import { eventBus } from "../eventBus.js";
 import { EventTypes } from "../eventTypes.js";
-import { PdfAudit } from "../../models/PdfAudit.model.js";
+import { appendAuditEvent } from "../../services/auditLedger.service.js";
 
+const EVENT_NAMES = {
+  [EventTypes.DOCUMENT_CREATED]: "created",
+  [EventTypes.DOCUMENT_SENT]: "sent",
+  [EventTypes.RECIPIENT_VIEWED]: "viewed",
+  [EventTypes.DOCUMENT_COMPLETED]: "completed",
+  [EventTypes.DOCUMENT_DECLINED]: "declined",
+  [EventTypes.DOCUMENT_VOIDED]: "voided",
+  [EventTypes.DOCUMENT_EXPIRED]: "expired",
+  [EventTypes.REMINDER_DISPATCHED]: "reminder_sent",
+  [EventTypes.RECIPIENT_EMAIL_UPDATED]: "recipient_updated",
+};
+
+const describe = (event) => {
+  const who = event.actor.name;
+  switch (event.eventType) {
+    case EventTypes.DOCUMENT_CREATED:
+      return "Document uploaded.";
+    case EventTypes.DOCUMENT_SENT:
+      return `Sent for signature to ${event.payload?.recipients?.length || event.payload?.recipientsCount || 1} recipient(s).`;
+    case EventTypes.RECIPIENT_VIEWED:
+      return `${who} opened the signing link.`;
+    case EventTypes.DOCUMENT_COMPLETED:
+      return "All parties signed. Document completed.";
+    case EventTypes.DOCUMENT_DECLINED:
+      return `${who} declined to sign. Reason: "${event.payload?.reason || "No reason given"}".`;
+    case EventTypes.DOCUMENT_VOIDED:
+      return `Document voided by ${who}.`;
+    case EventTypes.DOCUMENT_EXPIRED:
+      return "Signing deadline passed. Document expired.";
+    case EventTypes.REMINDER_DISPATCHED:
+      return `Reminder sent to ${event.payload?.recipientName || "recipient"}.`;
+    case EventTypes.RECIPIENT_EMAIL_UPDATED:
+      return `Signer email changed to ${event.payload?.newEmail}. A new signing link was issued.`;
+    default:
+      return `Event ${event.eventType}.`;
+  }
+};
+
+const asObjectId = (id) => (id && mongoose.Types.ObjectId.isValid(String(id)) ? id : null);
+
+/**
+ * Writes every domain event into the hash-chained audit log, in order.
+ * Signatures are the one exception: they are recorded where the file is stamped,
+ * because that is where the before and after hashes are known.
+ */
 export const registerAuditConsumer = () => {
-  eventBus.subscribe("*", "AuditLogConsumer", async (event) => {
-    try {
-      if (!event.aggregateId) return;
+  eventBus.addRecorder("AuditLog", async (event) => {
+    const auditEvent = EVENT_NAMES[event.eventType];
+    if (!auditEvent || !event.aggregateId) return;
 
-      const eventTypeEnumMap = {
-        [EventTypes.DOCUMENT_CREATED]: "created",
-        [EventTypes.DOCUMENT_SENT]: "sent",
-        [EventTypes.RECIPIENT_VIEWED]: "viewed",
-        [EventTypes.DOCUMENT_SIGNED]: "signed",
-        [EventTypes.DOCUMENT_COMPLETED]: "completed",
-        [EventTypes.DOCUMENT_DECLINED]: "declined",
-        [EventTypes.DOCUMENT_VOIDED]: "voided",
-        [EventTypes.DOCUMENT_EXPIRED]: "expired",
-        [EventTypes.REMINDER_DISPATCHED]: "reminder_sent",
-        [EventTypes.RECIPIENT_EMAIL_UPDATED]: "recipient_updated",
-      };
+    // For these two events the actor is the signer, not an account holder
+    const actorIsRecipient = [EventTypes.RECIPIENT_VIEWED, EventTypes.DOCUMENT_DECLINED].includes(event.eventType);
 
-      const auditEvent = eventTypeEnumMap[event.eventType] || "signed";
-
-      const descriptionMap = {
-        [EventTypes.DOCUMENT_CREATED]: "Document created and uploaded to vault.",
-        [EventTypes.DOCUMENT_SENT]: `Document dispatched to ${event.payload?.recipientsCount || 1} authorized recipient(s).`,
-        [EventTypes.RECIPIENT_VIEWED]: `${event.actor.name} opened and reviewed the document.`,
-        [EventTypes.DOCUMENT_SIGNED]: `${event.actor.name} completed and placed legal e-signature.`,
-        [EventTypes.DOCUMENT_COMPLETED]: "All parties executed the agreement. Document sealed with Merkle audit certificate.",
-        [EventTypes.DOCUMENT_DECLINED]: `${event.actor.name} declined to sign. Reason: "${event.payload?.reason || 'No reason specified'}".`,
-        [EventTypes.DOCUMENT_VOIDED]: `Document voided and cancelled by ${event.actor.name}.`,
-        [EventTypes.DOCUMENT_EXPIRED]: "Document marked expired as signing deadline elapsed.",
-        [EventTypes.REMINDER_DISPATCHED]: `Reminder dispatched to ${event.payload?.recipientName || 'recipient'}.`,
-        [EventTypes.RECIPIENT_EMAIL_UPDATED]: `Signer email updated to ${event.payload?.newEmail}. New signing token issued.`,
-      };
-
-      const isValidObjectId = (id) => id && mongoose.Types.ObjectId.isValid(id);
-
-      await PdfAudit.create({
-        pdfId: event.aggregateId,
-        recipientId: isValidObjectId(event.payload?.recipientId) ? event.payload.recipientId : null,
-        userId: isValidObjectId(event.actor?.id) ? event.actor.id : null,
-        event: auditEvent,
-        actorName: event.actor.name,
-        actorEmail: event.actor.email,
-        description: descriptionMap[event.eventType] || `Event [${event.eventType}] occurred.`,
-        ipAddress: event.actor.ipAddress,
-        userAgent: event.actor.userAgent,
-        signedAt: event.timestamp,
-      });
-
-      console.log(`[AuditConsumer] 📋 Logged audit event [${auditEvent}] for document [${event.aggregateId}]`);
-    } catch (err) {
-      console.error("[AuditConsumer] Failed to write audit record:", err.message);
-    }
+    await appendAuditEvent({
+      pdfId: event.aggregateId,
+      recipientId: asObjectId(
+        actorIsRecipient ? event.actor?.id : event.payload?.recipientId || event.payload?.recipient?._id
+      ),
+      userId: actorIsRecipient ? null : asObjectId(event.actor?.id),
+      event: auditEvent,
+      actorName: event.actor.name,
+      actorEmail: event.actor.email,
+      description: describe(event),
+      ipAddress: event.actor.ipAddress,
+      userAgent: event.actor.userAgent,
+      signedAt: event.timestamp,
+    });
   });
 };

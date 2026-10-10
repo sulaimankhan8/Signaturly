@@ -15,6 +15,7 @@ import UseTemplate from "./pages/UseTemplate";
 import Settings from "./pages/Settings";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import VerifyEmail from "./pages/VerifyEmail";
 import BulkSend from "./pages/BulkSend";
 import Landing from "./pages/Landing";
 import FontTestLab from "./pages/FontTestLab";
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/upload" element={<UploadPdf />} />
         <Route path="/signature-remover" element={<SignatureRemover />} />
         <Route path="/templates" element={<Templates />} />

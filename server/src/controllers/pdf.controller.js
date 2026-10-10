@@ -4,9 +4,10 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { PdfAudit } from "../models/PdfAudit.model.js";
-import { Recipient } from "../models/Recipient.model.js";
-import path from "path";
-import { fileExists, deleteFile, getFileUrl } from "../services/storage.service.js";
+import mongoose from "mongoose";
+import { getFileUrl } from "../services/storage.service.js";
+import { originalKeyOf, downloadKeyOf, hasSignedCopy } from "../services/documentFiles.service.js";
+import { appendAuditEvent, verifyAuditChainIntegrity } from "../services/auditLedger.service.js";
 import { eventBus, EventTypes } from "../events/index.js";
 
 export const uploadPdfController = asyncHandler(async (req, res) => {
@@ -15,9 +16,7 @@ export const uploadPdfController = asyncHandler(async (req, res) => {
     userId: req.user.id,
   });
 
-  const fileName = path.basename(pdf.storagePath);
-  const relativeKey = `${pdf.userId}/${fileName}`;
-  const fileUrl = await getFileUrl(relativeKey);
+  const fileUrl = await getFileUrl(originalKeyOf(pdf));
 
   // Emit event-driven signal for document creation / initial vault storage
   await eventBus.emitEvent(EventTypes.DOCUMENT_CREATED, {
@@ -31,7 +30,6 @@ export const uploadPdfController = asyncHandler(async (req, res) => {
     },
     payload: {
       title: pdf.originalFileName,
-      fileUrl,
       pageCount: pdf.pageCount,
     },
   });
@@ -49,49 +47,37 @@ export const uploadPdfController = asyncHandler(async (req, res) => {
   );
 });
 
+const formatPdf = async (pdf) => {
+  const base = {
+    _id: pdf._id,
+    id: pdf._id,
+    originalFileName: pdf.originalFileName,
+    pageCount: pdf.pageCount || 1,
+    status: pdf.status || "draft",
+    createdAt: pdf.createdAt,
+    updatedAt: pdf.updatedAt,
+    originalHash: pdf.originalHash || "",
+    isSealed: Boolean(pdf.sealedKey),
+  };
+
+  try {
+    return {
+      ...base,
+      originalUrl: await getFileUrl(originalKeyOf(pdf)),
+      // The sealed copy once signing is complete, otherwise the latest signed version
+      signedUrl: (await hasSignedCopy(pdf)) ? await getFileUrl(await downloadKeyOf(pdf)) : null,
+    };
+  } catch (err) {
+    return { ...base, originalUrl: "", signedUrl: null };
+  }
+};
+
+// Documents the owner has deleted stay in the database for their audit log but are never listed
+const ownedDocuments = (userId) => Pdf.find({ userId, deletedAt: null }).sort({ createdAt: -1 });
+
 export const getMyPdfsController = asyncHandler(async (req, res) => {
-  const userId = req.user.id;
-  const pdfs = await Pdf.find({ userId }).sort({ createdAt: -1 });
-
-  const formattedPdfs = await Promise.all(
-    pdfs.map(async (pdf) => {
-      try {
-        const fileName = path.basename(pdf.storagePath || "doc.pdf");
-        const relativeKey = `${pdf.userId}/${fileName}`;
-        const signedKey = relativeKey.replace(/\.pdf$/i, "-signed.pdf");
-
-        const originalUrl = await getFileUrl(relativeKey);
-        const isSignedPresent = await fileExists(signedKey);
-        const signedUrl = isSignedPresent ? await getFileUrl(signedKey) : null;
-
-        return {
-          _id: pdf._id,
-          id: pdf._id,
-          originalFileName: pdf.originalFileName,
-          pageCount: pdf.pageCount,
-          status: pdf.status,
-          createdAt: pdf.createdAt,
-          updatedAt: pdf.updatedAt,
-          originalUrl,
-          signedUrl,
-          originalHash: pdf.originalHash,
-        };
-      } catch (err) {
-        return {
-          _id: pdf._id,
-          id: pdf._id,
-          originalFileName: pdf.originalFileName,
-          pageCount: pdf.pageCount || 1,
-          status: pdf.status || "draft",
-          createdAt: pdf.createdAt,
-          updatedAt: pdf.updatedAt,
-          originalUrl: pdf.storagePath || "",
-          signedUrl: null,
-          originalHash: pdf.originalHash || "",
-        };
-      }
-    })
-  );
+  const pdfs = await ownedDocuments(req.user.id);
+  const formattedPdfs = await Promise.all(pdfs.map(formatPdf));
 
   res.status(200).json(new ApiResponse(formattedPdfs, "User documents fetched successfully"));
 });
@@ -102,7 +88,7 @@ export const getMyPdfsController = asyncHandler(async (req, res) => {
  */
 export const syncUpdatesController = asyncHandler(async (req, res) => {
   const userId = req.user.id;
-  const since = req.query.since ? new Date(req.query.since) : null;
+  const since = typeof req.query.since === "string" ? new Date(req.query.since) : null;
 
   if (since && !isNaN(since.getTime())) {
     const hasModifications = await Pdf.exists({
@@ -116,47 +102,8 @@ export const syncUpdatesController = asyncHandler(async (req, res) => {
     }
   }
 
-  const pdfs = await Pdf.find({ userId }).sort({ createdAt: -1 });
-
-  const formattedPdfs = await Promise.all(
-    pdfs.map(async (pdf) => {
-      try {
-        const fileName = path.basename(pdf.storagePath || "doc.pdf");
-        const relativeKey = `${pdf.userId}/${fileName}`;
-        const signedKey = relativeKey.replace(/\.pdf$/i, "-signed.pdf");
-
-        const originalUrl = await getFileUrl(relativeKey);
-        const isSignedPresent = await fileExists(signedKey);
-        const signedUrl = isSignedPresent ? await getFileUrl(signedKey) : null;
-
-        return {
-          _id: pdf._id,
-          id: pdf._id,
-          originalFileName: pdf.originalFileName,
-          pageCount: pdf.pageCount,
-          status: pdf.status,
-          createdAt: pdf.createdAt,
-          updatedAt: pdf.updatedAt,
-          originalUrl,
-          signedUrl,
-          originalHash: pdf.originalHash,
-        };
-      } catch (err) {
-        return {
-          _id: pdf._id,
-          id: pdf._id,
-          originalFileName: pdf.originalFileName,
-          pageCount: pdf.pageCount || 1,
-          status: pdf.status || "draft",
-          createdAt: pdf.createdAt,
-          updatedAt: pdf.updatedAt,
-          originalUrl: pdf.storagePath || "",
-          signedUrl: null,
-          originalHash: pdf.originalHash || "",
-        };
-      }
-    })
-  );
+  const pdfs = await ownedDocuments(userId);
+  const formattedPdfs = await Promise.all(pdfs.map(formatPdf));
 
   res.status(200).json(
     new ApiResponse(
@@ -169,61 +116,64 @@ export const syncUpdatesController = asyncHandler(async (req, res) => {
   );
 });
 
-export const deletePdfController = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const userId = req.user.id;
+const loadOwnedPdf = async (id, userId) => {
+  if (typeof id !== "string" || !mongoose.isValidObjectId(id)) {
+    throw new ApiError(400, "Invalid document identifier");
+  }
 
-  const pdf = await Pdf.findById(id);
-
+  const pdf = await Pdf.findOne({ _id: id, deletedAt: null });
   if (!pdf) {
     throw new ApiError(404, "Document not found");
   }
-
   if (pdf.userId.toString() !== userId) {
-    throw new ApiError(403, "Not authorized to delete this document");
+    throw new ApiError(403, "Not authorized for this document");
+  }
+  return pdf;
+};
+
+/**
+ * Deleting hides the document from its owner and stops its signing links.
+ * The record and its audit log are kept: an audit trail that disappears with the document proves nothing.
+ */
+export const deletePdfController = asyncHandler(async (req, res) => {
+  const pdf = await loadOwnedPdf(req.params.id, req.user.id);
+
+  if (["pending", "partially_signed"].includes(pdf.status)) {
+    throw new ApiError(409, "This document is out for signature. Void it before deleting.");
   }
 
-  const fileName = path.basename(pdf.storagePath);
-  const relativeKey = `${pdf.userId}/${fileName}`;
-  const signedKey = relativeKey.replace(/\.pdf$/i, "-signed.pdf");
+  await Pdf.updateOne({ _id: pdf._id }, { $set: { deletedAt: new Date() } });
 
-  // Delete from storage adapter (GCS or Local)
-  await deleteFile(relativeKey);
-  await deleteFile(signedKey);
+  await appendAuditEvent({
+    pdfId: pdf._id,
+    userId: req.user.id,
+    event: "deleted",
+    actorName: req.user.name,
+    actorEmail: req.user.email,
+    description: "Document deleted by its owner. The audit log is retained.",
+    ipAddress: req.ip || req.socket?.remoteAddress,
+    userAgent: req.headers["user-agent"],
+  });
 
-  // Delete DB records
-  await Pdf.findByIdAndDelete(id);
-  await PdfAudit.deleteMany({ pdfId: id });
-  await Recipient.deleteMany({ pdfId: id });
-
-  res.status(200).json(new ApiResponse({ id }, "Document deleted successfully"));
+  res.status(200).json(new ApiResponse({ id: pdf._id }, "Document deleted successfully"));
 });
 
 export const getPdfAuditController = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const userId = req.user.id;
+  const pdf = await loadOwnedPdf(req.params.id, req.user.id);
 
-  const pdf = await Pdf.findById(id);
-  if (!pdf) {
-    throw new ApiError(404, "Document not found");
-  }
+  const auditLogs = await PdfAudit.find({ pdfId: pdf._id }).sort({ seq: -1, createdAt: -1 });
+  const integrity = await verifyAuditChainIntegrity(pdf._id);
 
-  if (pdf.userId.toString() !== userId) {
-    throw new ApiError(403, "Unauthorized access to audit trail");
-  }
-
-  const auditLogs = await PdfAudit.find({ pdfId: id }).sort({ signedAt: -1 });
-
-  res.status(200).json(new ApiResponse({ pdf, auditLogs }, "Audit trail retrieved"));
+  res.status(200).json(new ApiResponse({ pdf, auditLogs, integrity }, "Audit trail retrieved"));
 });
 
 export const getAuditCertificatePdfController = asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const pdf = await loadOwnedPdf(req.params.id, req.user.id);
   const { generateAuditCertificatePdf } = await import("../services/auditCertificate.service.js");
 
-  const pdfBuffer = await generateAuditCertificatePdf(id, req.user.id);
+  const pdfBuffer = await generateAuditCertificatePdf(pdf._id, req.user.id);
 
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename="Audit-Certificate-${id}.pdf"`);
+  res.setHeader("Content-Disposition", `attachment; filename="Signing-Record-${pdf._id}.pdf"`);
   res.send(pdfBuffer);
 });

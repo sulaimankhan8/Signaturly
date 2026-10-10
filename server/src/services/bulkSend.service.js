@@ -1,5 +1,7 @@
 import path from "path";
-import crypto from "crypto";
+import { randomToken } from "../utils/tokens.js";
+import { newTokenExpiry } from "./recipient.service.js";
+import { reserveQuota, releaseQuota } from "./subscription.service.js";
 import { Template } from "../models/Template.model.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { Recipient } from "../models/Recipient.model.js";
@@ -10,6 +12,8 @@ import { readFile, saveFile } from "./storage.service.js";
 import { eventBus, EventTypes } from "../events/index.js";
 import { ApiError } from "../utils/ApiError.js";
 
+const MAX_BULK_RECIPIENTS = 500;
+
 export const processBulkSendFromTemplate = async ({
   templateId,
   userId,
@@ -19,8 +23,11 @@ export const processBulkSendFromTemplate = async ({
   userAgent = "",
 }) => {
   if (!templateId) throw new ApiError(400, "Template ID is required");
-  if (!recipientsList || recipientsList.length === 0) {
+  if (!Array.isArray(recipientsList) || recipientsList.length === 0) {
     throw new ApiError(400, "Recipients list cannot be empty");
+  }
+  if (recipientsList.length > MAX_BULK_RECIPIENTS) {
+    throw new ApiError(400, `A bulk send can include at most ${MAX_BULK_RECIPIENTS} recipients`);
   }
 
   const user = await User.findById(userId);
@@ -37,14 +44,17 @@ export const processBulkSendFromTemplate = async ({
     throw new ApiError(404, "Template source PDF file is missing on storage: " + err.message);
   }
 
+  // Every row counts as one document against the plan
+  await reserveQuota(userId, recipientsList.length);
+
   const batchId = `BATCH-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
   const dispatchedDocuments = [];
   const errors = [];
 
   for (let i = 0; i < recipientsList.length; i++) {
-    const row = recipientsList[i];
-    const name = (row.name || "").trim();
-    const email = (row.email || "").trim().toLowerCase();
+    const row = recipientsList[i] || {};
+    const name = typeof row.name === "string" ? row.name.trim() : "";
+    const email = typeof row.email === "string" ? row.email.trim().toLowerCase() : "";
 
     if (!email || !email.includes("@")) {
       errors.push({ row: i + 1, email, error: "Invalid email address" });
@@ -61,7 +71,7 @@ export const processBulkSendFromTemplate = async ({
       const originalDocName = `${template.name} - ${name || email}`;
 
       // 1. Create Recipient record
-      const token = crypto.randomBytes(32).toString("hex");
+      const token = randomToken();
       const rawRole = template.roles?.[0]?.name?.toLowerCase();
       const recipientRole = ["signer", "viewer", "approver"].includes(rawRole) ? rawRole : "signer";
       const recipientColor = template.roles?.[0]?.color || "#3b82f6";
@@ -88,6 +98,9 @@ export const processBulkSendFromTemplate = async ({
         signingOrder: 1,
         status: "sent",
         token,
+        tokenExpiresAt: newTokenExpiry(),
+        authVerified: true,
+        authMethod: "email_link",
       });
 
       // 3. Map template fields to standard percentage field schema
@@ -137,13 +150,15 @@ export const processBulkSendFromTemplate = async ({
         documentName: originalDocName,
         recipientName: name,
         recipientEmail: email,
-        signingUrl: `/sign/${token}`,
       });
     } catch (err) {
       console.error(`Bulk send failure on row ${i + 1}:`, err);
       errors.push({ row: i + 1, email, error: err.message });
     }
   }
+
+  // Rows that failed are not charged
+  await releaseQuota(userId, recipientsList.length - dispatchedDocuments.length);
 
   // Increment template usage count
   template.usageCount = (template.usageCount || 0) + dispatchedDocuments.length;

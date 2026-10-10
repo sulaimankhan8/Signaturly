@@ -163,7 +163,7 @@ export default function Dashboard() {
   const handleVoid = (id, title) => {
     setConfirmModalConfig({
       title: "Legally Void Agreement",
-      message: `Are you sure you want to legally VOID and cancel "${title}"? All recipient signing links will be revoked immediately and a cancellation notice will be logged in the immutable audit trail.`,
+      message: `Are you sure you want to legally VOID and cancel "${title}"? All recipient signing links will be revoked immediately and a cancellation notice will be logged in the audit trail.`,
       confirmText: "Void Document",
       cancelText: "Keep Active",
       type: "danger",

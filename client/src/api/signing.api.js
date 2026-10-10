@@ -11,8 +11,9 @@ export const fetchSigningSessionApi = async (token) => {
   return res.data.data;
 };
 
-export const submitPublicSignatureApi = async (token, fields) => {
-  const res = await publicAPI.post(`/signing/${token}/sign`, { fields });
+// `consent` records that the signer ticked the electronic-signature consent box
+export const submitPublicSignatureApi = async (token, fields, consent = false, consentVersion) => {
+  const res = await publicAPI.post(`/signing/${token}/sign`, { fields, consent, consentVersion });
   return res.data.data;
 };
 

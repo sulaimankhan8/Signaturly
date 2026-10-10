@@ -6,6 +6,15 @@ class EventBus extends EventEmitter {
     super();
     // Allow high number of listeners per event type
     this.setMaxListeners(50);
+    this.recorders = [];
+  }
+
+  /**
+   * Registers a handler that runs, and is awaited, before emitEvent returns.
+   * Used for the audit log, so entries are written in the order events happen.
+   */
+  addRecorder(handlerName, handlerFn) {
+    this.recorders.push({ handlerName, handlerFn });
   }
 
   /**
@@ -21,19 +30,25 @@ class EventBus extends EventEmitter {
       actor: {
         id: actor.id?.toString() || null,
         name: actor.name || "System",
-        email: actor.email || "system@signaturly.com",
+        email: actor.email || "",
         ipAddress: actor.ipAddress || "",
         userAgent: actor.userAgent || "",
       },
       payload,
     };
 
-    console.log(`[EventBus] 📡 Emitting event: [${eventType}] for aggregate: [${eventEnvelope.aggregateId}]`);
+    for (const { handlerName, handlerFn } of this.recorders) {
+      try {
+        await handlerFn(eventEnvelope);
+      } catch (err) {
+        console.error(`[EventBus] Recorder [${handlerName}] failed on [${eventType}]:`, err.message);
+      }
+    }
 
-    // Emit event asynchronously
+    // Everything else (emails, notifications) runs after the request has been answered
     setImmediate(() => {
       this.emit(eventType, eventEnvelope);
-      this.emit("*", eventEnvelope); // Global wildcard listener for auditing/monitoring
+      this.emit("*", eventEnvelope);
     });
 
     return eventEnvelope;
@@ -47,10 +62,9 @@ class EventBus extends EventEmitter {
       try {
         await handlerFn(event);
       } catch (err) {
-        console.error(`[EventBus] ❌ Consumer [${handlerName}] failed processing [${eventType}] (Event ID: ${event.eventId}):`, err.message);
+        console.error(`[EventBus] Consumer [${handlerName}] failed processing [${eventType}]:`, err.message);
       }
     });
-    console.log(`[EventBus] Registered subscriber: [${handlerName}] -> [${eventType}]`);
   }
 }
 

@@ -2,8 +2,11 @@ import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { User } from "../models/User.model.js";
 
+const ADMIN_ROLES = ["superadmin", "admin"];
+
 /**
- * Middleware enforcing Isolated Superadmin Authentication & Zero-Knowledge immutability protections.
+ * Middleware enforcing isolated admin authentication.
+ * Admin tokens are signed with their own secret, so a normal user token is never accepted here.
  */
 export const requireSuperadmin = async (req, res, next) => {
   try {
@@ -16,14 +19,14 @@ export const requireSuperadmin = async (req, res, next) => {
     let decoded;
 
     try {
-      decoded = jwt.verify(token, env.accessSecret);
+      decoded = jwt.verify(token, env.adminJwtSecret);
     } catch (e) {
       return res.status(401).json({ error: "ADMIN_AUTH_INVALID: Invalid or expired admin token" });
     }
 
-    // Check if the user is a superadmin or has explicit admin role
+    // The role is read from the database on every request, never trusted from the token alone
     const user = await User.findById(decoded.id);
-    if (!user || (user.role !== "superadmin" && user.role !== "admin" && !decoded.isAdmin)) {
+    if (!user || !decoded.isAdmin || !ADMIN_ROLES.includes(user.role)) {
       return res.status(403).json({ error: "ACCESS_DENIED: Superadmin privileges required" });
     }
 
@@ -35,19 +38,19 @@ export const requireSuperadmin = async (req, res, next) => {
       isAdmin: true,
     };
 
-    // Zero-Knowledge Rule: Block any attempt by admins to mutate audit records or executed agreements
+    // Block any attempt by admins to mutate audit records or executed agreements
     if (req.method === "PUT" || req.method === "PATCH" || req.method === "DELETE") {
       const isAuditPath = req.originalUrl.includes("/audit") || req.originalUrl.includes("/logs");
       if (isAuditPath) {
         return res.status(403).json({
-          error: "ZERO_KNOWLEDGE_MUTATION_DENIED: System administrators are strictly prohibited from modifying completed audit trails or executed agreement records.",
+          error: "AUDIT_MUTATION_DENIED: Administrators cannot modify audit trails or executed agreement records.",
         });
       }
     }
 
     next();
   } catch (error) {
-    console.error("Admin authentication middleware error:", error);
+    console.error("Admin authentication middleware error:", error.message);
     return res.status(500).json({ error: "Admin authentication failure" });
   }
 };

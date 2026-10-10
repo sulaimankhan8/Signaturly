@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from "uuid";
 import { Recipient } from "../models/Recipient.model.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { User } from "../models/User.model.js";
@@ -6,8 +5,12 @@ import { ApiError } from "../utils/ApiError.js";
 import { signPdf } from "./pdfSign.service.js";
 import { eventBus, EventTypes } from "../events/index.js";
 import { notifyUserDocumentUpdate } from "./sse.service.js";
-import path from "path";
 import bcrypt from "bcrypt";
+import { env } from "../config/env.js";
+import { randomToken } from "../utils/tokens.js";
+import { withDocumentLock } from "./documentLock.service.js";
+import { sealDocument } from "./pdfSeal.service.js";
+import { enqueueJob } from "../jobs/queue.js";
 
 const RECIPIENT_COLORS = [
   "#3b82f6", // Blue
@@ -19,52 +22,59 @@ const RECIPIENT_COLORS = [
   "#ef4444", // Red
 ];
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+export const CONSENT_VERSION = "esign-consent-1.0";
+
+export const newTokenExpiry = () => new Date(Date.now() + env.signingLinkTtlDays * DAY_MS);
+
 export const createRecipientsForDoc = async ({ pdfId, recipientsData }) => {
   if (!recipientsData || !Array.isArray(recipientsData) || recipientsData.length === 0) {
     throw new ApiError(400, "At least one recipient is required");
   }
 
-  // Remove existing recipients for fresh submission
-  await Recipient.deleteMany({ pdfId });
-
-  const recipients = [];
+  // Validate everything before touching stored recipients
+  const prepared = [];
   for (let i = 0; i < recipientsData.length; i++) {
-    const r = recipientsData[i];
-    if (!r.name || !r.email) {
-      throw new ApiError(400, "Recipient name and email are required");
+    const r = recipientsData[i] || {};
+    if (typeof r.name !== "string" || typeof r.email !== "string" || !r.name.trim() || !r.email.includes("@")) {
+      throw new ApiError(400, "Recipient name and a valid email are required");
     }
 
-    const token = uuidv4();
-    const color = r.color || RECIPIENT_COLORS[i % RECIPIENT_COLORS.length];
-    const authType = r.authType && ["otp", "passcode"].includes(r.authType) ? r.authType : "none";
-
+    const authType = ["otp", "passcode"].includes(r.authType) ? r.authType : "none";
     let passcodeHash = null;
-    if (authType === "passcode" && r.passcode) {
-      const salt = await bcrypt.genSalt(10);
-      passcodeHash = await bcrypt.hash(r.passcode.trim(), salt);
+    if (authType === "passcode") {
+      if (typeof r.passcode !== "string" || r.passcode.trim().length < 4) {
+        throw new ApiError(400, "A passcode of at least 4 characters is required for passcode-protected signers");
+      }
+      passcodeHash = await bcrypt.hash(r.passcode.trim(), 10);
     }
 
-    const recipient = await Recipient.create({
+    prepared.push({
       pdfId,
       name: r.name.trim(),
       email: r.email.trim().toLowerCase(),
-      role: r.role || "signer",
-      signingOrder: r.signingOrder || i + 1,
-      token,
-      color,
+      role: ["signer", "viewer", "approver"].includes(r.role) ? r.role : "signer",
+      signingOrder: Number.isInteger(r.signingOrder) && r.signingOrder > 0 ? r.signingOrder : i + 1,
+      token: randomToken(),
+      tokenExpiresAt: newTokenExpiry(),
+      color: typeof r.color === "string" ? r.color : RECIPIENT_COLORS[i % RECIPIENT_COLORS.length],
       status: "pending",
       authType,
       passcodeHash,
       authVerified: authType === "none",
+      authMethod: "email_link",
     });
-
-    recipients.push(recipient);
   }
 
-  return recipients;
+  await Recipient.deleteMany({ pdfId });
+  return await Recipient.create(prepared);
 };
 
 export const getRecipientByToken = async (token) => {
+  if (typeof token !== "string" || !token) {
+    throw new ApiError(404, "Invalid or expired signing link");
+  }
+
   const recipient = await Recipient.findOne({ token }).populate("pdfId");
   if (!recipient) {
     throw new ApiError(404, "Invalid or expired signing link");
@@ -75,17 +85,65 @@ export const getRecipientByToken = async (token) => {
     throw new ApiError(404, "Associated document not found");
   }
 
-  if (pdf.expiresAt && new Date() > new Date(pdf.expiresAt)) {
-    pdf.status = "expired";
-    await pdf.save();
-    throw new ApiError(410, "This document has expired and can no longer be signed");
+  if (recipient.tokenExpiresAt && new Date() > recipient.tokenExpiresAt) {
+    throw new ApiError(410, "This signing link has expired. Please ask the sender for a new one.");
+  }
+
+  if (pdf.deletedAt) {
+    throw new ApiError(410, "This document is no longer available");
   }
 
   if (pdf.status === "voided") {
     throw new ApiError(410, "This document has been voided by the sender");
   }
 
+  const stillOpen = ["pending", "partially_signed"].includes(pdf.status);
+  if (stillOpen && pdf.expiresAt && new Date() > new Date(pdf.expiresAt)) {
+    pdf.status = "expired";
+    await pdf.save();
+  }
+  if (pdf.status === "expired") {
+    throw new ApiError(410, "This document has expired and can no longer be signed");
+  }
+
   return { recipient, pdf };
+};
+
+export const isRecipientVerified = (recipient) =>
+  !recipient.authType || recipient.authType === "none" || recipient.authVerified === true;
+
+// The identity check the sender asked for must have been passed on the server, not just in the browser
+export const assertRecipientVerified = (recipient) => {
+  if (!isRecipientVerified(recipient)) {
+    throw new ApiError(403, "VERIFICATION_REQUIRED: Please complete identity verification before continuing.");
+  }
+};
+
+const assertCanAct = async (recipient, pdf, action) => {
+  if (recipient.role === "viewer") {
+    throw new ApiError(403, "Viewers cannot sign or decline this document");
+  }
+  if (recipient.status === "signed") {
+    throw new ApiError(409, action === "decline" ? "Signed documents cannot be declined" : "You have already signed this document");
+  }
+  if (recipient.status === "declined") {
+    throw new ApiError(409, "You have already declined this document");
+  }
+  if (!["pending", "partially_signed"].includes(pdf.status)) {
+    throw new ApiError(409, `This document is ${pdf.status} and can no longer be changed`);
+  }
+
+  if (pdf.signingOrder) {
+    const next = await Recipient.findOne({
+      pdfId: pdf._id,
+      role: { $ne: "viewer" },
+      status: { $ne: "signed" },
+    }).sort({ signingOrder: 1 });
+
+    if (next && next.signingOrder < recipient.signingOrder) {
+      throw new ApiError(409, "It is not your turn to sign yet. You will be notified when the earlier signers are done.");
+    }
+  }
 };
 
 export const recordRecipientView = async ({ token, ipAddress, userAgent }) => {
@@ -125,84 +183,143 @@ export const recordRecipientView = async ({ token, ipAddress, userAgent }) => {
   return { recipient, pdf };
 };
 
+const isFilled = (field) => {
+  if (field.type === "signature" || field.type === "initials") {
+    return Boolean(field.signatureUrl || field.value);
+  }
+  if (field.type === "text") {
+    return typeof field.value === "string" && field.value.trim() !== "";
+  }
+  // Dates default to the signing date; checkboxes and radios may legitimately stay empty
+  return true;
+};
+
 export const submitRecipientSignature = async ({
   token,
   filledFields,
+  consent,
+  consentVersion,
   ipAddress,
   userAgent,
 }) => {
-  const { recipient, pdf } = await getRecipientByToken(token);
-
-  if (recipient.status === "signed") {
-    throw new ApiError(400, "You have already signed this document");
+  if (consent !== true) {
+    throw new ApiError(422, "You must agree to sign electronically before completing");
   }
 
-  // 1. Mark recipient as signed
-  recipient.status = "signed";
-  recipient.signedAt = new Date();
-  recipient.ipAddress = ipAddress;
-  recipient.userAgent = userAgent;
-  await recipient.save();
+  const first = await getRecipientByToken(token);
 
-  const remainingRecipients = await Recipient.find({
-    pdfId: pdf._id,
-    status: { $ne: "signed" },
-  });
-  const isFinal = remainingRecipients.length === 0;
+  const outcome = await withDocumentLock(first.pdf._id, async () => {
+    // Re-read inside the lock: an earlier signer may have just changed the document
+    const { recipient, pdf } = await getRecipientByToken(token);
 
-  // 2. Persist updated fields to MongoDB
-  const rId = recipient._id.toString();
-  const rEmail = recipient.email.toLowerCase();
-  const rName = recipient.name.toLowerCase();
+    assertRecipientVerified(recipient);
+    await assertCanAct(recipient, pdf, "sign");
 
-  const updatedPdfFields = (pdf.fields || []).map((dbField) => {
-    const isMine =
-      (dbField.recipientId && dbField.recipientId.toString() === rId) ||
-      (dbField.recipientEmail && dbField.recipientEmail.toLowerCase() === rEmail) ||
-      (dbField.recipientName && dbField.recipientName.toLowerCase() === rName);
+    const rId = recipient._id.toString();
+    const submitted = new Map(
+      (Array.isArray(filledFields) ? filledFields : [])
+        .filter((f) => f && typeof f.id === "string")
+        .map((f) => [f.id, f])
+    );
 
-    if (isMine) {
-      const matchingFilled = (filledFields || []).find((f) => f.id === dbField.id);
-      if (matchingFilled) {
-        return {
-          ...dbField,
-          value: matchingFilled.value !== undefined ? matchingFilled.value : dbField.value,
-          signatureUrl: matchingFilled.signatureUrl || matchingFilled.value || dbField.signatureUrl,
-          signedAt: new Date(),
-          signedBy: recipient._id.toString(),
-        };
+    // 1. Merge submitted values into this signer's own fields. Ownership is by recipient id only.
+    const signedAt = new Date();
+    const updatedPdfFields = (pdf.fields || []).map((dbField) => {
+      const isMine = dbField.recipientId && dbField.recipientId.toString() === rId;
+      if (!isMine) return dbField;
+
+      const incoming = submitted.get(dbField.id);
+      if (!incoming) return dbField;
+
+      const isImageField = dbField.type === "signature" || dbField.type === "initials";
+      const value =
+        typeof incoming.value === "string" || typeof incoming.value === "boolean" ? incoming.value : dbField.value;
+      const signatureUrl = isImageField
+        ? (typeof incoming.signatureUrl === "string" && incoming.signatureUrl) ||
+          (typeof incoming.value === "string" && incoming.value) ||
+          dbField.signatureUrl
+        : dbField.signatureUrl;
+
+      return {
+        ...dbField,
+        value,
+        signatureUrl,
+        checked: typeof incoming.checked === "boolean" ? incoming.checked : dbField.checked,
+        signedAt,
+        signedBy: rId,
+      };
+    });
+
+    const myFields = updatedPdfFields.filter((f) => f.recipientId && f.recipientId.toString() === rId);
+
+    const missing = myFields.filter((f) => f.required !== false && !isFilled(f));
+    if (missing.length > 0) {
+      throw new ApiError(
+        422,
+        `Please complete all required fields (${missing.length} remaining)`,
+        missing.map((f) => ({ field: f.id, message: "Required" }))
+      );
+    }
+
+    const remaining = await Recipient.countDocuments({
+      pdfId: pdf._id,
+      _id: { $ne: recipient._id },
+      role: { $ne: "viewer" },
+      status: { $ne: "signed" },
+    });
+    const isFinal = remaining === 0;
+
+    // 2. Stamp the PDF first. If this throws, nothing below runs and the signer stays unsigned.
+    await signPdf({
+      pdfId: pdf._id,
+      userId: pdf.userId,
+      recipientId: recipient._id,
+      actorName: recipient.name,
+      actorEmail: recipient.email,
+      fields: myFields,
+      ipAddress,
+      userAgent,
+      consentVersion: consentVersion || CONSENT_VERSION,
+      isFinalCompletion: isFinal,
+    });
+
+    // 3. Only now record the signature and the consent that came with it
+    recipient.status = "signed";
+    recipient.signedAt = signedAt;
+    recipient.ipAddress = ipAddress;
+    recipient.userAgent = userAgent;
+    recipient.consent = {
+      accepted: true,
+      version: consentVersion || CONSENT_VERSION,
+      acceptedAt: signedAt,
+      ipAddress,
+      userAgent,
+    };
+    await recipient.save();
+
+    pdf.fields = updatedPdfFields;
+    pdf.markModified("fields");
+    pdf.status = isFinal ? "signed" : "partially_signed";
+    await pdf.save();
+
+    if (isFinal) {
+      // Completed copies stay downloadable from every signer's link for a further period
+      await Recipient.updateMany({ pdfId: pdf._id }, { $set: { tokenExpiresAt: newTokenExpiry() } });
+
+      // Attach the signing record and seal the file. The signature above already stands, so a
+      // sealing failure is logged and retried in the background rather than failing the signer.
+      try {
+        await sealDocument(pdf._id);
+      } catch (err) {
+        console.error("Sealing failed, will retry:", err.message);
+        await enqueueJob("document.seal", { pdfId: pdf._id.toString() }, { idempotencyKey: `seal:${pdf._id}` });
       }
     }
-    return dbField;
+
+    return { recipient, pdf, isFinal };
   });
 
-  pdf.fields = updatedPdfFields;
-  pdf.markModified("fields");
-  if (!isFinal && pdf.status === "pending") {
-    pdf.status = "partially_signed";
-  }
-  await pdf.save();
-
-  // 3. Burn ONLY this recipient's filled fields into the PDF layer
-  const recipientFieldsToBurn = (updatedPdfFields || []).filter((f) => {
-    const isMine =
-      (f.recipientId && f.recipientId.toString() === rId) ||
-      (f.recipientEmail && f.recipientEmail.toLowerCase() === rEmail) ||
-      (f.recipientName && f.recipientName.toLowerCase() === rName);
-    return isMine;
-  });
-
-  await signPdf({
-    pdfId: pdf._id,
-    userId: pdf.userId,
-    recipientId: recipient._id,
-    actorName: recipient.name,
-    actorEmail: recipient.email,
-    fields: recipientFieldsToBurn,
-    ipAddress,
-    userAgent,
-    isFinalCompletion: isFinal,
-  });
+  const { recipient, pdf, isFinal } = outcome;
 
   // Emit DOCUMENT_SIGNED event for this recipient
   await eventBus.emitEvent(EventTypes.DOCUMENT_SIGNED, {
@@ -223,12 +340,7 @@ export const submitRecipientSignature = async ({
 
   // 4. Sequential workflow trigger or complete notification
   if (isFinal) {
-    pdf.status = "signed";
-    await pdf.save();
-
     const allRecipients = await Recipient.find({ pdfId: pdf._id });
-    const signedFileName = path.basename(pdf.storagePath).replace(/\.pdf$/i, "-signed.pdf");
-    const downloadUrl = `/uploads/${pdf.userId}/${signedFileName}`;
 
     // Emit completed event
     await eventBus.emitEvent(EventTypes.DOCUMENT_COMPLETED, {
@@ -243,13 +355,13 @@ export const submitRecipientSignature = async ({
       payload: {
         pdf,
         recipients: allRecipients,
-        downloadUrl,
       },
     });
   } else if (pdf.signingOrder) {
     // If sequential, dispatch email to the NEXT signer in order
     const nextRecipient = await Recipient.findOne({
       pdfId: pdf._id,
+      role: { $ne: "viewer" },
       status: "pending",
     }).sort({ signingOrder: 1 });
 
@@ -296,9 +408,8 @@ export const declineRecipientSignature = async ({
 }) => {
   const { recipient, pdf } = await getRecipientByToken(token);
 
-  if (recipient.status === "signed") {
-    throw new ApiError(400, "Signed documents cannot be declined");
-  }
+  assertRecipientVerified(recipient);
+  await assertCanAct(recipient, pdf, "decline");
 
   recipient.status = "declined";
   recipient.declineReason = reason || "Declined by signer";
@@ -355,7 +466,7 @@ export const updateRecipientEmailService = async ({
   ipAddress = "",
   userAgent = "",
 }) => {
-  if (!newEmail || !newEmail.includes("@")) {
+  if (typeof newEmail !== "string" || !newEmail.includes("@")) {
     throw new ApiError(400, "Valid email address is required");
   }
 
@@ -380,13 +491,18 @@ export const updateRecipientEmailService = async ({
 
   const oldEmail = recipient.email;
   recipient.email = cleanEmail;
-  recipient.token = uuidv4();
+  // A new address gets a new link and must pass the identity check again
+  recipient.token = randomToken();
+  recipient.tokenExpiresAt = newTokenExpiry();
+  recipient.authVerified = recipient.authType === "none";
+  recipient.authVerifiedAt = undefined;
+  recipient.authMethod = "email_link";
   recipient.status = "sent";
   await recipient.save();
 
   if (Array.isArray(pdf.fields)) {
     pdf.fields = pdf.fields.map((f) => {
-      if (f.recipientId?.toString() === recipient._id.toString() || f.recipientEmail?.toLowerCase() === oldEmail) {
+      if (f.recipientId?.toString() === recipient._id.toString()) {
         return { ...f, recipientEmail: cleanEmail };
       }
       return f;

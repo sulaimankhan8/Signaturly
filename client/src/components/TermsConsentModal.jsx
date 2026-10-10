@@ -98,7 +98,7 @@ export default function TermsConsentModal() {
           {/* Section 3 */}
           <div className="space-y-1.5">
             <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-              <span className="text-yellow-400 font-mono">3.</span> Immutable Audit Trail & Metadata Logging Authorization
+              <span className="text-yellow-400 font-mono">3.</span> Audit Trail & Metadata Logging Authorization
             </h3>
             <p>
               You authorize Signaturly Pro to log, capture, hash, and cryptographically bind transaction metadata to every executed document, including but not limited to your IP address, browser user-agent string, exact UTC timestamps, email verification logs, and pre/post-execution SHA-256 document checksums. This metadata forms a permanent, tamper-evident legal Audit Certificate appended to executed files.

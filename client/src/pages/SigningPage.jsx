@@ -10,8 +10,6 @@ import {
 } from "../api/signing.api";
 import toast, { Toaster } from "react-hot-toast";
 import { OtpVerificationModal } from "../components/OtpVerificationModal";
-import { AdInterstitialModal } from "../components/ads/AdInterstitialModal";
-import { AdBanner } from "../components/ads/AdBanner";
 
 export default function SigningPage() {
   const { token } = useParams();
@@ -32,6 +30,7 @@ export default function SigningPage() {
   const [declineReason, setDeclineReason] = useState("");
   const [signatureModalOpen, setSignatureModalOpen] = useState(false);
   const [hasElectronicConsent, setHasElectronicConsent] = useState(false);
+  const [sessionVersion, setSessionVersion] = useState(0);
 
   const [activeSignatureUrl, setActiveSignatureUrl] = useState("");
   const [activeInitialsUrl, setActiveInitialsUrl] = useState("");
@@ -87,6 +86,9 @@ export default function SigningPage() {
         if (data.recipient.status === "signed") {
           setIsCompleted(true);
         }
+        if (data.recipient.status === "declined") {
+          setIsDeclined(true);
+        }
       } catch (err) {
         console.error("Error loading signing session:", err);
         setError(
@@ -99,7 +101,8 @@ export default function SigningPage() {
     };
 
     loadSession();
-  }, [token]);
+    // Reloaded after identity verification and after signing, so the page shows what the server now allows
+  }, [token, sessionVersion]);
 
   const handlePageRender = ({ width, height }) => {
     setPageDims({ width, height });
@@ -223,13 +226,15 @@ export default function SigningPage() {
     let toastId = null;
     try {
       setIsSubmitting(true);
-      toastId = toast.loading("Cryptographically sealing your signature into the document...");
+      toastId = toast.loading("Adding your signature to the document...");
 
-      await submitPublicSignatureApi(token, filledFields);
+      await submitPublicSignatureApi(token, filledFields, hasElectronicConsent, session?.consentVersion);
 
       if (toastId) toast.dismiss(toastId);
-      toast.success("Document legally signed and executed!");
+      toast.success("Document signed.");
       setIsCompleted(true);
+      // Fetch the session again so the download link points at the signed copy
+      setSessionVersion((v) => v + 1);
     } catch (err) {
       if (toastId) toast.dismiss(toastId);
       console.error("Error submitting signature:", err);
@@ -313,17 +318,17 @@ export default function SigningPage() {
           </div>
           <div>
             <h2 className="text-2xl font-display font-bold text-white">
-              Legally Signed &amp; Executed!
+              Document Signed
             </h2>
             <p className="text-xs text-gray-400 mt-2 leading-relaxed">
-              Thank you, <strong className="text-white">{session?.recipient.name}</strong>. Your electronic signature is cryptographically bound to this document under Section 10A of the Indian IT Act 2000 &amp; US ESIGN standards.
+              Thank you, <strong className="text-white">{session?.recipient.name}</strong>. Your electronic signature and your consent to sign electronically have been recorded with this document.
             </p>
           </div>
 
           <div className="bg-[#08090d] p-4 rounded-xl border border-white/10 text-xs text-gray-300 text-left space-y-1">
             <p className="text-[10px] uppercase font-bold text-gray-500">Executed Agreement</p>
             <p className="text-white font-semibold">{session?.document.originalFileName}</p>
-            <p className="text-[11px] text-emerald-400 mt-1 font-mono">Sealed at {new Date().toLocaleString()}</p>
+            <p className="text-[11px] text-emerald-400 mt-1 font-mono">Signed at {new Date().toLocaleString()}</p>
           </div>
 
           <div className="flex flex-col gap-2 pt-2">
@@ -341,12 +346,6 @@ export default function SigningPage() {
             </a>
           </div>
 
-          {/* Post-Signing Ad Banner for Free Envelopes */}
-          {session?.monetization?.showAds !== false && (
-            <div className="pt-2 text-left">
-              <AdBanner compact={true} />
-            </div>
-          )}
         </div>
       </div>
     );
@@ -360,7 +359,7 @@ export default function SigningPage() {
         recipientEmail={session?.recipient?.email}
         documentTitle={session?.document?.originalFileName}
         authType={session?.recipient?.authType}
-        onVerified={() => setIsOtpVerified(true)}
+        onVerified={() => setSessionVersion((v) => v + 1)}
       />
     );
   }
@@ -370,14 +369,6 @@ export default function SigningPage() {
   return (
     <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans flex flex-col selection:bg-red-600 selection:text-white">
       <Toaster position="top-right" />
-
-      {/* Pre-Signing 10s Sponsor Interstitial Gate for Free Documents */}
-      {session?.monetization?.showAds !== false && (
-        <AdInterstitialModal
-          documentName={session?.document?.originalFileName}
-          show={true}
-        />
-      )}
 
       {/* Header */}
       <header className="bg-[#08090d]/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">

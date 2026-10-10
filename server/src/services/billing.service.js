@@ -2,6 +2,7 @@ import { Subscription } from "../models/Subscription.model.js";
 import { User } from "../models/User.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { upgradeUserPlan } from "./subscription.service.js";
+import { env } from "../config/env.js";
 
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY;
 const RAZORPAY_KEY = process.env.RAZORPAY_KEY_ID;
@@ -43,9 +44,13 @@ export const PLAN_CONFIG = {
  * Otherwise, seamlessly generates a Dev Simulation Session.
  */
 export const createCheckoutSession = async ({ userId, plan, gateway = "stripe" }) => {
-  const planInfo = PLAN_CONFIG[plan];
+  const planInfo = Object.prototype.hasOwnProperty.call(PLAN_CONFIG, plan) ? PLAN_CONFIG[plan] : null;
   if (!planInfo) {
     throw new ApiError(400, "Invalid plan specified for checkout");
+  }
+
+  if (!env.billingEnabled) {
+    throw new ApiError(503, "BILLING_UNAVAILABLE: Paid plans are not available yet.");
   }
 
   const user = await User.findById(userId);
@@ -96,11 +101,19 @@ export const createCheckoutSession = async ({ userId, plan, gateway = "stripe" }
         sessionId: session.id,
       };
     } catch (err) {
-      console.warn("⚠️ [Billing] Stripe checkout failed, falling back to simulation:", err.message);
+      console.error("[Billing] Stripe checkout failed:", err.message);
+      // A gateway failure is an error. It never turns into a free upgrade.
+      if (!env.devBillingSimulation) {
+        throw new ApiError(502, "The payment provider could not start checkout. Please try again.");
+      }
     }
   }
 
-  // 2. Dev Simulation / Zero-Credential Fallback Mode
+  if (!env.devBillingSimulation) {
+    throw new ApiError(503, "BILLING_UNAVAILABLE: No payment provider is configured.");
+  }
+
+  // 2. Development-only simulation (never reachable in production)
   return {
     isMock: true,
     gateway: "mock_simulation",

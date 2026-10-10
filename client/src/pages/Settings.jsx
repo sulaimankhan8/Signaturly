@@ -111,8 +111,8 @@ export default function Settings() {
       toast.error("New passwords do not match");
       return;
     }
-    if (newPassword.length < 6) {
-      toast.error("New password must be at least 6 characters long");
+    if (newPassword.length < 10) {
+      toast.error("New password must be at least 10 characters long");
       return;
     }
 

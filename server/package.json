@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "node src/scripts/verify-v2-features.js && node src/scripts/verify-lifecycle.js",
+    "test": "vitest run",
     "test:v2": "node src/scripts/verify-v2-features.js",
     "test:lifecycle": "node src/scripts/verify-lifecycle.js",
     "verify": "node src/scripts/verify-v2-features.js",
@@ -17,13 +17,20 @@
     "nuke": "node src/scripts/nuke-db.js",
     "nuke-db": "node src/scripts/nuke-db.js",
     "db:nuke": "node src/scripts/nuke-db.js",
-    "wipe": "node src/scripts/nuke-db.js"
+    "wipe": "node src/scripts/nuke-db.js",
+    "test:watch": "vitest",
+    "test:legacy": "node src/scripts/verify-v2-features.js && node src/scripts/verify-lifecycle.js",
+    "seal:generate": "node src/scripts/generate-seal-certificate.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@google-cloud/storage": "^8.0.1",
+    "@signpdf/placeholder-pdf-lib": "^3.3.0",
+    "@signpdf/signer-p12": "^3.3.0",
+    "@signpdf/signpdf": "^3.3.0",
+    "@signpdf/utils": "^3.3.0",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "cloudinary": "^2.8.0",
@@ -32,15 +39,23 @@
     "crypto": "^1.0.1",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.0.2",
     "multer": "^2.0.2",
     "node-cron": "^4.6.0",
+    "node-forge": "^1.4.0",
     "nodemailer": "^9.0.5",
     "pdf-lib": "^1.17.1",
-    "uuid": "^14.0.1"
+    "qrcode": "^1.5.4",
+    "uuid": "^14.0.1",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "mongodb-memory-server": "^11.3.0",
+    "nodemon": "^3.1.11",
+    "supertest": "^7.3.1",
+    "vitest": "^5.0.3"
   }
 }

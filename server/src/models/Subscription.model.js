@@ -73,6 +73,15 @@ const subscriptionSchema = new mongoose.Schema(
       type: String,
       default: "USD",
     },
+    // Plans granted by an administrator, with who granted them
+    adminGrants: [
+      {
+        _id: false,
+        adminId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        plan: { type: String },
+        at: { type: Date, default: Date.now },
+      },
+    ],
     billingCycleAnchor: {
       type: Date,
       default: Date.now,

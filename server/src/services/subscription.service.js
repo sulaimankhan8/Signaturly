@@ -1,6 +1,7 @@
 import { Subscription } from "../models/Subscription.model.js";
 import { Workspace } from "../models/Workspace.model.js";
 import { ApiError } from "../utils/ApiError.js";
+import { env } from "../config/env.js";
 
 const PLAN_QUOTAS = {
   free: 15,
@@ -39,8 +40,18 @@ export const getOrCreateSubscription = async (userId) => {
   if (sub.plan !== "free" && sub.currentPeriodEnd) {
     const periodEndDate = new Date(sub.currentPeriodEnd);
 
-    // Period ended -> Enter 3-Day Grace Period
-    if (now > periodEndDate && sub.status === "active") {
+    // Cancelled earlier, and the time they paid for has now run out
+    if (now > periodEndDate && sub.cancelAtPeriodEnd) {
+      sub.previousPlan = sub.plan;
+      sub.plan = "free";
+      sub.status = "canceled";
+      sub.monthlyQuota = PLAN_QUOTAS.free;
+      sub.cancelAtPeriodEnd = false;
+      await sub.save();
+    }
+
+    // Period ended with no renewal reported -> enter the 3-day grace period
+    if (sub.plan !== "free" && now > periodEndDate && sub.status === "active") {
       sub.status = "past_due";
       sub.gracePeriodEnd = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days grace
       await sub.save();
@@ -92,6 +103,34 @@ export const incrementUsage = async (userId, count = 1) => {
   sub.usedThisMonth += count;
   await sub.save();
   return sub;
+};
+
+/**
+ * Checks the allowance and counts the documents in one database step,
+ * so parallel sends can never go past the limit.
+ */
+export const reserveQuota = async (userId, count = 1) => {
+  const sub = await getOrCreateSubscription(userId); // applies monthly reset and expiry first
+
+  const filter = { _id: sub._id };
+  if (sub.plan === "free") {
+    filter.$expr = { $lte: [{ $add: ["$usedThisMonth", count] }, "$monthlyQuota"] };
+  }
+
+  const updated = await Subscription.findOneAndUpdate(filter, { $inc: { usedThisMonth: count } }, { new: true });
+  if (!updated) {
+    throw new ApiError(
+      403,
+      `Monthly document quota exceeded (${sub.usedThisMonth}/${sub.monthlyQuota} used). Please upgrade for more documents.`
+    );
+  }
+  return updated;
+};
+
+// Gives back documents that were counted but not sent
+export const releaseQuota = async (userId, count = 1) => {
+  if (count <= 0) return;
+  await Subscription.updateOne({ userId, usedThisMonth: { $gte: count } }, { $inc: { usedThisMonth: -count } });
 };
 
 export const upgradeUserPlan = async (userId, newPlan, metadata = {}) => {
@@ -196,6 +235,10 @@ export const processSubscriptionLifecycle = async () => {
 
 // Developer simulation mode: instant upgrade for local dev testing
 export const devMockUpgrade = async (userId, plan) => {
+  if (!env.devBillingSimulation) {
+    throw new ApiError(404, "Not found");
+  }
+
   if (!["free", "pro_monthly", "pro_annual", "lifetime", "enterprise"].includes(plan)) {
     throw new ApiError(400, "Invalid subscription plan specified");
   }

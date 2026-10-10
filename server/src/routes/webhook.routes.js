@@ -7,8 +7,11 @@ import {
 
 const router = Router();
 
-// Stripe webhook receives raw body or JSON
-router.post("/stripe", express.raw({ type: "application/json" }), handleStripeWebhookController);
-router.post("/razorpay", express.json(), handleRazorpayWebhookController);
+// Signatures are computed over the exact bytes sent, so both routes take the raw body.
+// This router is mounted in app.js before express.json().
+const rawJson = express.raw({ type: () => true, limit: "1mb" });
+
+router.post("/stripe", rawJson, handleStripeWebhookController);
+router.post("/razorpay", rawJson, handleRazorpayWebhookController);
 
 export default router;

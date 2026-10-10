@@ -1,11 +1,21 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import API from "../api/axios";
 import toast, { Toaster } from "react-hot-toast";
 import Navbar from "../components/Navbar";
 
+// What the matched hash tells the reader about the file they hold
+const FILE_STATUS_TEXT = {
+  sealed_copy: "This is the sealed final copy, exactly as it was issued.",
+  final_signed_version: "This is the final signed copy, before the signing record and seal were added.",
+  earlier_signed_version: "This is an earlier version, signed by some but not all parties.",
+  original_upload: "This is the original document, before anyone signed it.",
+  recorded_hash: "This hash is recorded in the document's audit log.",
+};
+
 export default function PublicVerify() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [file, setFile] = useState(null);
   const [hash, setHash] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,10 +24,12 @@ export default function PublicVerify() {
   const [activeLedgerTab, setActiveLedgerTab] = useState("timeline"); // timeline | signers | legal | raw
   const [isDragOver, setIsDragOver] = useState(false);
 
-  const handleVerify = async (e) => {
+  // `hashOverride` is used when the page is opened from the QR code on a signing record
+  const handleVerify = async (e, hashOverride) => {
     if (e) e.preventDefault();
-    const cleanHashString = hash.trim().replace(/[\r\n\t]/g, "");
-    if (!file && !cleanHashString) {
+    const useFile = hashOverride ? null : file;
+    const cleanHashString = (hashOverride ?? hash).trim().replace(/[\r\n\t]/g, "");
+    if (!useFile && !cleanHashString) {
       setError("Please select a PDF file or paste a SHA-256 hash string.");
       return;
     }
@@ -28,19 +40,19 @@ export default function PublicVerify() {
       setResult(null);
 
       const formData = new FormData();
-      if (file) {
-        formData.append("file", file);
+      if (useFile) {
+        formData.append("file", useFile);
       } else {
         formData.append("hash", cleanHashString);
       }
 
       const res = await API.post("/verify/document", formData, {
-        headers: file ? { "Content-Type": "multipart/form-data" } : {},
+        headers: useFile ? { "Content-Type": "multipart/form-data" } : {},
       });
 
       setResult(res.data);
       if (res.data?.isAuthentic) {
-        toast.success("Document cryptographic authenticity verified!");
+        toast.success("Document found in our records.");
       }
     } catch (err) {
       setError(err.response?.data?.error || "Document verification failed.");
@@ -49,6 +61,16 @@ export default function PublicVerify() {
       setLoading(false);
     }
   };
+
+  // Opened with ?hash=... (the QR code on a signing record): check that hash straight away
+  useEffect(() => {
+    const fromLink = searchParams.get("hash");
+    if (fromLink && /^[a-fA-F0-9]{64}$/.test(fromLink)) {
+      setHash(fromLink);
+      handleVerify(null, fromLink);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCopy = (text, label = "Hash") => {
     navigator.clipboard.writeText(text);
@@ -96,13 +118,13 @@ export default function PublicVerify() {
         <div className="text-center space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-950/50 border border-red-500/30 text-red-400 text-xs font-mono font-bold uppercase tracking-wider">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-            Immutable Blockchain Ledger Validator
+            Document Verification
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight font-display">
             Verify Document Authenticity & Custody
           </h1>
           <p className="text-sm text-gray-400 max-w-2xl mx-auto leading-relaxed">
-            Upload any executed agreement, signed PDF, or audit certificate—or paste its SHA-256 cryptographic digest to audit the complete blockchain lifecycle against the immutable vault.
+            Upload any executed agreement, signed PDF, or audit certificate—or paste its SHA-256 cryptographic digest to check it against our signing records.
           </p>
         </div>
 
@@ -287,22 +309,41 @@ export default function PublicVerify() {
                             : "bg-red-950 text-red-300 border-red-800"
                         }`}
                       >
-                        {result.isAuthentic ? "Cryptographic Ledger Verified" : "Tampered / Unrecognized"}
+                        {result.isAuthentic ? "Found in our records" : "Not recognised"}
                       </span>
                       <span className="text-xs text-gray-400 font-mono">
-                        {result.totalEvents || 0} Ledger Blocks
+                        {result.totalEvents || 0} audit entries
                       </span>
                     </div>
                     <h2 className="text-2xl font-black text-white mt-1">
                       {result.isAuthentic
-                        ? "Document Authenticity & Custody Verified"
+                        ? "Document verified"
                         : "Document Verification Failed"}
                     </h2>
                     <p className="text-xs text-gray-300 mt-1 max-w-2xl">
                       {result.isAuthentic
-                        ? "The cryptographic hash matches an authentic executed agreement in our immutable ledger. The cryptographic Merkle hash chain is intact and legally binding."
+                        ? FILE_STATUS_TEXT[result.fileStatus] || "This hash matches a document in our records."
                         : result.reason}
                     </p>
+                    {result.isAuthentic && (
+                      <ul className="text-xs text-gray-300 mt-2 space-y-1 list-disc list-inside">
+                        {result.seal?.present && (
+                          <li>
+                            {result.seal.intact && result.seal.issuedByThisService
+                              ? "Certificate seal: valid. The file has not changed since it was sealed."
+                              : "Certificate seal: present, but not valid for this file."}
+                          </li>
+                        )}
+                        {!result.seal?.present && result.isSealed && (
+                          <li>A sealed final copy exists. Ask a signing party for it to check the seal itself.</li>
+                        )}
+                        <li>
+                          {result.chainIntegrity?.isChainValid
+                            ? "Audit log: every entry is intact."
+                            : "Audit log: could not be confirmed."}
+                        </li>
+                      </ul>
+                    )}
                   </div>
                 </div>
 
@@ -400,10 +441,10 @@ export default function PublicVerify() {
               {/* Tab Navigation */}
               <div className="flex bg-[#090b12] p-1.5 rounded-2xl border border-white/10 overflow-x-auto">
                 {[
-                  { id: "timeline", label: `Blockchain Ledger (${result.ledgerChain?.length || 0} Events)` },
+                  { id: "timeline", label: `Audit Trail (${result.ledgerChain?.length || 0} Events)` },
                   { id: "signers", label: `Signers Attribution (${result.signers?.length || 0})` },
                   { id: "legal", label: "Legal Compliance & Statutes" },
-                  { id: "raw", label: "Merkle Proofs JSON" },
+                  { id: "raw", label: "Raw Audit Data" },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -419,7 +460,7 @@ export default function PublicVerify() {
                 ))}
               </div>
 
-              {/* Tab 1: Step-by-Step Merkle Blockchain Timeline */}
+              {/* Tab 1: Step-by-step audit timeline */}
               {activeLedgerTab === "timeline" && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -427,10 +468,10 @@ export default function PublicVerify() {
                       <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
-                      Immutable Merkle Event Chain Progression
+                      Audit Event Chain
                     </h3>
                     <span className="text-[11px] font-mono text-emerald-400 bg-emerald-950/60 px-2.5 py-1 rounded-lg border border-emerald-800/40">
-                      ✓ 100% Tamper-Proof
+                      ✓ Hash chain verified
                     </span>
                   </div>
 
@@ -578,7 +619,7 @@ export default function PublicVerify() {
                 </div>
               )}
 
-              {/* Tab 4: Raw Merkle JSON Export */}
+              {/* Tab 4: Raw JSON export */}
               {activeLedgerTab === "raw" && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">

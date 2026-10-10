@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { env } from "../config/env.js";
+import { buildSignedFileUrl } from "../utils/fileUrl.js";
 
 let gcsBucket = null;
 
@@ -23,6 +24,53 @@ const getGcsBucket = async () => {
   }
 };
 
+const uploadsRoot = () => path.resolve(env.uploadsDir);
+
+/**
+ * Turns a stored path (relative key, absolute local path, or gs:// URI) into a safe relative key.
+ * Throws on anything that could escape the storage root.
+ */
+export const normalizeKey = (input) => {
+  if (typeof input !== "string" || !input || input.includes("\0")) {
+    throw new Error("Invalid storage key");
+  }
+
+  let key = input.replace(/\\/g, "/");
+
+  const gcsPrefix = `gs://${env.gcsBucketName}/`;
+  const rootPrefix = `${uploadsRoot().replace(/\\/g, "/")}/`;
+  if (key.startsWith(gcsPrefix)) {
+    key = key.substring(gcsPrefix.length);
+  } else if (key.startsWith(rootPrefix)) {
+    key = key.substring(rootPrefix.length);
+  } else if (key.includes("uploads/")) {
+    key = key.substring(key.indexOf("uploads/") + 8);
+  }
+
+  key = key.replace(/^\/+/, "");
+
+  const segments = key.split("/");
+  if (
+    !key ||
+    /^[a-zA-Z]:/.test(key) ||
+    key.includes("://") ||
+    segments.some((s) => s === "" || s === "." || s === "..")
+  ) {
+    throw new Error("Invalid storage key");
+  }
+
+  return key;
+};
+
+const localPathFor = (key) => {
+  const root = uploadsRoot();
+  const resolved = path.resolve(root, key);
+  if (resolved !== root && !resolved.startsWith(root + path.sep)) {
+    throw new Error("Invalid storage key");
+  }
+  return resolved;
+};
+
 /**
  * Save file buffer to GCS or local disk
  * @param {string} relativePath - Relative path/key e.g. "userId/filename.pdf"
@@ -30,8 +78,7 @@ const getGcsBucket = async () => {
  * @param {string} mimeType - MIME type e.g. "application/pdf"
  */
 export const saveFile = async (relativePath, buffer, mimeType = "application/pdf") => {
-  // Normalize path
-  const normalizedKey = relativePath.replace(/\\/g, "/").replace(/^\/+/, "");
+  const normalizedKey = normalizeKey(relativePath);
 
   if (env.storageProvider === "gcs") {
     const bucket = await getGcsBucket();
@@ -44,12 +91,8 @@ export const saveFile = async (relativePath, buffer, mimeType = "application/pdf
     });
     return `gs://${env.gcsBucketName}/${normalizedKey}`;
   } else {
-    // Local filesystem storage
-    const localPath = path.resolve("uploads", normalizedKey);
-    const dir = path.dirname(localPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+    const localPath = localPathFor(normalizedKey);
+    await fs.promises.mkdir(path.dirname(localPath), { recursive: true });
     await fs.promises.writeFile(localPath, buffer);
     return localPath;
   }
@@ -60,12 +103,7 @@ export const saveFile = async (relativePath, buffer, mimeType = "application/pdf
  * @param {string} relativePath - Relative path/key e.g. "userId/filename.pdf" or full storagePath
  */
 export const readFile = async (relativePath) => {
-  // Normalize key
-  let normalizedKey = relativePath.replace(/\\/g, "/");
-  if (normalizedKey.includes("uploads/")) {
-    normalizedKey = normalizedKey.substring(normalizedKey.indexOf("uploads/") + 8);
-  }
-  normalizedKey = normalizedKey.replace(/^\/+/, "");
+  const normalizedKey = normalizeKey(relativePath);
 
   if (env.storageProvider === "gcs") {
     const bucket = await getGcsBucket();
@@ -77,12 +115,7 @@ export const readFile = async (relativePath) => {
     const [buffer] = await file.download();
     return buffer;
   } else {
-    // Local filesystem storage
-    let localPath = path.resolve("uploads", normalizedKey);
-    if (fs.existsSync(relativePath) && fs.statSync(relativePath).isFile()) {
-      localPath = relativePath;
-    }
-    return await fs.promises.readFile(localPath);
+    return await fs.promises.readFile(localPathFor(normalizedKey));
   }
 };
 
@@ -91,11 +124,12 @@ export const readFile = async (relativePath) => {
  * @param {string} relativePath - Relative path/key
  */
 export const fileExists = async (relativePath) => {
-  let normalizedKey = relativePath.replace(/\\/g, "/");
-  if (normalizedKey.includes("uploads/")) {
-    normalizedKey = normalizedKey.substring(normalizedKey.indexOf("uploads/") + 8);
+  let normalizedKey;
+  try {
+    normalizedKey = normalizeKey(relativePath);
+  } catch {
+    return false;
   }
-  normalizedKey = normalizedKey.replace(/^\/+/, "");
 
   if (env.storageProvider === "gcs") {
     try {
@@ -107,8 +141,12 @@ export const fileExists = async (relativePath) => {
       return false;
     }
   } else {
-    const localPath = path.resolve("uploads", normalizedKey);
-    return fs.existsSync(localPath) || (fs.existsSync(relativePath) && fs.statSync(relativePath).isFile());
+    try {
+      const stat = await fs.promises.stat(localPathFor(normalizedKey));
+      return stat.isFile();
+    } catch {
+      return false;
+    }
   }
 };
 
@@ -117,11 +155,12 @@ export const fileExists = async (relativePath) => {
  * @param {string} relativePath - Relative path/key
  */
 export const deleteFile = async (relativePath) => {
-  let normalizedKey = relativePath.replace(/\\/g, "/");
-  if (normalizedKey.includes("uploads/")) {
-    normalizedKey = normalizedKey.substring(normalizedKey.indexOf("uploads/") + 8);
+  let normalizedKey;
+  try {
+    normalizedKey = normalizeKey(relativePath);
+  } catch {
+    return;
   }
-  normalizedKey = normalizedKey.replace(/^\/+/, "");
 
   if (env.storageProvider === "gcs") {
     try {
@@ -132,44 +171,19 @@ export const deleteFile = async (relativePath) => {
       console.warn("GCS delete warning:", e.message);
     }
   } else {
-    const localPath = path.resolve("uploads", normalizedKey);
-    if (fs.existsSync(localPath)) {
-      try {
-        fs.unlinkSync(localPath);
-      } catch (e) {
-        console.warn("Local delete warning:", e.message);
-      }
+    try {
+      await fs.promises.unlink(localPathFor(normalizedKey));
+    } catch (e) {
+      if (e.code !== "ENOENT") console.warn("Local delete warning:", e.message);
     }
   }
 };
 
 /**
- * Generate secure download URL for client
+ * Generate a short-lived download link for the client.
+ * Always a signed /uploads link, so the API checks every read whatever the storage provider.
  * @param {string} relativePath - Relative path/key
  */
-export const getFileUrl = async (relativePath) => {
-  let normalizedKey = relativePath.replace(/\\/g, "/");
-  if (normalizedKey.includes("uploads/")) {
-    normalizedKey = normalizedKey.substring(normalizedKey.indexOf("uploads/") + 8);
-  }
-  normalizedKey = normalizedKey.replace(/^\/+/, "");
-
-  if (env.storageProvider === "gcs") {
-    try {
-      const bucket = await getGcsBucket();
-      const file = bucket.file(normalizedKey);
-      const expiresMs = Date.now() + (env.gcsSignedUrlExpires || 900) * 1000;
-      const [signedUrl] = await file.getSignedUrl({
-        version: "v4",
-        action: "read",
-        expires: expiresMs,
-      });
-      return signedUrl;
-    } catch (e) {
-      console.error("GCS signed URL generation failed, falling back to proxy URL:", e);
-      return `/uploads/${normalizedKey}`;
-    }
-  }
-
-  return `/uploads/${normalizedKey}`;
+export const getFileUrl = async (relativePath, ttlSeconds) => {
+  return buildSignedFileUrl(normalizeKey(relativePath), ttlSeconds);
 };

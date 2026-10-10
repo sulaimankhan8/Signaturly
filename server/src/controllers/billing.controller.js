@@ -1,4 +1,5 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { env } from "../config/env.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import {
   getOrCreateSubscription,
@@ -19,6 +20,8 @@ export const getSubscriptionController = asyncHandler(async (req, res) => {
       {
         subscription,
         availablePlans: PLAN_CONFIG,
+        billingEnabled: env.billingEnabled,
+        devSimulation: env.devBillingSimulation,
       },
       "Subscription details retrieved successfully"
     )

@@ -23,14 +23,44 @@ const userSchema = new mongoose.Schema({
         select: false,
     },
 
-    refreshToken:{
+    // SHA-256 of the current refresh token; the token itself is never stored
+    refreshTokenHash:{
         type: String,
+        select: false,
+    },
+    // The token replaced by the last rotation stays usable for a few seconds,
+    // so two tabs refreshing at once do not sign the user out
+    previousRefreshTokenHash:{
+        type: String,
+        select: false,
+    },
+    refreshRotatedAt:{
+        type: Date,
         select: false,
     },
 
     role:{
         type: String,
         default: "user"
+    },
+
+    // Accounts created before email verification existed have no value here and are treated as verified
+    emailVerified:{
+        type: Boolean,
+    },
+    emailVerifyTokenHash:{
+        type: String,
+        select: false,
+    },
+    emailVerifyExpiresAt:{
+        type: Date,
+        select: false,
+    },
+
+    // Set when the account is closed; the profile is anonymised at the same moment
+    deletedAt:{
+        type: Date,
+        default: null,
     },
 
     termsAccepted:{
@@ -71,8 +101,8 @@ userSchema.methods.generateRefreshToken = function () {
   return jwt.sign(
     { id: this._id },
     env.refreshSecret,
-    { expiresIn: "30d" }
+    { expiresIn: "30d", jwtid: new mongoose.Types.ObjectId().toString() }
   );
 };
 
-export const User = mongoose.model("User", userSchema); 
+export const User = mongoose.model("User", userSchema);

@@ -9,14 +9,8 @@ import {
   getAuditCertificatePdfController,
 } from "../controllers/pdf.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
-import { registerSseClient } from "../services/sse.service.js";
 
 const router = Router();
-
-// Fallback SSE stream (optional backward-compatibility)
-router.get("/events", protect, (req, res) => {
-  registerSseClient(req.user.id, req, res);
-});
 
 // Lightweight Delta Sync Endpoint (Zero-Idle-Cost on Cloud Run)
 router.get("/sync/updates", protect, syncUpdatesController);

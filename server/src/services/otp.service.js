@@ -1,23 +1,43 @@
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { RecipientOtp } from "../models/RecipientOtp.model.js";
+import { Recipient } from "../models/Recipient.model.js";
 import { sendOtpEmail } from "./email.service.js";
+
+export const OTP_RESEND_WAIT_MS = 60 * 1000;
+export const OTP_MAX_SENDS_PER_HOUR = 5;
+const OTP_WINDOW_MS = 60 * 60 * 1000;
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
 
 /**
  * Generates a 6-digit OTP, saves the hash, and dispatches an email to the recipient.
+ * Enforces a wait between sends and an hourly cap per signer.
  */
 export async function generateAndSendOtp(recipientId, email, pdfTitle = "Document") {
-  // 1. Generate random 6-digit number
-  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-  const salt = await bcrypt.genSalt(10);
-  const otpHash = await bcrypt.hash(otpCode, salt);
+  const recipient = await Recipient.findById(recipientId);
+  if (!recipient) {
+    return { success: false, status: 404, reason: "Signer recipient record not found" };
+  }
 
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  const now = Date.now();
 
-  // 2. Remove existing pending OTPs for this recipient
+  if (recipient.otpLastSentAt && now - recipient.otpLastSentAt.getTime() < OTP_RESEND_WAIT_MS) {
+    const waitSeconds = Math.ceil((OTP_RESEND_WAIT_MS - (now - recipient.otpLastSentAt.getTime())) / 1000);
+    return { success: false, status: 429, reason: `Please wait ${waitSeconds} seconds before requesting another code.` };
+  }
+
+  const windowActive = recipient.otpWindowStart && now - recipient.otpWindowStart.getTime() < OTP_WINDOW_MS;
+  if (windowActive && recipient.otpSendCount >= OTP_MAX_SENDS_PER_HOUR) {
+    return { success: false, status: 429, reason: "Too many codes requested. Please try again in an hour." };
+  }
+
+  // Cryptographically secure 6-digit code
+  const otpCode = crypto.randomInt(100000, 1000000).toString();
+  const otpHash = await bcrypt.hash(otpCode, 10);
+  const expiresAt = new Date(now + OTP_TTL_MS);
+
   await RecipientOtp.deleteMany({ recipientId });
-
-  // 3. Create new OTP record
   await RecipientOtp.create({
     recipientId,
     email,
@@ -27,24 +47,28 @@ export async function generateAndSendOtp(recipientId, email, pdfTitle = "Documen
     attempts: 0,
   });
 
-  // 4. Send email
+  recipient.otpLastSentAt = new Date(now);
+  if (windowActive) {
+    recipient.otpSendCount += 1;
+  } else {
+    recipient.otpWindowStart = new Date(now);
+    recipient.otpSendCount = 1;
+  }
+  await recipient.save();
+
   await sendOtpEmail({ email, otp: otpCode, pdfTitle });
 
   return { success: true, expiresAt };
 }
 
 /**
- * Verifies the 6-digit OTP submitted by recipient.
+ * Verifies the 6-digit OTP submitted by recipient. Each code can be used once.
  */
 export async function verifyOtp(recipientId, submittedOtp) {
   const otpRecord = await RecipientOtp.findOne({ recipientId });
 
-  if (!otpRecord) {
+  if (!otpRecord || otpRecord.verified) {
     return { success: false, reason: "No active verification code found. Please request a new one." };
-  }
-
-  if (otpRecord.verified) {
-    return { success: true, message: "Already verified" };
   }
 
   if (new Date() > otpRecord.expiresAt) {
@@ -52,21 +76,20 @@ export async function verifyOtp(recipientId, submittedOtp) {
     return { success: false, reason: "Verification code has expired. Please request a new one." };
   }
 
-  if (otpRecord.attempts >= 5) {
+  if (otpRecord.attempts >= OTP_MAX_ATTEMPTS) {
     await RecipientOtp.deleteOne({ _id: otpRecord._id });
     return { success: false, reason: "Too many failed attempts. Please request a new code." };
   }
 
-  const isMatch = await bcrypt.compare(submittedOtp, otpRecord.otpHash);
+  const isMatch = await bcrypt.compare(String(submittedOtp), otpRecord.otpHash);
 
   if (!isMatch) {
     otpRecord.attempts += 1;
     await otpRecord.save();
-    return { success: false, reason: `Invalid code. ${5 - otpRecord.attempts} attempts remaining.` };
+    return { success: false, reason: `Invalid code. ${OTP_MAX_ATTEMPTS - otpRecord.attempts} attempts remaining.` };
   }
 
-  otpRecord.verified = true;
-  await otpRecord.save();
+  await RecipientOtp.deleteOne({ _id: otpRecord._id });
 
   return { success: true };
 }

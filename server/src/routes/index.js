@@ -12,12 +12,18 @@ import verifyRoutes from "./verify.routes.js";
 import adminRoutes from "./admin.routes.js";
 
 import billingRoutes from "./billing.routes.js";
-import webhookRoutes from "./webhook.routes.js";
 
 import workspaceRoutes from "./workspace.routes.js";
 import developerRoutes from "./api.routes.js";
+import internalRoutes from "./internal.routes.js";
 
 const router = Router();
+
+// Unauthenticated liveness check for load balancers and container health checks
+router.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 router.use("/auth", authRoutes);
 router.use("/pdf", pdfRoutes);
 router.use("/pdf", signRoutes);
@@ -30,9 +36,9 @@ router.use("/sign/otp", otpRoutes);
 router.use("/verify", verifyRoutes);
 router.use("/admin", adminRoutes);
 router.use("/billing", billingRoutes);
-router.use("/webhooks", webhookRoutes);
 router.use("/workspaces", workspaceRoutes);
 router.use("/developer", developerRoutes);
+router.use("/internal", internalRoutes);
 
 export default router;
 

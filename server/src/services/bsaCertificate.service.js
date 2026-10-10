@@ -11,7 +11,7 @@ export const generateBsaEvidenceCertificate = async (pdfId) => {
   const pdf = await Pdf.findById(pdfId).populate("userId");
   if (!pdf) throw new Error("Document not found");
 
-  const auditLogs = await PdfAudit.find({ pdfId }).sort({ createdAt: 1 });
+  const auditLogs = await PdfAudit.find({ pdfId }).sort({ seq: 1, createdAt: 1 });
   const recipients = await Recipient.find({ pdfId });
   const chainIntegrity = await verifyAuditChainIntegrity(pdfId);
 
@@ -74,7 +74,7 @@ export const generateBsaEvidenceCertificate = async (pdfId) => {
   currentY -= 50;
 
   // Section 2: Cryptographic Checksums & Integrity
-  page.drawText("2. CRYPTOGRAPHIC CHECKSUMS & MERKLE INTEGRITY", {
+  page.drawText("2. DOCUMENT HASHES & AUDIT CHAIN INTEGRITY", {
     x: 40,
     y: currentY,
     size: 11,
@@ -93,7 +93,7 @@ export const generateBsaEvidenceCertificate = async (pdfId) => {
   page.drawText(pdf.sha256SignedHash || auditLogs[auditLogs.length - 1]?.signedHash || "N/A", { x: 40, y: currentY, size: 8, font: fontMono, color: rgb(0.1, 0.5, 0.1) });
   currentY -= 18;
 
-  page.drawText(`Merkle Audit Chain Status: ${chainIntegrity.isChainValid ? "INTACT & UNTAMPERED (PASSED)" : "TAMPERED"}`, {
+  page.drawText(`Audit Chain Status: ${chainIntegrity.isChainValid ? "INTACT & UNTAMPERED (PASSED)" : "TAMPERED"}`, {
     x: 40,
     y: currentY,
     size: 9,

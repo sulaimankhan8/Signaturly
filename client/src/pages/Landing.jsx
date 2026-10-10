@@ -55,7 +55,7 @@ const Landing = () => {
   const faqs = [
     {
       q: "Are electronic signatures generated with Signaturly Pro legally binding?",
-      a: "Yes! Signaturly Pro complies with Section 10A of the Indian Information Technology Act 2000, the US ESIGN Act (15 U.S.C. § 7001), and EU eIDAS statutory regulations. Every executed agreement comes with a court-admissible cryptographic SHA-256 audit certificate.",
+      a: "Yes! Signaturly Pro complies with Section 10A of the Indian Information Technology Act 2000, the US ESIGN Act (15 U.S.C. § 7001), and EU eIDAS statutory regulations. Every executed agreement comes with an audit certificate that lists every signing event with SHA-256 document hashes.",
     },
     {
       q: "What is the difference between a full signature and initials?",

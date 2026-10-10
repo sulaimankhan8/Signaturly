@@ -17,13 +17,23 @@ export const sendDocumentToRecipients = async ({
   ipAddress = "",
   userAgent = "",
 }) => {
-  const pdf = await Pdf.findById(pdfId);
+  const pdf = await Pdf.findOne({ _id: String(pdfId), deletedAt: null });
   if (!pdf) {
     throw new ApiError(404, "Document not found");
   }
 
   if (pdf.userId.toString() !== userId) {
     throw new ApiError(403, "You are not authorized to send this document");
+  }
+
+  // A document already out for signature must be voided, not silently re-sent with new signers
+  const alreadySent = (pdf.recipients || []).length > 0 || !["draft", "uploaded", "signed"].includes(pdf.status);
+  if (alreadySent) {
+    throw new ApiError(409, "This document has already been sent. Void it or upload a new copy to send again.");
+  }
+
+  if (expiresAt && (isNaN(new Date(expiresAt).getTime()) || new Date(expiresAt) <= new Date())) {
+    throw new ApiError(400, "The signing deadline must be a future date");
   }
 
   const sender = await User.findById(userId);
@@ -149,10 +159,14 @@ export const sendDocumentToRecipients = async ({
 };
 
 export const voidDocument = async ({ pdfId, userId, ipAddress, userAgent }) => {
-  const pdf = await Pdf.findById(pdfId);
+  const pdf = await Pdf.findOne({ _id: String(pdfId), deletedAt: null });
   if (!pdf) throw new ApiError(404, "Document not found");
   if (pdf.userId.toString() !== userId) {
     throw new ApiError(403, "Unauthorized");
+  }
+
+  if (!["pending", "partially_signed"].includes(pdf.status)) {
+    throw new ApiError(409, `A document that is ${pdf.status} cannot be voided`);
   }
 
   pdf.status = "voided";

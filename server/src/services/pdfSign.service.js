@@ -1,6 +1,3 @@
-import fs from "fs";
-import path from "path";
-import axios from "axios";
 import { PDFDocument, rgb } from "pdf-lib";
 import { percentToPdfCoords } from "./coordinate.service.js";
 import { sha256FromBuffer } from "./hash.service.js";
@@ -8,47 +5,53 @@ import { Pdf } from "../models/Pdf.model.js";
 import { PdfAudit } from "../models/PdfAudit.model.js";
 import { Recipient } from "../models/Recipient.model.js";
 import { ApiError } from "../utils/ApiError.js";
-import { readFile, fileExists, saveFile } from "./storage.service.js";
+import { readFile, saveFile } from "./storage.service.js";
+import { currentKeyOf, nextVersionKeyOf } from "./documentFiles.service.js";
 import { createChainedAuditLog } from "./auditLedger.service.js";
 
-// In-memory document-level serialization queue to prevent parallel signing race conditions
-const documentSignQueues = new Map();
+export const MAX_SIGNATURE_IMAGE_BYTES = 2 * 1024 * 1024;
 
-const getImageBuffer = async (url) => {
-  if (!url) return null;
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+const JPEG_MAGIC = Buffer.from([0xff, 0xd8, 0xff]);
 
-  try {
-    // 1. Base64 Data URL (data:image/png;base64,iVBOR...)
-    if (url.startsWith("data:")) {
-      const commaIdx = url.indexOf(",");
-      if (commaIdx === -1) return null;
-      const base64Data = url.substring(commaIdx + 1);
-      if (!base64Data) return null;
-      return Buffer.from(base64Data, "base64");
+const looksLikeImage = (buffer) =>
+  buffer.subarray(0, 4).equals(PNG_MAGIC) || buffer.subarray(0, 3).equals(JPEG_MAGIC);
+
+/**
+ * Loads a signature image. Only two sources are accepted:
+ *  - an inline PNG or JPEG data URL, and
+ *  - a file already stored in the document owner's own folder.
+ * The server never fetches a remote address and never reads an arbitrary path.
+ */
+const getImageBuffer = async (source, ownerId) => {
+  if (typeof source !== "string" || !source) return null;
+
+  let buffer = null;
+
+  if (source.startsWith("data:")) {
+    const match = /^data:image\/(png|jpe?g);base64,([A-Za-z0-9+/=\s]+)$/.exec(source);
+    if (!match) {
+      throw new ApiError(422, "Signature images must be PNG or JPEG");
     }
-
-    // 2. Relative upload URL (/uploads/...) or direct key
-    if (url.startsWith("/uploads/")) {
-      const relativeKey = url.replace(/^\/uploads\//, "");
-      return await readFile(relativeKey);
+    buffer = Buffer.from(match[2], "base64");
+  } else if (source.startsWith("/uploads/")) {
+    const key = decodeURIComponent(source.replace(/^\/uploads\//, "").split("?")[0]);
+    if (!ownerId || key.split("/")[0] !== String(ownerId)) {
+      throw new ApiError(422, "Signature image is not available");
     }
-
-    // 3. Remote HTTP/HTTPS URL
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      const res = await axios.get(url, {
-        responseType: "arraybuffer",
-        timeout: 15000,
-      });
-      return Buffer.from(res.data);
-    }
-
-    // 4. Direct disk or storage path
-    return await readFile(url);
-  } catch (err) {
-    console.error("Error loading signature image buffer:", err.message);
+    buffer = await readFile(key);
+  } else {
+    throw new ApiError(422, "Signature images must be uploaded directly, not linked");
   }
 
-  return null;
+  if (!buffer || buffer.length === 0) return null;
+  if (buffer.length > MAX_SIGNATURE_IMAGE_BYTES) {
+    throw new ApiError(413, "Signature image is too large (2 MB maximum)");
+  }
+  if (!looksLikeImage(buffer)) {
+    throw new ApiError(422, "Signature images must be PNG or JPEG");
+  }
+  return buffer;
 };
 
 const executeSignPdf = async ({
@@ -60,27 +63,22 @@ const executeSignPdf = async ({
   fields = [],
   ipAddress = "",
   userAgent = "",
+  consentVersion = "",
   isFinalCompletion = true,
 }) => {
-  console.log("executeSignPdf called", { pdfId, userId, recipientId, fieldsCount: fields?.length });
-
-  const pdfMeta = await Pdf.findById(pdfId);
+    const pdfMeta = await Pdf.findById(pdfId);
   if (!pdfMeta) throw new ApiError(404, "PDF not found");
 
-  const fileName = path.basename(pdfMeta.storagePath);
-  const relativeKey = `${pdfMeta.userId}/${fileName}`;
-  const signedKey = relativeKey.replace(/\.pdf$/i, "-signed.pdf");
-
-  // Check if a previously signed version exists — burn ON TOP of previously signed PDF!
-  const hasSigned = await fileExists(signedKey);
-  const inputKey = hasSigned ? signedKey : relativeKey;
+  // Stamp on top of the latest working copy and write the result as a new version;
+  // the original upload and every earlier version stay as they were
+  const inputKey = await currentKeyOf(pdfMeta);
+  const outputKey = nextVersionKeyOf(pdfMeta);
 
   const originalBuffer = await readFile(inputKey);
   const originalHash = sha256FromBuffer(originalBuffer);
 
   const pdfDoc = await PDFDocument.load(originalBuffer, { ignoreEncryption: true });
-  console.log("PDF loaded with", pdfDoc.getPageCount(), "pages from storage key:", inputKey);
-
+  
   // Process each field
   for (const field of fields) {
     const parsedPage = parseInt(field.page, 10);
@@ -155,7 +153,7 @@ const executeSignPdf = async ({
           break;
         }
 
-        const imageBuffer = await getImageBuffer(signatureAsset);
+        const imageBuffer = await getImageBuffer(signatureAsset, pdfMeta.userId);
         if (!imageBuffer || imageBuffer.length === 0) {
           console.error("Failed to retrieve image buffer for signature field:", field.id);
           break;
@@ -198,7 +196,7 @@ const executeSignPdf = async ({
           break;
         }
 
-        const imageBuffer = await getImageBuffer(initialsAsset);
+        const imageBuffer = await getImageBuffer(initialsAsset, pdfMeta.userId);
         if (!imageBuffer || imageBuffer.length === 0) {
           console.error("Failed to retrieve image buffer for initials field:", field.id);
           break;
@@ -304,25 +302,22 @@ const executeSignPdf = async ({
   const signedBytes = await pdfDoc.save();
   const signedHash = sha256FromBuffer(signedBytes);
 
-  const signedPath = await saveFile(signedKey, Buffer.from(signedBytes), "application/pdf");
-  console.log("signed file saved to", signedPath);
+  await saveFile(outputKey, Buffer.from(signedBytes), "application/pdf");
 
-  let authMethod = "Email Token (SES)";
+  // Describe the identity check that was really passed, read from the signer's record
+  let authMethod = "Account login";
   let otpVerified = false;
 
   if (recipientId) {
     const rec = await Recipient.findById(recipientId);
-    if (rec) {
-      if (rec.authType === "otp") {
-        authMethod = "Email OTP (2FA Verified)";
-        otpVerified = true;
-      } else if (rec.authType === "passcode") {
-        authMethod = "Access Passcode (Verified)";
-        otpVerified = true;
-      } else {
-        authMethod = "Email Token (Direct SES)";
-        otpVerified = false;
-      }
+    const passed = rec?.authVerified === true && rec.authVerifiedAt;
+    if (passed && rec.authMethod === "email_otp") {
+      authMethod = "Email link + one-time code";
+      otpVerified = true;
+    } else if (passed && rec.authMethod === "passcode") {
+      authMethod = "Email link + access passcode";
+    } else {
+      authMethod = "Email link";
     }
   }
 
@@ -337,50 +332,29 @@ const executeSignPdf = async ({
     originalHash,
     signedHash,
     fieldsMeta: fields,
-    description: `${actorName} completed required fields and placed digital signature (${authMethod}).`,
+    description: `${actorName} completed the required fields and signed electronically (${authMethod}).`,
     ipAddress,
     userAgent,
     otpVerified,
     authMethod,
+    consentVersion,
     signedAt: new Date(),
   });
 
-  if (isFinalCompletion) {
-    pdfMeta.status = "signed";
-  } else {
-    pdfMeta.status = "partially_signed";
-  }
+  // Recorded with one atomic update so the caller's own copy of the document cannot overwrite it
+  await Pdf.updateOne(
+    { _id: pdfMeta._id },
+    {
+      $push: { versions: { key: outputKey, hash: signedHash, recipientId, actorEmail } },
+      $set: { status: isFinalCompletion ? "signed" : "partially_signed" },
+    }
+  );
 
-  await pdfMeta.save();
-  return signedPath;
+  return outputKey;
 };
 
 /**
- * Public wrapper for signPdf with per-document mutex queueing.
- * Prevents race conditions during parallel multi-signer signing flows.
+ * Stamps fields onto the document. Callers must hold the document lock
+ * (see documentLock.service.js) and must have checked permissions already.
  */
-export const signPdf = async (params) => {
-  const docKey = params?.pdfId?.toString();
-  if (!docKey) {
-    return await executeSignPdf(params);
-  }
-
-  const previousTask = documentSignQueues.get(docKey) || Promise.resolve();
-
-  let releaseLock;
-  const currentTask = new Promise((resolve) => {
-    releaseLock = resolve;
-  });
-
-  documentSignQueues.set(docKey, previousTask.then(() => currentTask, () => currentTask));
-
-  try {
-    await previousTask;
-    return await executeSignPdf(params);
-  } finally {
-    releaseLock();
-    if (documentSignQueues.get(docKey) === currentTask) {
-      documentSignQueues.delete(docKey);
-    }
-  }
-};
+export const signPdf = executeSignPdf;

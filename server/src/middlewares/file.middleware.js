@@ -1,93 +1,72 @@
 import path from "path";
-import fs from "fs";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
-import { Recipient } from "../models/Recipient.model.js";
-import { readFile, fileExists } from "../services/storage.service.js";
+import { readFile, fileExists, normalizeKey } from "../services/storage.service.js";
+import { verifySignedFileUrl } from "../utils/fileUrl.js";
 
-export const serveProtectedFile = async (req, res, next) => {
+const CONTENT_TYPES = {
+  ".pdf": "application/pdf",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+};
+
+// Keys look like "<userId>/<file>" or "templates/<userId>/<file>"
+const ownerIdOfKey = (key) => {
+  const parts = key.split("/");
+  if (parts[0] === "templates") return parts[1] === "prebuilt" ? null : parts[1];
+  return parts[0];
+};
+
+/**
+ * Serves stored files. Denies by default: a request needs either a valid signed link
+ * (issued by the API after its own permission check) or the owner's bearer token.
+ */
+export const serveProtectedFile = async (req, res) => {
   try {
-    const rawKey = req.path.replace(/^\//, "");
+    let key;
+    try {
+      key = normalizeKey(decodeURIComponent(req.path.replace(/^\//, "")));
+    } catch {
+      return res.status(400).json({ message: "Invalid file path" });
+    }
 
-    // 1. Verify existence in storage (GCS or Local)
-    const exists = await fileExists(rawKey);
-    if (!exists) {
+    let allowed = false;
+
+    const { exp, sig } = req.query;
+    if (typeof exp === "string" && typeof sig === "string") {
+      allowed = verifySignedFileUrl(key, exp, sig);
+    }
+
+    const authHeader = req.headers.authorization;
+    if (!allowed && authHeader && authHeader.startsWith("Bearer ")) {
+      try {
+        const decoded = jwt.verify(authHeader.split(" ")[1], env.accessSecret);
+        const ownerId = ownerIdOfKey(key);
+        allowed = Boolean(ownerId) && String(decoded.id) === ownerId;
+      } catch {
+        allowed = false;
+      }
+    }
+
+    if (!allowed) {
+      return res.status(403).json({ message: "Access to this file is not permitted" });
+    }
+
+    if (!(await fileExists(key))) {
       return res.status(404).json({ message: "File not found" });
     }
 
-    // Helper to send file content based on storage provider
-    const sendFileResponse = async () => {
-      const ext = path.extname(rawKey).toLowerCase();
-      const contentType = ext === ".pdf" 
-        ? "application/pdf" 
-        : ext === ".png" 
-        ? "image/png" 
-        : ext === ".jpg" || ext === ".jpeg" 
-        ? "image/jpeg" 
-        : "application/octet-stream";
+    const buffer = await readFile(key);
+    const contentType = CONTENT_TYPES[path.extname(key).toLowerCase()] || "application/octet-stream";
 
-      if (env.storageProvider === "gcs") {
-        const buffer = await readFile(rawKey);
-        res.setHeader("Content-Type", contentType);
-        res.setHeader("Cache-Control", "private, max-age=3600");
-        return res.send(buffer);
-      } else {
-        const localPath = path.resolve("uploads", rawKey);
-        return res.sendFile(localPath);
-      }
-    };
-
-    // Extract path components: /:userId/:filename
-    const pathParts = rawKey.split("/");
-    const targetUserId = pathParts[0];
-
-    // Check Authorization Bearer header
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      const token = authHeader.split(" ")[1];
-      try {
-        const decoded = jwt.verify(token, env.accessSecret);
-        if (decoded.id === targetUserId) {
-          return await sendFileResponse();
-        }
-      } catch (e) {
-        // Continue to check other authentication avenues
-      }
-    }
-
-    // Check query parameter token (for iframe / public signer preview / tokenized links)
-    const tokenQuery = req.query.token;
-    if (tokenQuery) {
-      const recipient = await Recipient.findOne({ token: tokenQuery });
-      if (recipient) {
-        return await sendFileResponse();
-      }
-
-      try {
-        const decoded = jwt.verify(tokenQuery, env.accessSecret);
-        if (decoded.id === targetUserId) {
-          return await sendFileResponse();
-        }
-      } catch (e) {}
-    }
-
-    // Fallback for public signers viewing their active assigned document
-    const referer = req.headers.referer || "";
-    if (referer.includes("/sign/")) {
-      const parts = referer.split("/sign/");
-      const signerToken = parts[1]?.split("?")[0]?.split("/")[0];
-      if (signerToken) {
-        const recipient = await Recipient.findOne({ token: signerToken });
-        if (recipient) {
-          return await sendFileResponse();
-        }
-      }
-    }
-
-    // Default static delivery
-    return await sendFileResponse();
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    return res.send(buffer);
   } catch (err) {
-    console.error("File serving middleware error:", err);
+    console.error("File serving middleware error:", err.message);
     return res.status(500).json({ message: "Error serving file" });
   }
 };

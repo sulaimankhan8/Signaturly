@@ -6,29 +6,31 @@ import { updateRecipientEmailService } from "../services/recipient.service.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { Recipient } from "../models/Recipient.model.js";
 import { ApiError } from "../utils/ApiError.js";
+import { reserveQuota, releaseQuota } from "../services/subscription.service.js";
 
 export const sendDocumentController = asyncHandler(async (req, res) => {
   const { pdfId } = req.params;
   const { recipients, fields, message, expiresAt, signingOrder } = req.body;
 
-  const result = await sendDocumentToRecipients({
-    pdfId,
-    userId: req.user.id,
-    recipientsData: recipients,
-    fieldsData: fields,
-    message,
-    expiresAt,
-    signingOrder,
-    ipAddress: req.ip || req.socket?.remoteAddress,
-    userAgent: req.headers["user-agent"],
-  });
+  // Count the document against the plan before sending; give it back if the send fails
+  await reserveQuota(req.user.id, 1);
 
-  // Track monthly usage for subscription quota
+  let result;
   try {
-    const { incrementUsage } = await import("../services/subscription.service.js");
-    await incrementUsage(req.user.id, 1);
-  } catch (quotaErr) {
-    console.warn("Could not increment quota usage:", quotaErr.message);
+    result = await sendDocumentToRecipients({
+      pdfId,
+      userId: req.user.id,
+      recipientsData: recipients,
+      fieldsData: Array.isArray(fields) ? fields : [],
+      message: typeof message === "string" ? message.slice(0, 2000) : "",
+      expiresAt,
+      signingOrder,
+      ipAddress: req.ip || req.socket?.remoteAddress,
+      userAgent: req.headers["user-agent"],
+    });
+  } catch (err) {
+    await releaseQuota(req.user.id, 1);
+    throw err;
   }
 
   res.status(200).json(new ApiResponse(result, "Document dispatched to recipients successfully"));
@@ -36,7 +38,7 @@ export const sendDocumentController = asyncHandler(async (req, res) => {
 
 export const getDocumentDetailsController = asyncHandler(async (req, res) => {
   const { pdfId } = req.params;
-  const pdf = await Pdf.findById(pdfId).populate("recipients");
+  const pdf = await Pdf.findOne({ _id: String(pdfId), deletedAt: null }).populate("recipients");
 
   if (!pdf) {
     throw new ApiError(404, "Document not found");

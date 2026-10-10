@@ -115,10 +115,22 @@ export default function AdminDashboard() {
     navigate("/login");
   };
 
-  const handleDownloadBsaCert = (docId) => {
-    const adminToken = localStorage.getItem("signaturly_admin_token");
-    const baseUrl = getAdminBaseUrl();
-    window.open(`${baseUrl}/admin/documents/${docId}/bsa-certificate?token=${adminToken}`, "_blank");
+  // The admin token travels in a header, never in the address bar
+  const handleDownloadBsaCert = async (docId) => {
+    try {
+      const adminToken = localStorage.getItem("signaturly_admin_token");
+      const res = await fetch(`${getAdminBaseUrl()}/admin/documents/${docId}/bsa-certificate`, {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      });
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+
+      const url = URL.createObjectURL(await res.blob());
+      window.open(url, "_blank", "noopener");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err) {
+      console.error("Certificate download error:", err);
+      alert("Could not download the certificate. Please sign in again and retry.");
+    }
   };
 
   // Inspect User Documents
@@ -1125,7 +1137,7 @@ export default function AdminDashboard() {
           {activeSection === "audits" && (
             <div className="bg-[#11131f] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
               <div className="border-b border-white/10 pb-4">
-                <h3 className="text-base font-black text-white uppercase">Immutable Append-Only Audit Trail</h3>
+                <h3 className="text-base font-black text-white uppercase">Append-Only Audit Trail</h3>
                 <p className="text-xs text-gray-400 mt-0.5">
                   Chronological cryptographic ledger of all document interactions and SHA-256 seal records.
                 </p>
@@ -1206,7 +1218,7 @@ export default function AdminDashboard() {
                   <ul className="space-y-2 text-gray-300">
                     <li className="flex items-center gap-2">
                       <span className="text-emerald-400 font-bold">✓</span>
-                      <span><strong>SHA-256 Merkle Chain</strong>: Immutability proof computed for every signed payload</span>
+                      <span><strong>SHA-256 Hash Chain</strong>: each signing event is chained to the one before it</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <span className="text-emerald-400 font-bold">✓</span>

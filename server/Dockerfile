@@ -44,7 +44,7 @@ EXPOSE 5000
 
 # Healthcheck to verify the server is active
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:5000/api/templates/public || exit 1
+  CMD curl -f http://localhost:5000/api/health || exit 1
 
 # Start the Node.js Express server
 CMD ["node", "src/server.js"]

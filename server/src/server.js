@@ -1,6 +1,6 @@
 import app from "./app.js";
 import { connectDB } from "./config/db.js";
-import { env } from "./config/env.js";
+import { env, assertValidEnv } from "./config/env.js";
 import { initBackgroundJobs } from "./config/cron.js";
 import { initEventSystem } from "./events/index.js";
 
@@ -12,6 +12,9 @@ process.on("unhandledRejection", (reason, promise) => {
 process.on("uncaughtException", (err) => {
   console.error("🚨 [Process] Uncaught Exception:", err);
 });
+
+// Refuse to start with missing or placeholder secrets
+assertValidEnv();
 
 connectDB().then(() => {
   // Initialize Event-Driven Architecture subsystems

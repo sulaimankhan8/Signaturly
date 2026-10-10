@@ -1,5 +1,23 @@
 import mongoose from "mongoose";
 
+export const AUDIT_EVENTS = [
+  "created",
+  "sent",
+  "viewed",
+  "identity_verified",
+  "signed",
+  "completed",
+  "sealed",
+  "declined",
+  "voided",
+  "downloaded",
+  "expired",
+  "reminder_sent",
+  "automated_reminder",
+  "recipient_updated",
+  "deleted",
+];
+
 const pdfAuditSchema = new mongoose.Schema(
   {
     pdfId: {
@@ -7,6 +25,11 @@ const pdfAuditSchema = new mongoose.Schema(
       ref: "Pdf",
       required: true,
       index: true,
+    },
+
+    // Position of this entry in the document's chain, starting at 1
+    seq: {
+      type: Number,
     },
 
     userId: {
@@ -21,20 +44,7 @@ const pdfAuditSchema = new mongoose.Schema(
 
     event: {
       type: String,
-      enum: [
-        "created",
-        "sent",
-        "viewed",
-        "signed",
-        "completed",
-        "declined",
-        "voided",
-        "downloaded",
-        "expired",
-        "reminder_sent",
-        "automated_reminder",
-        "recipient_updated",
-      ],
+      enum: AUDIT_EVENTS,
       default: "signed",
     },
 
@@ -78,7 +88,6 @@ const pdfAuditSchema = new mongoose.Schema(
 
     previousEventHash: {
       type: String,
-      default: "0000000000000000000000000000000000000000000000000000000000000000",
     },
 
     eventHash: {
@@ -92,15 +101,35 @@ const pdfAuditSchema = new mongoose.Schema(
 
     authMethod: {
       type: String,
-      default: "Email OTP",
+      default: "",
+    },
+
+    // Version of the electronic-signature consent text the signer accepted (sign events only)
+    consentVersion: {
+      type: String,
+      default: "",
     },
   },
   { timestamps: true }
 );
 
-// Immutability Safeguard: Prevent updating existing audit logs
-pdfAuditSchema.pre(["updateOne", "updateMany", "findOneAndUpdate", "findByIdAndUpdate"], function () {
-  throw new Error("LEGAL_AUDIT_IMMUTABLE: Modification of completed audit records is strictly prohibited by law.");
+// One entry per position: two writers racing for the same slot cannot both succeed
+pdfAuditSchema.index(
+  { pdfId: 1, seq: 1 },
+  { unique: true, partialFilterExpression: { seq: { $type: "number" } } }
+);
+
+const refuse = (what) =>
+  function () {
+    throw new Error(`AUDIT_APPEND_ONLY: Audit records cannot be ${what}.`);
+  };
+
+// Append-only safeguard: entries can be added, never changed or removed
+pdfAuditSchema.pre(["updateOne", "updateMany", "findOneAndUpdate", "findOneAndReplace", "replaceOne"], refuse("modified"));
+pdfAuditSchema.pre(["deleteOne", "deleteMany", "findOneAndDelete"], refuse("deleted"));
+pdfAuditSchema.pre("deleteOne", { document: true, query: false }, refuse("deleted"));
+pdfAuditSchema.pre("save", function () {
+  if (!this.isNew) refuse("modified")();
 });
 
 export const PdfAudit = mongoose.model("PdfAudit", pdfAuditSchema);

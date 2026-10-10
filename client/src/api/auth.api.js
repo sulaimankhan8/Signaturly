@@ -2,13 +2,21 @@ import API from "./axios";
 
 export const loginApi = async (data) => {
   const res = await API.post("/auth/login", data);
-  console.log("Login response:", res.data.data);
   return res.data.data;
 };
 
 export const registerApi = async (data) => {
   const res = await API.post("/auth/register", data);
-  console.log("Register response:", res.data.data);
+  return res.data.data;
+};
+
+export const verifyEmailApi = async (token) => {
+  const res = await API.post("/auth/verify-email", { token });
+  return res.data.data;
+};
+
+export const resendVerificationApi = async () => {
+  const res = await API.post("/auth/resend-verification");
   return res.data.data;
 };
 
@@ -37,4 +45,4 @@ export const acceptTermsApi = async (token) => {
   const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
   const res = await API.post("/auth/accept-terms", {}, config);
   return res.data?.data;
-};
+};

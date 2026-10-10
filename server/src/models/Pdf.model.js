@@ -79,6 +79,49 @@ const PdfSchema = new mongoose.Schema(
     declineReason: {
       type: String,
     },
+
+    // Every stamped copy, oldest first. The original upload is never overwritten.
+    versions: [
+      {
+        _id: false,
+        key: { type: String, required: true },
+        hash: { type: String, required: true },
+        createdAt: { type: Date, default: Date.now },
+        recipientId: { type: mongoose.Schema.Types.ObjectId, ref: "Recipient", default: null },
+        actorEmail: { type: String, default: "" },
+      },
+    ],
+
+    // The certificate-sealed copy that people download once signing is complete
+    sealedKey: {
+      type: String,
+      default: null,
+    },
+    sealedHash: {
+      type: String,
+      default: null,
+    },
+    sealedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // Set when the owner deletes the document. The record and its audit log are kept.
+    deletedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    // Held while a signature is being stamped, so two signers never write the file at once
+    signLockUntil: {
+      type: Date,
+      default: null,
+    },
+    signLockHolder: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

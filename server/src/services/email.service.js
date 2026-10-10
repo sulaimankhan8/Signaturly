@@ -1,6 +1,15 @@
 import { sendEmail } from "../config/email.js";
 import { env } from "../config/env.js";
 
+// Names, file names, messages and reasons come from users, so they are escaped before going into HTML
+const esc = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 const emailWrapper = (content, headerTitle = "Signaturly Pro") => `
 <!DOCTYPE html>
 <html>
@@ -45,14 +54,14 @@ export const sendSigningRequestEmail = async ({ recipient, pdf, sender, customMe
   const content = `
     <h2 style="color:#0f172a; margin-top:0; font-size:18px; font-weight:700;">Signature Requested</h2>
     <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
-      <strong style="color:#0f172a;">${sender.name || sender.email}</strong> has sent you a document to review and electronically sign.
+      <strong style="color:#0f172a;">${esc(sender.name || sender.email)}</strong> has sent you a document to review and electronically sign.
     </p>
 
     <div class="card">
       <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700;">Document Title</div>
-      <div style="font-size:15px; color:#0f172a; font-weight:600; margin-top:4px;">${pdf.originalFileName}</div>
+      <div style="font-size:15px; color:#0f172a; font-weight:600; margin-top:4px;">${esc(pdf.originalFileName)}</div>
       <div style="font-size:12px; color:#64748b; margin-top:4px;">Total Pages: ${pdf.pageCount}</div>
-      ${customMessage ? `<div style="margin-top:12px; padding-top:12px; border-top:1px solid #e2e8f0; font-style:italic; color:#334155; font-size:13px;">"${customMessage}"</div>` : ""}
+      ${customMessage ? `<div style="margin-top:12px; padding-top:12px; border-top:1px solid #e2e8f0; font-style:italic; color:#334155; font-size:13px;">"${esc(customMessage)}"</div>` : ""}
     </div>
 
     <div style="text-align:center; margin:24px 0;">
@@ -74,17 +83,17 @@ export const sendSigningRequestEmail = async ({ recipient, pdf, sender, customMe
 };
 
 export const sendCompletionEmail = async ({ recipientEmail, recipientName, pdf, senderName, downloadUrl }) => {
-  const fileUrl = `${env.appUrl}${downloadUrl}`;
+  const fileUrl = /^https?:\/\//.test(downloadUrl || "") ? downloadUrl : `${env.appUrl}${downloadUrl || "/dashboard"}`;
   const content = `
     <h2 style="color:#059669; margin-top:0; font-size:18px; font-weight:700;">✓ Document Executed &amp; Completed</h2>
     <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
-      All parties have completed and signed <strong style="color:#0f172a;">${pdf.originalFileName}</strong>.
+      All parties have completed and signed <strong style="color:#0f172a;">${esc(pdf.originalFileName)}</strong>.
     </p>
 
     <div class="card">
       <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700;">Document Title</div>
-      <div style="font-size:15px; color:#0f172a; font-weight:600; margin-top:4px;">${pdf.originalFileName}</div>
-      <div style="font-size:12px; color:#059669; font-weight:600; margin-top:4px;">Status: Legally Executed (SHA-256 Ledger Verified)</div>
+      <div style="font-size:15px; color:#0f172a; font-weight:600; margin-top:4px;">${esc(pdf.originalFileName)}</div>
+      <div style="font-size:12px; color:#059669; font-weight:600; margin-top:4px;">Status: Completed by all parties</div>
     </div>
 
     <div style="text-align:center; margin:24px 0;">
@@ -92,7 +101,7 @@ export const sendCompletionEmail = async ({ recipientEmail, recipientName, pdf, 
     </div>
 
     <p style="font-size:12px; color:#64748b; text-align:center;">
-      A permanent cryptographic audit certificate has been attached to the executed agreement.
+      An audit record of every signing event is kept with this document.
     </p>
   `;
 
@@ -108,12 +117,12 @@ export const sendDeclineEmail = async ({ senderEmail, pdf, declinedRecipient, re
   const content = `
     <h2 style="color:#dc2626; margin-top:0; font-size:18px; font-weight:700;">Document Signing Declined</h2>
     <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
-      <strong class="highlight">${declinedRecipient.name} (${declinedRecipient.email})</strong> has declined to sign <strong style="color:#0f172a;">${pdf.originalFileName}</strong>.
+      <strong class="highlight">${esc(declinedRecipient.name)} (${esc(declinedRecipient.email)})</strong> has declined to sign <strong style="color:#0f172a;">${esc(pdf.originalFileName)}</strong>.
     </p>
 
     <div class="card" style="border-left: 3px solid #dc2626;">
       <div style="font-size:11px; color:#dc2626; text-transform:uppercase; font-weight:700;">Reason Provided</div>
-      <div style="font-size:14px; color:#0f172a; margin-top:4px;">${reason || "No specific reason provided."}</div>
+      <div style="font-size:14px; color:#0f172a; margin-top:4px;">${esc(reason || "No specific reason provided.")}</div>
     </div>
   `;
 
@@ -129,13 +138,13 @@ export const sendCancellationNotificationEmail = async ({ recipientEmail, recipi
   const isVoided = eventType === "voided";
   const title = isVoided ? "Document Cancelled / Voided" : "Document Cancelled (Declined by Signer)";
   const description = isVoided
-    ? `The document <strong>${pdf.originalFileName}</strong> has been cancelled and voided by the sender.`
-    : `The document <strong>${pdf.originalFileName}</strong> has been cancelled because another party declined to sign.`;
+    ? `The document <strong>${esc(pdf.originalFileName)}</strong> has been cancelled and voided by the sender.`
+    : `The document <strong>${esc(pdf.originalFileName)}</strong> has been cancelled because another party declined to sign.`;
 
   const content = `
     <h2 style="color:#dc2626; margin-top:0; font-size:18px; font-weight:700;">${title}</h2>
     <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:12px;">
-      Hello ${recipientName || "Signer"},
+      Hello ${esc(recipientName || "Signer")},
     </p>
     <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
       ${description} Any pending or prior signatures on this document are now void and non-binding.
@@ -143,8 +152,8 @@ export const sendCancellationNotificationEmail = async ({ recipientEmail, recipi
 
     <div class="card" style="border-left: 3px solid #dc2626;">
       <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700;">Document Status</div>
-      <div style="font-size:14px; color:#0f172a; font-weight:600; margin-top:4px;">${pdf.originalFileName} &mdash; <span style="color:#dc2626;">VOID / CANCELLED</span></div>
-      ${reason ? `<div style="font-size:13px; color:#64748b; margin-top:6px;"><em>Reason: ${reason}</em></div>` : ""}
+      <div style="font-size:14px; color:#0f172a; font-weight:600; margin-top:4px;">${esc(pdf.originalFileName)} &mdash; <span style="color:#dc2626;">VOID / CANCELLED</span></div>
+      ${reason ? `<div style="font-size:13px; color:#64748b; margin-top:6px;"><em>Reason: ${esc(reason)}</em></div>` : ""}
     </div>
   `;
 
@@ -162,7 +171,7 @@ export const sendPasswordResetEmail = async ({ email, name, resetToken }) => {
   const content = `
     <h2 style="color:#0f172a; margin-top:0; font-size:18px; font-weight:700;">Password Reset Request</h2>
     <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
-      Hello <strong style="color:#0f172a;">${name || email}</strong>, we received a request to reset your Signaturly Pro password.
+      Hello <strong style="color:#0f172a;">${esc(name || email)}</strong>, we received a request to reset your Signaturly Pro password.
     </p>
 
     <div style="text-align:center; margin:24px 0;">
@@ -188,14 +197,14 @@ export const sendReminderEmail = async ({ recipient, pdf, sender, customMessage 
   const content = `
     <h2 style="color:#0f172a; margin-top:0; font-size:18px; font-weight:700;">Friendly Reminder: Signature Pending</h2>
     <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
-      This is a reminder that <strong style="color:#0f172a;">${sender.name || sender.email}</strong> is awaiting your review and electronic signature on <strong style="color:#0f172a;">${pdf.originalFileName}</strong>.
+      This is a reminder that <strong style="color:#0f172a;">${esc(sender.name || sender.email)}</strong> is awaiting your review and electronic signature on <strong style="color:#0f172a;">${esc(pdf.originalFileName)}</strong>.
     </p>
 
     <div class="card">
       <div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700;">Document Title</div>
-      <div style="font-size:15px; color:#0f172a; font-weight:600; margin-top:4px;">${pdf.originalFileName}</div>
+      <div style="font-size:15px; color:#0f172a; font-weight:600; margin-top:4px;">${esc(pdf.originalFileName)}</div>
       ${pdf.expiresAt ? `<div style="font-size:12px; color:#d97706; margin-top:4px;">⚠️ Deadline: ${new Date(pdf.expiresAt).toLocaleDateString()}</div>` : ""}
-      ${customMessage ? `<div style="margin-top:12px; padding-top:12px; border-top:1px solid #e2e8f0; font-style:italic; color:#334155; font-size:13px;">"${customMessage}"</div>` : ""}
+      ${customMessage ? `<div style="margin-top:12px; padding-top:12px; border-top:1px solid #e2e8f0; font-style:italic; color:#334155; font-size:13px;">"${esc(customMessage)}"</div>` : ""}
     </div>
 
     <div style="text-align:center; margin:24px 0;">
@@ -215,7 +224,7 @@ export const sendOtpEmail = async ({ email, otp, pdfTitle = "Document" }) => {
   const content = `
     <h2 style="color:#0f172a; margin-top:0; font-size:18px; font-weight:700;">Identity Verification Code</h2>
     <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
-      You are accessing and signing <strong style="color:#0f172a;">${pdfTitle}</strong>. Use the 6-digit verification code below:
+      You are accessing and signing <strong style="color:#0f172a;">${esc(pdfTitle)}</strong>. Use the 6-digit verification code below:
     </p>
 
     <div class="card" style="text-align:center; padding:24px; background-color:#f8fafc;">
@@ -230,5 +239,31 @@ export const sendOtpEmail = async ({ email, otp, pdfTitle = "Document" }) => {
     subject: `[${otp}] Your Identity Verification Code for "${pdfTitle}"`,
     html: emailWrapper(content, "Pre-Sign Authentication"),
     text: `Your Signaturly Pro identity verification code for "${pdfTitle}" is: ${otp} (Valid for 10 minutes).`,
+  });
+};
+
+export const sendEmailVerificationEmail = async ({ email, name, token }) => {
+  const verifyUrl = `${env.appUrl}/verify-email?token=${token}`;
+
+  const content = `
+    <h2 style="color:#0f172a; margin-top:0; font-size:18px; font-weight:700;">Confirm your email address</h2>
+    <p style="color:#475569; font-size:14px; line-height:1.6; margin-bottom:16px;">
+      Hello <strong style="color:#0f172a;">${esc(name || email)}</strong>, please confirm this address so you can send documents for signature.
+    </p>
+
+    <div style="text-align:center; margin:24px 0;">
+      <a href="${verifyUrl}" class="btn">Confirm Email</a>
+    </div>
+
+    <p style="font-size:12px; color:#64748b; line-height:1.5;">
+      This link is valid for <strong>24 hours</strong>. If you did not create an account, you can ignore this email.
+    </p>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: "Confirm your email address",
+    html: emailWrapper(content, "Confirm Email"),
+    text: `Confirm your email address: ${verifyUrl} (valid for 24 hours)`,
   });
 };

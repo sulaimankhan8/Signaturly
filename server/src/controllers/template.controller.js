@@ -1,5 +1,6 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { ApiError } from "../utils/ApiError.js";
 import {
   createTemplate,
   getUserTemplates,
@@ -11,6 +12,11 @@ import {
   importPrebuiltTemplateToUser,
 } from "../services/template.service.js";
 import path from "path";
+import { getFileUrl } from "../services/storage.service.js";
+import { reserveQuota, releaseQuota } from "../services/subscription.service.js";
+
+const templatePdfUrl = (template) =>
+  getFileUrl(`templates/${template.userId}/${path.basename(template.sourcePdfPath.replace(/\\/g, "/"))}`);
 
 export const createTemplateController = asyncHandler(async (req, res) => {
   const { name, description, sourcePdfId, roles, fields } = req.body;
@@ -34,13 +40,12 @@ export const createTemplateController = asyncHandler(async (req, res) => {
 export const getMyTemplatesController = asyncHandler(async (req, res) => {
   const templates = await getUserTemplates(req.user.id);
   
-  const formatted = templates.map((t) => {
-    const fileName = path.basename(t.sourcePdfPath);
-    return {
+  const formatted = await Promise.all(
+    templates.map(async (t) => ({
       ...t.toObject(),
-      pdfUrl: `/uploads/templates/${t.userId}/${fileName}`,
-    };
-  });
+      pdfUrl: await templatePdfUrl(t),
+    }))
+  );
 
   res.status(200).json(new ApiResponse(formatted, "Templates retrieved"));
 });
@@ -60,8 +65,7 @@ export const getTemplateDetailsController = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const template = await getTemplateById(id, req.user.id);
 
-  const fileName = path.basename(template.sourcePdfPath);
-  const pdfUrl = `/uploads/templates/${template.userId}/${fileName}`;
+  const pdfUrl = await templatePdfUrl(template);
 
   res.status(200).json(
     new ApiResponse(
@@ -90,16 +94,29 @@ export const useTemplateController = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { roleSignersMap, message, expiresAt, signingOrder } = req.body;
 
-  const result = await instantiateDocumentFromTemplate({
-    templateId: id,
-    userId: req.user.id,
-    roleSignersMap,
-    message,
-    expiresAt,
-    signingOrder,
-    ipAddress: req.ip || req.socket?.remoteAddress,
-    userAgent: req.headers["user-agent"],
-  });
+  if (!roleSignersMap || typeof roleSignersMap !== "object") {
+    throw new ApiError(400, "Please assign at least one signer to a template role");
+  }
+
+  // A document sent from a template counts against the plan like any other
+  await reserveQuota(req.user.id, 1);
+
+  let result;
+  try {
+    result = await instantiateDocumentFromTemplate({
+      templateId: id,
+      userId: req.user.id,
+      roleSignersMap,
+      message,
+      expiresAt,
+      signingOrder,
+      ipAddress: req.ip || req.socket?.remoteAddress,
+      userAgent: req.headers["user-agent"],
+    });
+  } catch (err) {
+    await releaseQuota(req.user.id, 1);
+    throw err;
+  }
 
   res.status(200).json(new ApiResponse(result, "Document created and sent from template"));
 });
