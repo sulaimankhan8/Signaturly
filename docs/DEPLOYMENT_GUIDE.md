@@ -6,14 +6,13 @@
 1. [Cost Architecture ($0.00 / Month Free-Tier Matrix)](#1-cost-architecture-000--month-free-tier-matrix)
 2. [Local Run & Development Playbook (Node.js & Docker Compose)](#2-local-run--development-playbook-nodejs--docker-compose)
 3. [Docker Deep Dive & Container Architecture Crash Course](#3-docker-deep-dive--container-architecture-crash-course)
-4. [GCP Architecture Breakdown (Cloud Run, Artifact Registry, GCS, IAM)](#4-gcp-architecture-breakdown)
-5. [Step-by-Step GCP Deployment Playbook (Every Command & Flag Explained)](#5-step-by-step-gcp-deployment-playbook)
-6. [GitHub Actions CI/CD Pipeline (Sequential Execution Breakdown)](#6-github-actions-cicd-pipeline-sequential-execution-breakdown)
-7. [Keyless Security: Workload Identity Federation (WIF) Explained](#7-keyless-security-workload-identity-federation-wif-explained)
-8. [Frontend Deployment on Vercel & SPA Routing (`vercel.json`)](#8-frontend-deployment-on-vercel--spa-routing-verceljson)
-9. [Environment Variables Reference (`.env.production` & `.env.local`)](#9-environment-variables-reference-envproduction--envlocal)
-10. [Disaster Recovery, Tear Down & Project Migration Guide](#10-disaster-recovery-tear-down--project-migration-guide)
-11. [Production Go-Live, Telemetry & Cost Unit Economics (`PENDING_TASKS_AND_PRODUCTION_ROADMAP.md`)](../PENDING_TASKS_AND_PRODUCTION_ROADMAP.md)
+4. [Step-by-Step GCP Deployment Playbook](#4-step-by-step-gcp-deployment-playbook)
+5. [GitHub Actions CI/CD Pipeline (Sequential Execution Breakdown)](#5-github-actions-cicd-pipeline-sequential-execution-breakdown)
+6. [Keyless Security: Workload Identity Federation (WIF) Explained](#6-keyless-security-workload-identity-federation-wif-explained)
+7. [Frontend Deployment on Vercel & SPA Routing (`vercel.json`)](#7-frontend-deployment-on-vercel--spa-routing-verceljson)
+8. [Environment Variables Reference & Secret Acquisition Guide](#8-environment-variables-reference--secret-acquisition-guide)
+9. [Disaster Recovery, Tear Down & Project Migration Guide](#9-disaster-recovery-tear-down--project-migration-guide)
+10. [Production Go-Live, Telemetry & Cost Unit Economics (`PENDING_TASKS_AND_PRODUCTION_ROADMAP.md`)](../PENDING_TASKS_AND_PRODUCTION_ROADMAP.md)
 
 ---
 
@@ -486,41 +485,67 @@ Both `client/vercel.json` and `admin/vercel.json` include SPA rewrite rules:
 
 ---
 
-## 🔑 8. Environment Variables Reference (`.env.production`)
+## 🔑 8. Environment Variables Reference & Secret Acquisition Guide
 
-The complete production configuration file is stored at [`server/.env.production`](file:///c:/Users/Sulaiman/Desktop/Signaturly/server/.env.production):
+The complete production configuration blueprint is below. For step-by-step instructions on obtaining, whitelisting KYC, generating live keys, and creating webhook secrets, see the [Master Credentials Acquisition Playbook](../PENDING_TASKS_AND_PRODUCTION_ROADMAP.md#1-required-production-credentials--step-by-step-acquisition-guide).
 
+### A. Backend API (`server/.env.production` & GCP Cloud Run)
 ```ini
 # ==============================================================================
 # SIGNATURLY PRO BACKEND - PRODUCTION CONFIGURATION
 # ==============================================================================
 
+PORT=5000
 NODE_ENV=production
 APP_NAME=Signaturly Pro
-
-# Allowed CORS Origins (* allows Vercel domains, previews & DuckDNS)
-CORS_ORIGIN=*
+CLIENT_URL=https://signaturly.pro
+ADMIN_URL=https://admin.signaturly.pro
+CORS_ORIGIN=https://signaturly.pro,https://admin.signaturly.pro
 
 # Database Connection (MongoDB Atlas Free M0)
-MONGO_URI=mongodb+srv://suleman111111111111111_db_user:WOCfS74qN0fbJcc8@cluster0.0e0cvkg.mongodb.net/?appName=Cluster0
+# Whitelist: 0.0.0.0/0 in MongoDB Atlas Network Access
+MONGO_URI=mongodb+srv://<db_user>:<db_password>@cluster0.mongodb.net/signaturly?retryWrites=true&w=majority
 
-# Authentication & Security Secrets
-JWT_ACCESS_SECRET=access_secret_123
-JWT_REFRESH_SECRET=refresh_secret_456
-ADMIN_SECRET_KEY=signaturly-superadmin-secret
+# Authentication & Security Secrets (openssl rand -hex 32)
+JWT_ACCESS_SECRET=your_64_char_access_secret_hex
+JWT_REFRESH_SECRET=your_64_char_refresh_secret_hex
+ADMIN_SECRET_KEY=your_64_char_superadmin_secret_hex
 
-# Google Cloud Storage (5GB Always-Free Vault)
+# Google Cloud Storage (5GB Always-Free Vault in us-central1)
 STORAGE_PROVIDER=gcs
-GCP_PROJECT_ID=project-9aac115a-73f9-4e8a-9a7
-GCS_BUCKET_NAME=signaturly-vault-project-9aac115a-73f9-4e8a-9a7
+GCP_PROJECT_ID=signaturly-prod
+GCS_BUCKET_NAME=signaturly-legal-vault-prod
 GCS_SIGNED_URL_EXPIRES=900
+GOOGLE_APPLICATION_CREDENTIALS=/app/gcs-key.json
 
-# Gmail SMTP Relay
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=465
-SMTP_USER=suleman111111111111111@gmail.com
-SMTP_PASS=vgsatqmnxjowucfs
-SMTP_FROM=suleman111111111111111@gmail.com
+# Stripe Live Keys & Price IDs
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_PUBLISHABLE_KEY=pk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRO_MONTHLY_PRICE_ID=price_...
+STRIPE_PRO_ANNUAL_PRICE_ID=price_...
+STRIPE_LIFETIME_PRICE_ID=price_...
+STRIPE_ENTERPRISE_PRICE_ID=price_...
+
+# Razorpay Live Keys & Webhook
+RAZORPAY_KEY_ID=rzp_live_...
+RAZORPAY_KEY_SECRET=...
+RAZORPAY_WEBHOOK_SECRET=...
+
+# In-House Transactional Email (Gmail App Password / Custom SMTP)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=465
+EMAIL_SECURE=true
+EMAIL_USER=contracts.signaturly@gmail.com
+EMAIL_PASS=your-16-char-app-password
+EMAIL_FROM="Signaturly Contracts <contracts.signaturly@gmail.com>"
+```
+
+### B. Frontend Client (`client/.env.production` & Vercel Dashboard)
+```ini
+VITE_API_URL=https://api.signaturly.pro/api/v1
+VITE_STRIPE_PUBLISHABLE_KEY=pk_live_...
+VITE_RAZORPAY_KEY_ID=rzp_live_...
 ```
 
 ---
