@@ -10,6 +10,8 @@ import { env } from "../config/env.js";
 import { randomToken } from "../utils/tokens.js";
 import { withDocumentLock } from "./documentLock.service.js";
 import { sealDocument } from "./pdfSeal.service.js";
+import { normalizePhone, isMessagingAvailable } from "./messaging/index.js";
+import { normalizeLanguage } from "../i18n/messages.js";
 import { enqueueJob } from "../jobs/queue.js";
 
 const RECIPIENT_COLORS = [
@@ -36,8 +38,28 @@ export const createRecipientsForDoc = async ({ pdfId, recipientsData }) => {
   const prepared = [];
   for (let i = 0; i < recipientsData.length; i++) {
     const r = recipientsData[i] || {};
-    if (typeof r.name !== "string" || typeof r.email !== "string" || !r.name.trim() || !r.email.includes("@")) {
+    if (typeof r.name !== "string" || !r.name.trim()) {
+      throw new ApiError(400, "Every recipient needs a name");
+    }
+
+    const email = typeof r.email === "string" ? r.email.trim().toLowerCase() : "";
+    const phone = r.phone ? normalizePhone(String(r.phone)) : "";
+    const channel = ["sms", "whatsapp"].includes(r.channel) ? r.channel : "email";
+
+    if (email && !email.includes("@")) {
+      throw new ApiError(400, `"${r.email}" is not a valid email address`);
+    }
+    if (r.phone && !phone) {
+      throw new ApiError(400, `"${r.phone}" is not a valid mobile number`);
+    }
+    if (channel === "email" && !email) {
       throw new ApiError(400, "Recipient name and a valid email are required");
+    }
+    if (channel !== "email") {
+      if (!phone) throw new ApiError(400, "A mobile number is required to send by SMS or WhatsApp");
+      if (!isMessagingAvailable()) {
+        throw new ApiError(503, "MESSAGING_UNAVAILABLE: SMS and WhatsApp delivery are not set up yet.");
+      }
     }
 
     const authType = ["otp", "passcode"].includes(r.authType) ? r.authType : "none";
@@ -52,7 +74,10 @@ export const createRecipientsForDoc = async ({ pdfId, recipientsData }) => {
     prepared.push({
       pdfId,
       name: r.name.trim(),
-      email: r.email.trim().toLowerCase(),
+      email,
+      phone: phone || "",
+      channel,
+      language: normalizeLanguage(r.language),
       role: ["signer", "viewer", "approver"].includes(r.role) ? r.role : "signer",
       signingOrder: Number.isInteger(r.signingOrder) && r.signingOrder > 0 ? r.signingOrder : i + 1,
       token: randomToken(),
@@ -62,7 +87,7 @@ export const createRecipientsForDoc = async ({ pdfId, recipientsData }) => {
       authType,
       passcodeHash,
       authVerified: authType === "none",
-      authMethod: "email_link",
+      authMethod: channel === "email" ? "email_link" : "message_link",
     });
   }
 
@@ -496,6 +521,7 @@ export const updateRecipientEmailService = async ({
   recipient.tokenExpiresAt = newTokenExpiry();
   recipient.authVerified = recipient.authType === "none";
   recipient.authVerifiedAt = undefined;
+  recipient.channel = "email";
   recipient.authMethod = "email_link";
   recipient.status = "sent";
   await recipient.save();

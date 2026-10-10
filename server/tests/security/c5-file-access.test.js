@@ -78,6 +78,31 @@ describe("C5 stored files are private", () => {
     expect(normalizeKey("abc/file.pdf")).toBe("abc/file.pdf");
   });
 
+  // Plan task P3-13: a phone on a slow connection fetches a long document in pieces
+  it("serves part of a file on request, behind the same permission check", async () => {
+    const owner = await createUser();
+    const doc = await uploadPdf(owner);
+    const key = await keyOf(doc.id);
+    const link = buildSignedFileUrl(key, 60);
+
+    const whole = await api().get(link).buffer(true).parse((res, done) => {
+      const chunks = [];
+      res.on("data", (c) => chunks.push(c));
+      res.on("end", () => done(null, Buffer.concat(chunks)));
+    });
+    expect(whole.status).toBe(200);
+    expect(whole.headers["accept-ranges"]).toBe("bytes");
+
+    const part = await api().get(link).set("Range", "bytes=0-7");
+    expect(part.status).toBe(206);
+    expect(part.headers["content-range"]).toBe(`bytes 0-7/${whole.body.length}`);
+    expect(Buffer.from(part.body).toString("latin1")).toBe(whole.body.subarray(0, 8).toString("latin1"));
+    expect(Buffer.from(part.body).toString("latin1")).toMatch(/^%PDF-/);
+
+    expect((await api().get(link).set("Range", `bytes=${whole.body.length + 10}-`)).status).toBe(416);
+    expect((await api().get(`/uploads/${key}`).set("Range", "bytes=0-7")).status).toBe(403);
+  });
+
   it("answers traversal attempts over HTTP with an error, never a file", async () => {
     const res = await api().get("/uploads/..%2F..%2Fpackage.json");
     expect([400, 403, 404]).toContain(res.status);

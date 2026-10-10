@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 
 export default function SignaturePad({ onConfirm, defaultColor = "#000000" }) {
+  const { t } = useTranslation();
   const canvasRef = useRef(null);
   const ctxRef = useRef(null);
   const [drawing, setDrawing] = useState(false);
@@ -61,6 +63,8 @@ export default function SignaturePad({ onConfirm, defaultColor = "#000000" }) {
 
   const down = (e) => {
     e.preventDefault();
+    // Keeps the stroke going when a finger slides off the edge of the pad
+    e.currentTarget.setPointerCapture?.(e.pointerId);
     setDrawing(true);
     strokesRef.current.push([getPos(e)]);
   };
@@ -87,14 +91,14 @@ export default function SignaturePad({ onConfirm, defaultColor = "#000000" }) {
 
   const confirm = async () => {
     if (strokesRef.current.length === 0) {
-      toast.error("Please draw a signature first");
+      toast.error(t("pad.needDrawing"));
       return;
     }
 
     const canvas = canvasRef.current;
     const dataUrl = canvas.toDataURL("image/png");
     onConfirm(dataUrl);
-    toast.success("Signature captured!");
+    toast.success(t("pad.captured"));
   };
 
   return (
@@ -103,24 +107,25 @@ export default function SignaturePad({ onConfirm, defaultColor = "#000000" }) {
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center space-x-1.5 bg-black/40 p-1.5 rounded-xl border border-white/10">
           {[
-            { name: "Black", val: "#000000", hex: "bg-black" },
-            { name: "Blue", val: "#1d4ed8", hex: "bg-blue-600" },
-            { name: "Red", val: "#b91c1c", hex: "bg-red-600" },
+            { key: "black", val: "#000000", hex: "bg-black" },
+            { key: "blue", val: "#1d4ed8", hex: "bg-blue-600" },
+            { key: "red", val: "#b91c1c", hex: "bg-red-600" },
           ].map((c) => (
             <button
               key={c.val}
               type="button"
               onClick={() => setColor(c.val)}
-              className={`w-6 h-6 rounded-lg ${c.hex} border transition-all ${
+              className={`w-8 h-8 sm:w-6 sm:h-6 rounded-lg ${c.hex} border transition-all ${
                 color === c.val ? "scale-110 border-white ring-2 ring-white/30" : "border-transparent opacity-70"
               }`}
-              title={c.name}
+              title={t(`pad.color.${c.key}`)}
+              aria-label={t(`pad.color.${c.key}`)}
             />
           ))}
         </div>
 
         <div className="flex items-center space-x-2 text-xs">
-          <span className="text-[10px] uppercase font-mono text-gray-400">Stroke:</span>
+          <span className="text-[10px] uppercase font-mono text-gray-400">{t("pad.stroke")}</span>
           <input
             type="range"
             min="1"
@@ -140,10 +145,10 @@ export default function SignaturePad({ onConfirm, defaultColor = "#000000" }) {
           onPointerDown={down}
           onPointerMove={move}
           onPointerUp={up}
-          onPointerLeave={up}
+          onPointerCancel={up}
         />
         <span className="absolute bottom-2 right-3 text-[10px] font-mono text-gray-400 pointer-events-none select-none">
-          Draw with mouse, touch or pen
+          {t("pad.hint")}
         </span>
       </div>
 
@@ -154,21 +159,21 @@ export default function SignaturePad({ onConfirm, defaultColor = "#000000" }) {
           onClick={clear}
           className="px-3 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold rounded-xl text-xs transition-colors border border-white/10"
         >
-          Clear
+          {t("pad.clear")}
         </button>
         <button
           type="button"
           onClick={undo}
           className="px-3 py-2 bg-white/5 hover:bg-white/10 text-gray-300 font-bold rounded-xl text-xs transition-colors border border-white/10"
         >
-          Undo
+          {t("pad.undo")}
         </button>
         <button
           type="button"
           onClick={confirm}
           className="ml-auto px-5 py-2 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-red-950/50 border border-red-500/30"
         >
-          Attach Signature
+          {t("pad.attach")}
         </button>
       </div>
     </div>

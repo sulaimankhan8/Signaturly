@@ -4,6 +4,7 @@ import { PdfAudit } from "../models/PdfAudit.model.js";
 import { Recipient } from "../models/Recipient.model.js";
 import { verifyAuditChainIntegrity } from "./auditLedger.service.js";
 import { inspectSeal } from "./pdfSeal.service.js";
+import { describeIdentityCheck } from "../utils/identityCheck.js";
 
 /**
  * Computes SHA-256 hash of a file buffer.
@@ -20,11 +21,7 @@ const maskEmail = (email = "") => {
   return `${local.charAt(0)}***@${domain.charAt(0)}***${domain.includes(".") ? domain.slice(domain.lastIndexOf(".")) : ""}`;
 };
 
-const describeAuth = (recipient) => {
-  if (recipient.authVerified && recipient.authVerifiedAt && recipient.authMethod === "email_otp") return "Email link + one-time code";
-  if (recipient.authVerified && recipient.authVerifiedAt && recipient.authMethod === "passcode") return "Email link + access passcode";
-  return "Email link";
-};
+const describeAuth = describeIdentityCheck;
 
 const TITLES = {
   created: "Document created",

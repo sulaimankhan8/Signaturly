@@ -1,15 +1,18 @@
 User-agent: *
 Allow: /
 Allow: /pricing
-Allow: /compliance
 Allow: /verify
-Allow: /legal/*
+Allow: /userguide
 Disallow: /dashboard
-Disallow: /editor/*
-Disallow: /workspaces
-Disallow: /api-settings
+Disallow: /upload
+Disallow: /editor/
+Disallow: /send/
+Disallow: /assign/
+Disallow: /sign/
 Disallow: /templates
-Disallow: /tools/*
-Disallow: /sign/*
+Disallow: /settings
+Disallow: /workspaces
+Disallow: /developer
+Disallow: /test
 
-Sitemap: https://signaturly.pro/sitemap.xml
+Sitemap: https://pactdoc.com/sitemap.xml

@@ -19,8 +19,8 @@ export const processAutomatedExpirations = async () => {
         aggregateId: pdf._id,
         actor: {
           id: pdf.userId,
-          name: "Signaturly Automation",
-          email: "system@signaturly.com",
+          name: "PactDoc Automation",
+          email: "system@pactdoc.com",
         },
         payload: {
           pdf,

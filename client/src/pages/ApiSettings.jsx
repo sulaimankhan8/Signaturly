@@ -229,7 +229,7 @@ export default function ApiSettings() {
                 </div>
                 <h4 className="font-bold text-white text-[11px] uppercase text-amber-400">Scoped REST API Keys</h4>
                 <p className="text-[10px] text-gray-400 leading-tight">
-                  Generate secure <code className="text-amber-300">sig_live_...</code> bearer tokens with granular permissions.
+                  Generate secure <code className="text-amber-300">pd_live_...</code> bearer tokens with granular permissions.
                 </p>
               </div>
 
@@ -354,7 +354,7 @@ export default function ApiSettings() {
                 <div>
                   <h2 className="text-lg font-black text-white">Active REST API Keys</h2>
                   <p className="text-xs text-gray-400">
-                    Use these bearer tokens to authenticate with <code className="text-amber-400">https://api.signaturly.pro/api</code>
+                    Use these bearer tokens to authenticate with <code className="text-amber-400">https://api.pactdoc.com/api</code>
                   </p>
                 </div>
               </div>
@@ -510,7 +510,7 @@ export default function ApiSettings() {
                     <input
                       type="url"
                       required
-                      placeholder="https://yourserver.com/webhooks/signaturly"
+                      placeholder="https://yourserver.com/webhooks/pactdoc"
                       value={webhookUrl}
                       onChange={(e) => setWebhookUrl(e.target.value)}
                       className="flex-1 bg-[#12141c] border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-gray-500 font-mono focus:outline-none focus:border-amber-400"

@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 
 export default function InitialsStudio({ onConfirm, defaultName = "" }) {
+  const { t } = useTranslation();
   const defaultInitials = defaultName
     ? defaultName
         .split(" ")
@@ -9,7 +11,7 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
         .join("")
         .toUpperCase()
         .substring(0, 3)
-    : "SK";
+    : "";
 
   const [mode, setMode] = useState("type"); // type | draw
   const [initialsText, setInitialsText] = useState(defaultInitials);
@@ -77,7 +79,7 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
   };
 
   const generateInitialsImage = () => {
-    const text = (initialsText || "SK").trim().toUpperCase();
+    const text = (initialsText || "").trim().toUpperCase();
     const canvas = document.createElement("canvas");
     canvas.width = 240;
     canvas.height = 240;
@@ -130,16 +132,20 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
   const handleConfirm = () => {
     if (mode === "draw") {
       if (strokesRef.current.length === 0) {
-        toast.error("Please draw your initials first");
+        toast.error(t("initials.needDrawing"));
         return;
       }
       const dataUrl = canvasRef.current.toDataURL("image/png");
       onConfirm(dataUrl);
-      toast.success("Drawn initials adopted!");
+      toast.success(t("initials.drawn"));
     } else {
+      if (!initialsText.trim()) {
+        toast.error(t("initials.needDrawing"));
+        return;
+      }
       const dataUrl = generateInitialsImage();
       onConfirm(dataUrl);
-      toast.success("Initials generated!");
+      toast.success(t("initials.generated"));
     }
   };
 
@@ -154,7 +160,7 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
             mode === "type" ? "bg-white/15 text-white shadow border border-white/20" : "text-gray-400 hover:text-white"
           }`}
         >
-          Type / Monogram
+          {t("initials.modeType")}
         </button>
         <button
           type="button"
@@ -163,7 +169,7 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
             mode === "draw" ? "bg-white/15 text-white shadow border border-white/20" : "text-gray-400 hover:text-white"
           }`}
         >
-          Draw Initials
+          {t("initials.modeDraw")}
         </button>
       </div>
 
@@ -172,14 +178,13 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
           <div className="flex items-center gap-3">
             <div className="flex-1">
               <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
-                Initials Text (2-3 chars)
+                {t("initials.label")}
               </label>
               <input
                 type="text"
                 maxLength={4}
                 value={initialsText}
                 onChange={(e) => setInitialsText(e.target.value.toUpperCase())}
-                placeholder="SK"
                 className="w-full px-3 py-2 bg-[#08090d] border border-white/10 rounded-xl text-white font-mono text-center font-bold tracking-widest text-base focus:outline-none focus:border-red-500"
               />
             </div>
@@ -204,9 +209,9 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
 
           <div className="flex bg-[#08090d] p-1 rounded-xl border border-white/10">
             {[
-              { id: "monogram-circle", label: "Circle Seal" },
-              { id: "monogram-square", label: "Badge" },
-              { id: "handwritten", label: "Cursive" },
+              { id: "monogram-circle", labelKey: "initials.styleCircle" },
+              { id: "monogram-square", labelKey: "initials.styleSquare" },
+              { id: "handwritten", labelKey: "initials.styleCursive" },
             ].map((b) => (
               <button
                 key={b.id}
@@ -216,7 +221,7 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
                   badgeStyle === b.id ? "bg-white/20 text-white" : "text-gray-400 hover:text-white"
                 }`}
               >
-                {b.label}
+                {t(b.labelKey)}
               </button>
             ))}
           </div>
@@ -241,7 +246,7 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
                   fontWeight: "bold",
                 }}
               >
-                {initialsText || "SK"}
+                {initialsText}
               </span>
             </div>
           </div>
@@ -254,6 +259,7 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
               className="w-full h-full touch-none cursor-crosshair"
               onPointerDown={(e) => {
                 e.preventDefault();
+                e.currentTarget.setPointerCapture?.(e.pointerId);
                 setDrawing(true);
                 strokesRef.current.push([getPos(e)]);
               }}
@@ -263,7 +269,7 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
                 redraw();
               }}
               onPointerUp={() => setDrawing(false)}
-              onPointerLeave={() => setDrawing(false)}
+              onPointerCancel={() => setDrawing(false)}
             />
           </div>
           <button
@@ -274,7 +280,7 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
             }}
             className="text-[11px] text-gray-400 hover:text-red-400 underline font-semibold"
           >
-            Clear Initials Pad
+            {t("initials.clearPad")}
           </button>
         </div>
       )}
@@ -284,7 +290,7 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
         onClick={handleConfirm}
         className="w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-red-950/50 border border-red-500/30"
       >
-        Adopt Initials Mark
+        {t("initials.adopt")}
       </button>
     </div>
   );

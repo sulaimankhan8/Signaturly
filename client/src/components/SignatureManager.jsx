@@ -4,6 +4,7 @@ import TypeSignature from "./TypeSignature";
 import VerifiedESignBadge from "./VerifiedESignBadge";
 import InitialsStudio from "./InitialsStudio";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 
 export default function SignatureManager({
   onUploaded,
@@ -13,13 +14,14 @@ export default function SignatureManager({
   signerName = "",
   storageKey = "default",
 }) {
+  const { t } = useTranslation();
   const [managerMode, setManagerMode] = useState("signature"); // signature | initials
   const [sigTab, setSigTab] = useState("esign"); // esign | draw | type | upload
   const [signatureUrl, setSignatureUrl] = useState(defaultSignatureUrl);
   const [initialsUrl, setInitialsUrl] = useState(defaultInitialsUrl);
 
-  const sigStorageKey = `signaturly_sig_${storageKey}`;
-  const initStorageKey = `signaturly_init_${storageKey}`;
+  const sigStorageKey = `pactdoc_sig_${storageKey}`;
+  const initStorageKey = `pactdoc_init_${storageKey}`;
 
   // Sync state when default props change
   useEffect(() => {
@@ -51,7 +53,7 @@ export default function SignatureManager({
     if (!file) return;
 
     if (!file.type.startsWith("image/")) {
-      toast.error("Please select a valid image file");
+      toast.error(t("sig.invalidImage"));
       return;
     }
 
@@ -63,7 +65,7 @@ export default function SignatureManager({
       } else {
         handleInitialsCapture(dataUrl);
       }
-      toast.success("Uploaded asset attached!");
+      toast.success(t("sig.uploaded"));
     };
     reader.readAsDataURL(file);
   };
@@ -84,7 +86,7 @@ export default function SignatureManager({
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
           </svg>
-          Full Signature
+          {t("sig.fullSignature")}
         </button>
 
         <button
@@ -96,8 +98,7 @@ export default function SignatureManager({
               : "text-gray-400 hover:text-white"
           }`}
         >
-          <span className="font-mono text-xs border border-current px-1 rounded">SK</span>
-          Initials
+          {t("sig.initials")}
         </button>
       </div>
 
@@ -106,10 +107,10 @@ export default function SignatureManager({
           {/* Subtabs for Signature */}
           <div className="flex bg-[#08090d] p-1 rounded-xl border border-white/10">
             {[
-              { id: "esign", label: "★ E-Sign Stamp" },
-              { id: "draw", label: "Draw" },
-              { id: "type", label: "Type" },
-              { id: "upload", label: "Upload" },
+              { id: "esign", labelKey: "sig.tabStamp" },
+              { id: "draw", labelKey: "sig.tabDraw" },
+              { id: "type", labelKey: "sig.tabType" },
+              { id: "upload", labelKey: "sig.tabUpload" },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -121,7 +122,7 @@ export default function SignatureManager({
                     : "text-gray-400 hover:text-white"
                 }`}
               >
-                {tab.label}
+                {t(tab.labelKey)}
               </button>
             ))}
           </div>
@@ -150,8 +151,8 @@ export default function SignatureManager({
                 <svg className="w-8 h-8 text-red-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <span className="text-xs font-bold text-white">Upload Signature Image</span>
-                <span className="text-[10px] text-gray-400 mt-0.5">PNG, JPG, WebP supported</span>
+                <span className="text-xs font-bold text-white">{t("sig.uploadTitle")}</span>
+                <span className="text-[10px] text-gray-400 mt-0.5">{t("sig.uploadHint")}</span>
                 <input
                   type="file"
                   accept="image/*"
@@ -170,7 +171,7 @@ export default function SignatureManager({
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Active Signature
+                  {t("sig.active")}
                 </span>
                 <button
                   type="button"
@@ -180,11 +181,11 @@ export default function SignatureManager({
                   }}
                   className="text-gray-400 hover:text-red-400 text-[11px]"
                 >
-                  Clear
+                  {t("sig.clear")}
                 </button>
               </div>
               <div className="bg-white p-2 rounded-lg flex items-center justify-center max-h-16 overflow-hidden">
-                <img src={signatureUrl} alt="Active Signature" className="max-h-12 object-contain" />
+                <img src={signatureUrl} alt={t("sig.active")} className="max-h-12 object-contain" />
               </div>
             </div>
           )}
@@ -204,7 +205,7 @@ export default function SignatureManager({
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Active Initials
+                  {t("sig.activeInitials")}
                 </span>
                 <button
                   type="button"
@@ -214,11 +215,11 @@ export default function SignatureManager({
                   }}
                   className="text-gray-400 hover:text-red-400 text-[11px]"
                 >
-                  Clear
+                  {t("sig.clear")}
                 </button>
               </div>
               <div className="bg-white p-2 rounded-lg flex items-center justify-center max-h-16 overflow-hidden">
-                <img src={initialsUrl} alt="Active Initials" className="max-h-12 object-contain" />
+                <img src={initialsUrl} alt={t("sig.activeInitials")} className="max-h-12 object-contain" />
               </div>
             </div>
           )}

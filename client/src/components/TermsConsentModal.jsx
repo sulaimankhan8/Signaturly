@@ -72,7 +72,7 @@ export default function TermsConsentModal() {
         >
           {/* Notice Alert */}
           <div className="p-3.5 bg-yellow-500/10 border-l-4 border-yellow-400 rounded-r-xl text-yellow-200 text-xs font-semibold">
-            ⚖️ <strong>Legal Notice:</strong> Under the U.S. ESIGN Act (15 U.S.C. § 7001), Section 10A of the Indian IT Act 2000, and EU eIDAS Regulation (No 910/2014), you must explicitly assent to electronic disclosures and legal terms before utilizing the Signaturly Pro platform.
+            ⚖️ <strong>Legal Notice:</strong> Under the U.S. ESIGN Act (15 U.S.C. § 7001), Section 10A of the Indian IT Act 2000, and EU eIDAS Regulation (No 910/2014), you must explicitly assent to electronic disclosures and legal terms before utilizing the PactDoc platform.
           </div>
 
           {/* Section 1 */}
@@ -81,7 +81,7 @@ export default function TermsConsentModal() {
               <span className="text-yellow-400 font-mono">1.</span> Electronic Record & Signature Disclosure (ERSD)
             </h3>
             <p>
-              By accessing and utilizing Signaturly Pro, you expressly consent to receive, execute, send, and store all contracts, legal notices, audit logs, and transaction records in electronic format. You agree that your electronic signature, typed name, drawn mark, image seal, or One-Time Password (OTP) verification carries identical legal enforceability, validity, and admissibility as a wet-ink paper signature under applicable federal, state, and international laws.
+              By accessing and utilizing PactDoc, you expressly consent to receive, execute, send, and store all contracts, legal notices, audit logs, and transaction records in electronic format. You agree that your electronic signature, typed name, drawn mark, image seal, or One-Time Password (OTP) verification carries identical legal enforceability, validity, and admissibility as a wet-ink paper signature under applicable federal, state, and international laws.
             </p>
           </div>
 
@@ -101,7 +101,7 @@ export default function TermsConsentModal() {
               <span className="text-yellow-400 font-mono">3.</span> Audit Trail & Metadata Logging Authorization
             </h3>
             <p>
-              You authorize Signaturly Pro to log, capture, hash, and cryptographically bind transaction metadata to every executed document, including but not limited to your IP address, browser user-agent string, exact UTC timestamps, email verification logs, and pre/post-execution SHA-256 document checksums. This metadata forms a permanent, tamper-evident legal Audit Certificate appended to executed files.
+              You authorize PactDoc to log, capture, hash, and cryptographically bind transaction metadata to every executed document, including but not limited to your IP address, browser user-agent string, exact UTC timestamps, email verification logs, and pre/post-execution SHA-256 document checksums. This metadata forms a permanent, tamper-evident legal Audit Certificate appended to executed files.
             </p>
           </div>
 
@@ -121,7 +121,7 @@ export default function TermsConsentModal() {
               <span className="text-yellow-400 font-mono">5.</span> Anti-Fraud, Acceptable Use & Limitation of Liability
             </h3>
             <p>
-              You agree not to upload fraudulent documents, impersonate third parties without formal power of attorney, or engage in unauthorized system exploitation. Signaturly Pro provides secure digital signature infrastructure; final contractual rights and performance remain the sole responsibility of the signing parties.
+              You agree not to upload fraudulent documents, impersonate third parties without formal power of attorney, or engage in unauthorized system exploitation. PactDoc provides secure digital signature infrastructure; final contractual rights and performance remain the sole responsibility of the signing parties.
             </p>
           </div>
 
@@ -157,7 +157,7 @@ export default function TermsConsentModal() {
                 className="mt-0.5 w-4 h-4 rounded border-gray-600 bg-black text-yellow-400 focus:ring-yellow-400 focus:ring-offset-0 cursor-pointer accent-yellow-400"
               />
               <span className="text-xs text-gray-200 font-medium group-hover:text-white transition-colors">
-                I have read and agree to the <strong>Signaturly Pro Terms of Service</strong>, Audit Trail IP Recording Policy, and Anti-Fraud Covenants.
+                I have read and agree to the <strong>PactDoc Terms of Service</strong>, Audit Trail IP Recording Policy, and Anti-Fraud Covenants.
               </span>
             </label>
           </div>

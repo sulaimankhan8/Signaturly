@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 
 const CURSIVE_FONTS = [
-  { name: "Great Vibes (Executive Cursive)", font: "'Great Vibes', cursive", size: 40 },
-  { name: "Dancing Script (Fluid Penmanship)", font: "'Dancing Script', cursive", size: 36 },
-  { name: "Caveat (Natural Pen)", font: "'Caveat', cursive", size: 38 },
-  { name: "Alex Brush (Calligraphy Quill)", font: "'Alex Brush', cursive", size: 40 },
+  // Typeface names are proper names and are shown as they are in every language
+  { name: "Great Vibes", font: "'Great Vibes', cursive", size: 40 },
+  { name: "Dancing Script", font: "'Dancing Script', cursive", size: 36 },
+  { name: "Caveat", font: "'Caveat', cursive", size: 38 },
+  { name: "Alex Brush", font: "'Alex Brush', cursive", size: 40 },
 ];
 
 export default function TypeSignature({ onConfirm, defaultText = "" }) {
+  const { t } = useTranslation();
   const [typedName, setTypedName] = useState(defaultText);
   const [selectedFont, setSelectedFont] = useState(CURSIVE_FONTS[0].font);
   const [color, setColor] = useState("#000000");
@@ -22,7 +25,7 @@ export default function TypeSignature({ onConfirm, defaultText = "" }) {
   const generateSignatureImage = () => {
     const text = typedName.trim();
     if (!text) {
-      toast.error("Please enter your name to generate a signature");
+      toast.error(t("typed.needName"));
       return null;
     }
 
@@ -45,7 +48,7 @@ export default function TypeSignature({ onConfirm, defaultText = "" }) {
     const dataUrl = generateSignatureImage();
     if (dataUrl) {
       onConfirm(dataUrl);
-      toast.success("Typed signature generated!");
+      toast.success(t("typed.generated"));
     }
   };
 
@@ -54,13 +57,13 @@ export default function TypeSignature({ onConfirm, defaultText = "" }) {
       {/* Name Input */}
       <div>
         <label className="block text-xs font-black uppercase tracking-wider text-gray-300 mb-1.5">
-          Type Your Full Name / Signature
+          {t("typed.label")}
         </label>
         <input
           type="text"
           value={typedName}
           onChange={(e) => setTypedName(e.target.value)}
-          placeholder="e.g. Eleanor Vance"
+          placeholder={t("typed.placeholder")}
           className="w-full px-3.5 py-2.5 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-yellow-400 text-xs font-medium"
         />
       </div>
@@ -69,9 +72,9 @@ export default function TypeSignature({ onConfirm, defaultText = "" }) {
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center space-x-1.5 bg-[#090a0f] p-1.5 rounded-xl border-2 border-white/20">
           {[
-            { name: "Black", val: "#000000", hex: "bg-black" },
-            { name: "Blue", val: "#1d4ed8", hex: "bg-blue-600" },
-            { name: "Red", val: "#b91c1c", hex: "bg-red-600" },
+            { key: "black", val: "#000000", hex: "bg-black" },
+            { key: "blue", val: "#1d4ed8", hex: "bg-blue-600" },
+            { key: "red", val: "#b91c1c", hex: "bg-red-600" },
           ].map((c) => (
             <button
               key={c.val}
@@ -80,7 +83,8 @@ export default function TypeSignature({ onConfirm, defaultText = "" }) {
               className={`w-6 h-6 rounded-lg ${c.hex} border-2 transition-all ${
                 color === c.val ? "scale-110 border-white ring-2 ring-yellow-400" : "border-black/50 opacity-70"
               }`}
-              title={c.name}
+              title={t(`pad.color.${c.key}`)}
+              aria-label={t(`pad.color.${c.key}`)}
             />
           ))}
         </div>
@@ -113,7 +117,7 @@ export default function TypeSignature({ onConfirm, defaultText = "" }) {
             {typedName}
           </span>
         ) : (
-          <span className="text-xs text-gray-400 italic font-medium">Signature preview will appear here</span>
+          <span className="text-xs text-gray-400 italic font-medium">{t("typed.preview")}</span>
         )}
       </div>
 
@@ -123,7 +127,7 @@ export default function TypeSignature({ onConfirm, defaultText = "" }) {
         disabled={!typedName.trim()}
         className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-black uppercase tracking-wider rounded-xl text-xs transition-all shadow-[3px_3px_0px_0px_#facc15] border-2 border-black hover:-translate-x-0.5 hover:-translate-y-0.5"
       >
-        Use Typed Signature →
+        {t("typed.use")}
       </button>
     </div>
   );

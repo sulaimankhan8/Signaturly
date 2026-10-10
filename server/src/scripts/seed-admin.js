@@ -5,7 +5,7 @@ import { env } from "../config/env.js";
 
 async function seedAdmin() {
   console.log("\n=======================================================");
-  console.log("👑  SIGNATURLY PRO - SUPERADMIN ACCOUNT INITIALIZER  👑");
+  console.log("👑  PACTDOC - SUPERADMIN ACCOUNT INITIALIZER  👑");
   console.log("=======================================================\n");
 
   // Parse command line arguments (e.g., node seed-admin.js --email=admin@test.com --password=SecretPassword)
@@ -17,7 +17,7 @@ async function seedAdmin() {
     return acc;
   }, {});
 
-  const email = (args.email || process.env.ADMIN_EMAIL || "admin@signaturly.pro").trim().toLowerCase();
+  const email = (args.email || process.env.ADMIN_EMAIL || "admin@pactdoc.com").trim().toLowerCase();
   const password = args.password || process.env.ADMIN_PASSWORD;
   const name = args.name || process.env.ADMIN_NAME || "System Superadmin";
 

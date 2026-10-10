@@ -27,7 +27,7 @@ export default function AdminLogin() {
       });
 
       if (res.data.adminToken) {
-        localStorage.setItem("signaturly_admin_token", res.data.adminToken);
+        localStorage.setItem("pactdoc_admin_token", res.data.adminToken);
         navigate("/dashboard");
       }
     } catch (err) {
@@ -67,7 +67,7 @@ export default function AdminLogin() {
           <label style={styles.label}>Admin Account Email</label>
           <input
             type="email"
-            placeholder="admin@signaturly.com"
+            placeholder="admin@pactdoc.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={styles.input}

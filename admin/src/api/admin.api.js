@@ -14,7 +14,7 @@ export const adminApi = axios.create({
 });
 
 adminApi.interceptors.request.use((config) => {
-  const adminToken = localStorage.getItem("signaturly_admin_token");
+  const adminToken = localStorage.getItem("pactdoc_admin_token");
   if (adminToken) {
     config.headers.Authorization = `Bearer ${adminToken}`;
   }

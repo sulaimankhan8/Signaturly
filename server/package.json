@@ -26,6 +26,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@expo-google-fonts/noto-sans": "^0.4.2",
+    "@expo-google-fonts/noto-sans-bengali": "^0.4.4",
+    "@expo-google-fonts/noto-sans-devanagari": "^0.4.1",
+    "@expo-google-fonts/noto-sans-gujarati": "^0.4.2",
+    "@expo-google-fonts/noto-sans-kannada": "^0.4.3",
+    "@expo-google-fonts/noto-sans-tamil": "^0.4.3",
+    "@expo-google-fonts/noto-sans-telugu": "^0.4.2",
     "@google-cloud/storage": "^8.0.1",
     "@signpdf/placeholder-pdf-lib": "^3.3.0",
     "@signpdf/signer-p12": "^3.3.0",
@@ -40,6 +47,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.1",
+    "harfbuzzjs": "^1.6.3",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.0.2",
@@ -53,8 +61,11 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@babel/parser": "^8.0.7",
+    "@napi-rs/canvas": "^1.0.11",
     "mongodb-memory-server": "^11.3.0",
     "nodemon": "^3.1.11",
+    "pdfjs-dist": "^6.4.299",
     "supertest": "^7.3.1",
     "vitest": "^5.0.3"
   }

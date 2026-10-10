@@ -25,15 +25,15 @@ export const buildEnv = (source) => {
     smtpPort: parseInt(source.SMTP_PORT) || 587,
     smtpUser: source.SMTP_USER,
     smtpPass: source.SMTP_PASS,
-    smtpFrom: source.SMTP_FROM || "noreply@signaturly.com",
-    appName: source.APP_NAME || "Signaturly Pro",
+    smtpFrom: source.SMTP_FROM || "noreply@pactdoc.com",
+    appName: source.APP_NAME || "PactDoc",
     appUrl: source.APP_URL || "http://localhost:5173",
     adminSecret: source.ADMIN_SECRET_KEY,
     adminJwtSecret: source.ADMIN_JWT_SECRET,
     storageProvider: source.STORAGE_PROVIDER || "local",
     uploadsDir: source.UPLOADS_DIR || "uploads",
     gcpProjectId: source.GCP_PROJECT_ID || source.GOOGLE_CLOUD_PROJECT,
-    gcsBucketName: source.GCS_BUCKET_NAME || "signaturly-prod-vault-storage",
+    gcsBucketName: source.GCS_BUCKET_NAME || "pactdoc-documents",
     gcsSignedUrlExpires: parseInt(source.GCS_SIGNED_URL_EXPIRES) || 900,
     // Signed file links (served through /uploads) stay valid for this many seconds
     fileUrlTtlSeconds: parseInt(source.FILE_URL_TTL_SECONDS) || 3600,
@@ -48,6 +48,9 @@ export const buildEnv = (source) => {
     razorpayWebhookSecret: source.RAZORPAY_WEBHOOK_SECRET,
     trustProxy: source.TRUST_PROXY !== undefined ? source.TRUST_PROXY : (isProd ? "1" : ""),
     rateLimitDisabled: toBool(source.RATE_LIMIT_DISABLED, false),
+    // SMS and WhatsApp. No commercial provider is wired in yet, so production keeps this off.
+    messagingEnabled: toBool(source.MESSAGING_ENABLED, !isProd),
+    messagingProvider: source.MESSAGING_PROVIDER || (isTest ? "test" : "console"),
     // Key for the audit log's hash chain. Outside production it falls back to a value derived from the access secret.
     auditHmacKey: source.AUDIT_HMAC_KEY || (isProd ? undefined : `dev-audit:${source.JWT_ACCESS_SECRET || ""}`),
     // Certificate that seals completed PDFs (PKCS#12, base64). Outside production one is generated on first use.

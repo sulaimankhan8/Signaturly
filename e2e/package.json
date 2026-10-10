@@ -1,0 +1,14 @@
+{
+  "name": "pactdoc-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Browser tests: the real client against the real server, on a phone-sized screen and a desktop one",
+  "scripts": {
+    "test": "playwright test",
+    "stack": "node stack.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

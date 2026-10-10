@@ -7,6 +7,7 @@ import DraggableField from "../components/DraggableField";
 import SignatureManager from "../components/SignatureManager";
 import API from "../api/axios";
 import { useSelector } from "react-redux";
+import { formatFieldDate } from "../utils/fieldDate";
 
 export default function PdfEditor() {
   const { pdfId } = useParams();
@@ -62,7 +63,7 @@ export default function PdfEditor() {
       yPercent: 0.2,
       widthPercent: type === "radio" || type === "checkbox" ? 0.05 : (type === "signature" ? 0.3 : 0.25),
       heightPercent: type === "radio" || type === "checkbox" ? 0.04 : (type === "signature" ? 0.12 : 0.06),
-      value: type === "date" ? new Date().toLocaleDateString() : "",
+      value: type === "date" ? formatFieldDate() : "",
       checked: false,
       signatureUrl: type === "signature" ? signatureUrl : "",
     };

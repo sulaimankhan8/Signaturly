@@ -17,7 +17,7 @@ import {
   reactivateSubscription,
 } from "../services/subscription.service.js";
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/signaturly";
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/pactdoc";
 
 async function runLifecycleVerification() {
   console.log("===================================================================");
@@ -43,8 +43,8 @@ async function runLifecycleVerification() {
     await mongoose.connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 });
     console.log("✓ Connected to MongoDB.\n");
 
-    const testEmail = `lifecycle_test_${Date.now()}@signaturly.test`;
-    const memberEmail = `member_test_${Date.now()}@signaturly.test`;
+    const testEmail = `lifecycle_test_${Date.now()}@pactdoc.test`;
+    const memberEmail = `member_test_${Date.now()}@pactdoc.test`;
 
     const user = await User.create({
       name: "Lifecycle Tester",

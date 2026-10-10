@@ -39,17 +39,44 @@ Phase 0 before anything. Phase 1 before any real user. The test setup in the nex
 
 ## Progress as of 11 October 2026
 
-42 of 132 tasks are done and 13 are partly done: phase 1 is nearly complete and the core of phase 2 is built, with 153 automated tests passing. The work is uncommitted on branch `fix/phase1-security` and nothing is deployed. `PENDING_TASKS_AND_PRODUCTION_ROADMAP.md` in the repo root carries the same status with the owner's to-do list and the production configuration.
+52 of 132 tasks are done and 16 are partly done: phase 1 is nearly complete, the core of phase 2 is built and the code side of phase 3 is finished, with 223 server tests and 28 browser tests passing. Phases 1 and 2 are committed, and phase 3 is uncommitted, on branch `fix/phase1-security` and nothing is deployed. `PENDING_TASKS_AND_PRODUCTION_ROADMAP.md` in the repo root carries the same status with the owner's to-do list and the production configuration.
 
 | Phase | Tasks | Done | Partly | Not started |
 | --- | --- | --- | --- | --- |
-| Setup | 13 | 4 | 2 | 7 |
+| Setup | 13 | 5 | 2 | 6 |
 | 0. Emergency | 8 | 0 | 1 | 7 |
 | 1. Secure | 32 | 29 | 3 | 0 |
 | 2. Trust | 22 | 9 | 7 | 6 |
-| 3 to 6 | 57 | 0 | 0 | 57 |
+| 3. India fit: 9 done, 3 partly, 2 not started. Phases 4 to 6: not started | 57 | 9 | 3 | 45 |
 
-Not yet checked: a click-through in a browser, the signing record's printed layout, and the seal in Adobe Acrobat.
+Not yet checked: a real phone in the hand, the seal in Adobe Acrobat, the Hindi wording by a native speaker, and the client's new routing on the live host.
+
+### Phase 3 so far
+
+The gating question is settled: pdf-lib's own text drawing breaks every Indian script, so text is shaped with HarfBuzz and drawn as glyph outlines. The comparison and the decision are in `docs/decisions/0001-text-rendering-for-indic-scripts.md`.
+
+| Task | Status | Note |
+| --- | --- | --- |
+| P3-01 | Done | Three approaches rendered and compared for six scripts; decision recorded |
+| P3-02 | Done | Field values and the signing record keep Hindi, Marathi, Tamil, Telugu, Kannada, Gujarati and Bengali text |
+| P3-03 | Done | Every signer screen in English and Hindi; a test fails on any untranslated word or missing key; a browser test signs end to end in Hindi |
+| P3-04 | Done | Language per signer drives emails, messages and the signing record, which repeats its headings in that language beside the English |
+| P3-05 | Not started | Needs translators; missing wording falls back to English |
+| P3-06 | Done | Phone-only signers, delivery channel per signer, fields linked by number |
+| P3-07 | Partly | Messaging interface with development and test providers; no commercial provider yet |
+| P3-08 | Partly | WhatsApp uses the same interface and templates; needs business verification |
+| P3-09 | Done | One-time code by SMS, named as such in the audit log |
+| P3-10 | Done | India date, time and rupee formats |
+| P3-11 | Not started | Yours: approve the move to the Mumbai region |
+| P3-12 | Partly | Apps, emails, storage keys and package names renamed; cloud resource names, DNS and old documents remain |
+| P3-13 | Done | Fits a 360-pixel screen, bottom action bar, finger-drawn signature, per-page code loading, documents fetched in pieces; browser-tested on a phone profile and a throttled connection |
+| P3-14 | Done | Landing, pricing, verification and user guide written out as HTML at build time, with a sitemap; template pages join in P4-08 |
+
+Found and fixed during phase 3: about 1 genuine sealed file in 256 was reported as altered, because the signing library's extractor cut short any signature ending in a zero byte. The first browser tests then found that tapping a signature field on the document did nothing, that signers could drag fields the server would stamp elsewhere, and that date fields carried the sender's date in an ambiguous format. The ready-made signature stamp also printed unsupported claims onto documents; it now says only "Electronically signed" and the date.
+
+Setup task S-07 (browser tests) is done as part of this: `e2e/` runs the built client against the real server on a throwaway database, in the Chrome already installed, and is a CI job.
+
+Further tasks added: native review of the Hindi wording and legal approval of the consent sentence per language (A-13); charging messages to the wallet before messaging is switched on in production (A-14); trimming the font packages (A-15); Arabic and Japanese fonts and mixed-direction text for later markets (A-16); an optional invisible text layer because shaped text cannot be selected (A-17); translating the signing record (A-18, now done); translating the server's error replies on signer screens (A-19); speeding up the signing page on a weak signal, measured at 22 seconds to first page at 400 kbit/s (A-20); checking the client's new routing on the live host (A-21); browser tests for the remaining screens (A-22); the language of the stamp wording (A-23); and an unneeded sign-in call on signer pages (A-24).
 
 ### Status of every task in the phases already begun
 
@@ -58,7 +85,8 @@ Not yet checked: a click-through in a browser, the signing record's printed layo
 | S-01 | Not started | Yours: staging and production projects |
 | S-02 | Not started | Local compose file |
 | S-03, S-04, S-05 | Done | In-memory database harness, helpers, email outbox |
-| S-06, S-07 | Not started | Component tests; Playwright |
+| S-06 | Not started | Component tests |
+| S-07 | Done | Playwright in `e2e/`: 28 tests on a phone profile and a desktop one, against the real server on a throwaway database |
 | S-08 | Done | CI on every pull request. Lint is not gated: 543 existing errors |
 | S-09 | Partly | Tests gate the deploy; no separate staging deploy |
 | S-10 | Not started | Yours: branch protection |

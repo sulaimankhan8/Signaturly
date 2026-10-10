@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import { RecipientOtp } from "../models/RecipientOtp.model.js";
 import { Recipient } from "../models/Recipient.model.js";
 import { sendOtpEmail } from "./email.service.js";
+import { sendMessage } from "./messaging/index.js";
 
 export const OTP_RESEND_WAIT_MS = 60 * 1000;
 export const OTP_MAX_SENDS_PER_HOUR = 5;
@@ -40,7 +41,7 @@ export async function generateAndSendOtp(recipientId, email, pdfTitle = "Documen
   await RecipientOtp.deleteMany({ recipientId });
   await RecipientOtp.create({
     recipientId,
-    email,
+    email: email || recipient.phone,
     otpHash,
     expiresAt,
     verified: false,
@@ -56,9 +57,21 @@ export async function generateAndSendOtp(recipientId, email, pdfTitle = "Documen
   }
   await recipient.save();
 
-  await sendOtpEmail({ email, otp: otpCode, pdfTitle });
+  // The code goes wherever the signing link went
+  const viaMessage = recipient.channel !== "email" && recipient.phone;
+  if (viaMessage) {
+    await sendMessage({
+      channel: recipient.channel,
+      to: recipient.phone,
+      template: "otp",
+      params: { code: otpCode, document: pdfTitle },
+      language: recipient.language,
+    });
+  } else {
+    await sendOtpEmail({ email, otp: otpCode, pdfTitle, language: recipient.language });
+  }
 
-  return { success: true, expiresAt };
+  return { success: true, expiresAt, method: viaMessage ? "sms_otp" : "email_otp" };
 }
 
 /**

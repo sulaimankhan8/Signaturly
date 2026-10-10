@@ -34,7 +34,7 @@ export default function Settings() {
 
   // Signature preference
   const [savedSignature, setSavedSignature] = useState(
-    localStorage.getItem("signaturly_default_signature") || ""
+    localStorage.getItem("pactdoc_default_signature") || ""
   );
 
   const loadSubscriptionData = async () => {
@@ -134,10 +134,10 @@ export default function Settings() {
   const handleSaveSignature = (dataUrl) => {
     setSavedSignature(dataUrl);
     if (dataUrl) {
-      localStorage.setItem("signaturly_default_signature", dataUrl);
+      localStorage.setItem("pactdoc_default_signature", dataUrl);
       toast.success("Default signature saved locally!");
     } else {
-      localStorage.removeItem("signaturly_default_signature");
+      localStorage.removeItem("pactdoc_default_signature");
     }
   };
 
@@ -546,7 +546,7 @@ export default function Settings() {
                   </div>
                   <h3 className="text-sm font-bold text-white">Developer REST API &amp; Webhooks</h3>
                   <p className="text-xs text-gray-400 mt-1">
-                    Generate HMAC scoped API keys (<code>sig_live_...</code>) and stream signing lifecycle webhooks directly to your servers.
+                    Generate HMAC scoped API keys (<code>pd_live_...</code>) and stream signing lifecycle webhooks directly to your servers.
                   </p>
                 </div>
                 <button

@@ -1,20 +1,29 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
+import { formatFieldDate } from "../utils/fieldDate";
 
-export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", defaultEmail = "" }) {
-  const [name, setName] = useState(defaultName || "Signer");
+/**
+ * A signature drawn as a stamp: the signer's name in a script typeface with the date.
+ * The wording on the stamp becomes part of the document, so it says only what is true of every
+ * signature made here: that it was made electronically, and when.
+ */
+export default function VerifiedESignBadge({ onConfirm, defaultName = "" }) {
+  const { t } = useTranslation();
+  const [name, setName] = useState(defaultName || "");
   const [styleType, setStyleType] = useState("modern-badge"); // modern-badge | formal-stamp | cursive-badge
   const [color, setColor] = useState("#0f172a");
   const [previewUrl, setPreviewUrl] = useState("");
 
   useEffect(() => {
-    if (defaultName && defaultName.trim() && defaultName !== "Signer") {
+    if (defaultName && defaultName.trim()) {
       setName(defaultName.trim());
     }
   }, [defaultName]);
 
   const generateBadgeDataUrl = (signerName = name, style = styleType, strokeColor = color) => {
-    const text = signerName.trim() || "Authorized Signer";
+    const text = signerName.trim();
+    if (!text) return "";
     const canvas = document.createElement("canvas");
     canvas.width = 650;
     canvas.height = 200;
@@ -22,12 +31,10 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const now = new Date();
-    const dateStr = now.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
-    const hash = "VERIFIED";
+    const dateStr = formatFieldDate();
 
     if (style === "modern-badge") {
-      // 1. DocuSign / Signaturly Modern Legal Card
+      // 1. Card with an accent bar
       ctx.fillStyle = "rgba(248, 250, 252, 0.98)";
       ctx.strokeStyle = "#cbd5e1";
       ctx.lineWidth = 3;
@@ -36,7 +43,7 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
       ctx.fill();
       ctx.stroke();
 
-      // Left Accent Security Bar
+      // Left accent bar
       ctx.fillStyle = "#dc2626";
       ctx.beginPath();
       ctx.roundRect(10, 10, 14, 180, [16, 0, 0, 16]);
@@ -46,7 +53,7 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
       ctx.font = "bold 15px sans-serif";
       ctx.fillStyle = "#64748b";
       ctx.textAlign = "left";
-      ctx.fillText("DIGITALLY VERIFIED E-SIGNATURE", 40, 42);
+      ctx.fillText("ELECTRONICALLY SIGNED", 40, 42);
 
       // Cursive Signature
       ctx.font = "bold 52px 'Dancing Script', 'Brush Script MT', cursive, sans-serif";
@@ -56,10 +63,10 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
       // Metadata Footer
       ctx.font = "13px monospace";
       ctx.fillStyle = "#475569";
-      ctx.fillText(`ID: SEC-${hash} • Sealed: ${dateStr} • IT Act/ESIGN Compliant`, 40, 155);
+      ctx.fillText(`Electronic signature • ${dateStr}`, 40, 155);
 
     } else if (style === "formal-stamp") {
-      // 2. Formal Legal Execution Double-Border Notary Stamp
+      // 2. Double-border stamp
       ctx.fillStyle = "rgba(255, 255, 255, 0.98)";
       ctx.beginPath();
       ctx.roundRect(8, 8, 634, 184, 14);
@@ -80,17 +87,17 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
       ctx.font = "bold 16px sans-serif";
       ctx.fillStyle = strokeColor;
       ctx.textAlign = "center";
-      ctx.fillText("★ OFFICIALLY SIGNED & EXECUTED ★", 325, 48);
+      ctx.fillText("ELECTRONICALLY SIGNED", 325, 48);
 
       ctx.font = "bold 48px 'Dancing Script', cursive, sans-serif";
       ctx.fillText(text, 325, 110);
 
       ctx.font = "bold 13px sans-serif";
       ctx.fillStyle = "#475569";
-      ctx.fillText(`AUTHENTICATED ELECTRONIC SEAL • ${dateStr}`, 325, 155);
+      ctx.fillText(`Electronic signature • ${dateStr}`, 325, 155);
 
     } else {
-      // 3. Cursive Calligraphy with Underline Seal
+      // 3. Name over a signature line
       ctx.fillStyle = "rgba(255, 255, 255, 0.98)";
       ctx.beginPath();
       ctx.roundRect(8, 8, 634, 184, 14);
@@ -111,7 +118,7 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
 
       ctx.font = "bold 13px sans-serif";
       ctx.fillStyle = "#475569";
-      ctx.fillText(`Legally verified electronic signature of ${text} • ${dateStr}`, 40, 152);
+      ctx.fillText(`Electronic signature of ${text} • ${dateStr}`, 40, 152);
     }
 
     return canvas.toDataURL("image/png");
@@ -125,23 +132,25 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
 
   const handleConfirm = () => {
     const dataUrl = generateBadgeDataUrl(name, styleType, color);
-    if (dataUrl) {
-      onConfirm(dataUrl);
-      toast.success("Verified E-Signature Badge applied!");
+    if (!dataUrl) {
+      toast.error(t("typed.needName"));
+      return;
     }
+    onConfirm(dataUrl);
+    toast.success(t("stamp.applied"));
   };
 
   return (
     <div className="space-y-4">
       <div>
         <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
-          Signer Legal Name
+          {t("stamp.nameLabel")}
         </label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Sulaiman Khan"
+          placeholder={t("stamp.namePlaceholder")}
           className="w-full px-3.5 py-2.5 bg-[#08090d] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-500 text-xs font-medium"
         />
       </div>
@@ -149,9 +158,9 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
       <div className="flex items-center justify-between gap-2">
         <div className="flex bg-[#08090d] p-1 rounded-xl border border-white/10 flex-1">
           {[
-            { id: "modern-badge", label: "DocuSign Style" },
-            { id: "formal-stamp", label: "Legal Stamp" },
-            { id: "cursive-badge", label: "Seal Line" },
+            { id: "modern-badge", labelKey: "stamp.styleCard" },
+            { id: "formal-stamp", labelKey: "stamp.styleStamp" },
+            { id: "cursive-badge", labelKey: "stamp.styleLine" },
           ].map((s) => (
             <button
               key={s.id}
@@ -163,7 +172,7 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
                   : "text-gray-400 hover:text-white"
               }`}
             >
-              {s.label}
+              {t(s.labelKey)}
             </button>
           ))}
         </div>
@@ -191,7 +200,7 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
         {previewUrl && (
           <img
             src={previewUrl}
-            alt="Signature Preview"
+            alt={t("stamp.previewAlt")}
             className="max-h-[95px] w-auto object-contain rounded-lg shadow-sm"
           />
         )}
@@ -202,7 +211,7 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "Signer", 
         onClick={handleConfirm}
         className="w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-red-950/50 border border-red-500/30"
       >
-        Adopt Verified E-Signature
+        {t("stamp.adopt")}
       </button>
     </div>
   );

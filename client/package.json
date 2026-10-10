@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:client": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -14,12 +14,14 @@
     "@reduxjs/toolkit": "^2.11.2",
     "@vercel/analytics": "^1.6.1",
     "axios": "^1.13.2",
+    "i18next": "^26.4.3",
     "pdfjs-dist": "3.11.174",
     "react": "18.2.0",
     "react-datepicker": "^9.1.0",
     "react-dom": "18.2.0",
     "react-draggable": "^4.5.0",
     "react-hot-toast": "^2.6.0",
+    "react-i18next": "^17.0.16",
     "react-pdf": "7.7.0",
     "react-redux": "^9.2.0",
     "react-resizable": "^3.0.5",

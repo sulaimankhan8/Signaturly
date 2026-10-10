@@ -1,8 +1,8 @@
 # PactDoc — Pending Tasks and Production Roadmap
 
-**Status as of 11 October 2026.** PactDoc is the product name; the code, emails and old documents still say Signaturly until the rename in phase 3.
+**Status as of 11 October 2026.** PactDoc is the product name. The apps and emails say PactDoc; the cloud resource names and the older documents still say Signaturly.
 
-The security fixes (phase 1) are almost complete and the core of the trust layer (phase 2) is built, with 153 automated tests passing. None of it is committed or deployed yet, and the product is **not safe to put in front of real users** until the blockers below are cleared.
+The security fixes (phase 1) are almost complete, the core of the trust layer (phase 2) is built, and the code side of phase 3 (India fit) is finished: what remains there needs a provider account, translators or your approval. 223 server tests and 28 browser tests pass. Phases 1 and 2 are committed on a branch; phase 3 is not committed yet. Nothing is pushed or deployed, and the product is **not safe to put in front of real users** until the blockers below are cleared.
 
 Related documents in this folder:
 
@@ -19,19 +19,21 @@ Related documents in this folder:
 
 | Phase | Goal | Tasks | Done | Partly | Not started |
 | --- | --- | ---: | ---: | ---: | ---: |
-| Setup | Test harness, CI, environments | 13 | 4 | 2 | 7 |
+| Setup | Test harness, CI, environments | 13 | 5 | 2 | 6 |
 | 0. Emergency | Leaked credentials are dead | 8 | 0 | 1 | 7 |
 | 1. Secure | Access-control and abuse bugs fixed | 32 | 29 | 3 | 0 |
 | 2. Trust | Sealed PDFs, audit log, jobs, billing | 22 | 9 | 7 | 6 |
-| 3. India fit | Languages, WhatsApp and SMS, India hosting, rename | 14 | 0 | 0 | 14 |
+| 3. India fit | Languages, WhatsApp and SMS, India hosting, rename | 14 | 9 | 3 | 2 |
 | 4. Templates and plans | Template engine, first packs, new pricing | 17 | 0 | 0 | 17 |
 | 5. Teams | Workspace-owned documents and roles | 11 | 0 | 0 | 11 |
 | 6. Strong signatures and API | Aadhaar eSign, public API, Enterprise | 15 | 0 | 0 | 15 |
-| **Total** | | **132** | **42** | **13** | **77** |
+| **Total** | | **132** | **52** | **16** | **64** |
 
-Where the work lives: branch `fix/phase1-security`, uncommitted. Run the tests with `npm --prefix server test`.
+Where the work lives: branch `fix/phase1-security`. Phases 1 and 2 are in three commits there; phase 3 so far is uncommitted. Nothing has been pushed. Run the server tests with `npm --prefix server test` and the browser tests with `npm --prefix e2e test` (after `npm --prefix e2e install`; they use the Chrome already on the machine).
 
-Checked so far: 153 automated API tests, and both web apps build. Not checked: clicking through the app in a browser, the signing record's printed layout, and how the seal appears in Adobe Acrobat.
+Checked so far: 223 server tests; 28 browser tests in Chrome, on a 360-pixel phone profile and a desktop one (signing by touch, signing in Hindi with a one-time code, a slow connection, declining, sending to a Hindi signer through the sender's screens, the public pages with scripts off); both web apps build; the bilingual signing record was rendered to an image and inspected.
+
+Not checked: a real phone in the hand; the seal in Adobe Acrobat; the Hindi wording by a native speaker; the new page routing on the live host (A-21); the browser tests on CI, which have not run because nothing is pushed.
 
 ---
 
@@ -43,9 +45,9 @@ Checked so far: 153 automated API tests, and both web apps build. Not checked: c
 | 2 | Production ran on placeholder secrets | You | The deployed JWT secrets were short, guessable placeholder values and the admin key was the built-in default, which the admin login page also pre-filled. Anyone could have forged a login. The new code refuses to start with such values. |
 | 3 | New secrets do not exist yet | You | The deploy now reads 11 secrets from Secret Manager (section 7). Until they are created, a deploy fails. |
 | 4 | No backups | You | The free database tier has none. Move to a tier with backups and run one restore. |
-| 5 | Nothing is committed | You decide | About 100 changed files sit uncommitted on one branch. |
+| 5 | Nothing is pushed or deployed | You decide | The work is on a local branch only. Pushing to `main` triggers a deploy, which fails until the secrets exist. |
 | 6 | Legal wording and templates unreviewed | You | A lawyer has not reviewed the terms, privacy notice, consent text or certificates. |
-| 7 | No browser test | Code | The fixes are tested through the API only. A click-through, then Playwright tests, are still owed. |
+| 7 | Browser tests cover signing and one send only | Code | The dashboard, templates, bulk send, billing, settings and the admin app have no browser test yet (A-22). |
 
 ---
 
@@ -69,7 +71,9 @@ Tasks only the account owner can do, in the order they block things.
 - [ ] Protect `main`: pull requests only, CI required (S-10)
 - [ ] Choose a database tier with backups (P2-18)
 - [ ] Choose a transactional email provider and add SPF, DKIM and DMARC for pactdoc.com (P2-13)
-- [ ] Engage a contracts lawyer: terms, privacy notice, consent text, certificates, template packs
+- [ ] Engage a contracts lawyer: terms, privacy notice, consent text, certificates, template packs. The terms pop-up shown to new senders makes strong legal statements that nobody has reviewed.
+- [ ] Find a native Hindi speaker to review the signing screens, emails and the signing record (A-13)
+- [ ] After the first deploy of the client, open `/`, `/pricing` and a signing link on the live site and confirm each shows the right page (A-21)
 - [ ] Register the business and for tax; run a trademark search on PactDoc
 - [ ] Interview 20 to 30 small organisations before building phases 4 to 6
 - [ ] Decide the account-deletion policy (item A-08 in section 6)
@@ -106,9 +110,23 @@ Tasks only the account owner can do, in the order they block things.
 | Renewals, failed charges and cancellations from Stripe and Razorpay drive plan state; a payments ledger exists | P2-15 |
 | Admin plan grants record which admin made them | P2-17 |
 
-### Setup (4 of 13)
+### Phase 3: India fit (9 of 14)
 
-Test harness with an in-memory database (S-03), test helpers (S-04), email outbox for tests (S-05), and a CI workflow that runs tests, builds and a secret scan on every pull request (S-08).
+| What now holds | Tasks |
+| --- | --- |
+| The rendering question is settled: text is shaped with HarfBuzz and drawn as outlines. The PDF library's own text drawing was tested and breaks every Indian script. Record and comparison image: `docs/decisions/0001-text-rendering-for-indic-scripts.md` | P3-01 |
+| Hindi, Marathi, Tamil, Telugu, Kannada, Gujarati and Bengali text is kept in signed PDFs and on the signing record; long values shrink to fit their field | P3-02 |
+| A signer can be reached by phone alone. Fields link to them by number. Their link, reminders, completion notice and codes go by SMS or WhatsApp. | P3-06 |
+| The one-time code can go by SMS, and the audit log names that method | P3-09 |
+| Dates as 11 Oct 2026, evidence times in UTC and India time, rupee amounts with Indian grouping | P3-10 |
+| Every screen a signer sees is in English and Hindi: the identity check, the document, the signature panel, declining, the finish screen. A test fails the build if a word is typed straight into one of those screens, or if a language is missing a key. A browser test signs a document from start to finish in Hindi and finds no English left on screen. | P3-03 |
+| The signing record repeats its headings and labels in the signers' language beside the English. English stays the text of record; names, times and hashes appear once. | P3-04, A-18 |
+| Signing works on a 360-pixel phone: the page is drawn to the width of the screen, the main action sits in a bar at the bottom, signatures are drawn with a finger, pinch-zoom is allowed. A signer downloads the signing page alone, not the whole app, and a long document is fetched in pieces so page 1 appears before the rest has arrived. | P3-13 |
+| The landing, pricing, verification and user-guide pages are written out as HTML when the site is built, each with its own title, description and canonical link, plus a generated sitemap. The build fails if one comes out empty. Template pages will join when they exist (P4-08). | P3-14 |
+
+### Setup (5 of 13)
+
+Test harness with an in-memory database (S-03), test helpers (S-04), email outbox for tests (S-05), a CI workflow that runs tests, builds and a secret scan on every pull request (S-08), and browser tests in `e2e/` that run the built client against the real server on a throwaway database (S-07), added to CI as their own job.
 
 ### Bugs found and fixed that were not in the audit
 
@@ -123,6 +141,15 @@ Test harness with an in-memory database (S-03), test helpers (S-04), email outbo
 - The download button after signing gave the copy from before the signature.
 - The document owner was never told a document was complete.
 - Names and messages were placed into email HTML without escaping.
+- About 1 genuine sealed file in 256 was reported as altered, because the signing library's extractor cut short any signature ending in a zero byte.
+- The admin login page pre-filled the default admin key.
+- Tapping a signature field on the document did nothing: the tap was swallowed before it reached the page. Only the list in the side panel worked, and a phone has no side panel. Found by the first browser test.
+- A date field carried the day the sender prepared the document, not the day of signing, and in the sender's browser format, so 10/11/2026 could mean either month.
+- A signer could drag fields around the page. The server ignored the new positions, so the signer saw one layout and the PDF was stamped with another. Fields are now fixed for signers.
+- The ready-made signature stamp printed claims onto the document: "digitally verified", "IT Act/ESIGN compliant", "officially signed", and an ID that was the same on every document. It now says "Electronically signed" and the date.
+- The PDF reader's worker script was loaded from a third-party network on every page view. It is now served with the app.
+- Pinch-zoom was switched off on every page.
+- The sitemap and robots file listed pages that do not exist.
 
 ---
 
@@ -143,6 +170,9 @@ Test harness with an in-memory database (S-03), test helpers (S-04), email outbo
 | P2-11 Scheduled work | Protected endpoints for jobs, reminders, expiry and subscriptions | You create the Cloud Scheduler jobs |
 | P2-14 Provider-driven billing | Plan state changes only through verified events or an admin | Checkout for Razorpay Subscriptions; plan ids in one catalogue |
 | P2-19 Privacy | Account export and account deletion on the server | Buttons in the app, a retention job, the privacy notice page |
+| P3-07 SMS provider | One messaging interface with development and test providers; refuses to send in production | A commercial provider, sender registration, approved templates |
+| P3-08 WhatsApp | Same interface and templates | Business verification, template approval, delivery-status callbacks |
+| P3-12 Rename to PactDoc | App name, emails, pages, storage keys, API key prefix and package names all say PactDoc; a test keeps the old name out | Cloud resource names in the deploy workflow, DNS, and the old documents (A-11) |
 
 ---
 
@@ -157,7 +187,6 @@ Test harness with an in-memory database (S-03), test helpers (S-04), email outbo
 | S-01, S-10 | Staging project; branch protection | You |
 | S-02 | Local `docker-compose.dev.yml` | Code |
 | S-06 | Component tests for the web apps | Code |
-| S-07 | Playwright browser tests | Code |
 | S-11 | Database migrations tool | Code |
 | S-12 | Structured logger with redaction; error tracking | Code, plus an error-tracking account |
 | P2-13 | Transactional email provider and bounce handling | Your provider choice |
@@ -166,6 +195,8 @@ Test harness with an in-memory database (S-03), test helpers (S-04), email outbo
 | P2-20 | Saved signatures and contacts on the server, not in the browser | Code |
 | P2-21 | Storage encryption key and file access log | Code and cloud settings |
 | P2-22 | Optional 2FA for senders | Code |
+| P3-05 | Marathi, Tamil, Telugu, Kannada, Gujarati and Bengali wording | Translators; the keys already fall back to English |
+| P3-11 | Move hosting, storage and database to the Mumbai region | Your approval of a maintenance window |
 
 ### Added along the way (not in the original plan)
 
@@ -180,9 +211,21 @@ Test harness with an in-memory database (S-03), test helpers (S-04), email outbo
 | A-07 | Wipe or migrate development data before launch: old audit entries were never chained and show as unconfirmed | Before launch |
 | A-08 | Policy decision: when an account is deleted, completed agreements are kept but other parties' links stop. Should those parties keep access? | You and the lawyer |
 | A-09 | Remove dead code left by the fixes: `quota.middleware.js`, `sse.service.js` | 2 |
-| A-10 | Names in non-Latin scripts print as "?" on the signing record until Unicode fonts land | 3 (with P3-02) |
+| A-10 | Done in phase 3: non-Latin names now print correctly on the signing record | Done |
 | A-11 | Rewrite the user guide, deployment guide and Word documents after the rename; they describe features inaccurately | 3 |
 | A-12 | Rotate-certificate procedure: documents sealed with an old certificate stop showing as "sealed by this service" | 2 |
+| A-13 | Have a native speaker review the Hindi wording, and the lawyer approve the consent sentence in each language | Before launch |
+| A-14 | Charge SMS and WhatsApp messages to the credit wallet before switching messaging on in production | 4, with P4-15 |
+| A-15 | Trim the font packages: about 28 MB ships, only Regular and Bold are used | 3 |
+| A-16 | Fonts for Arabic and Japanese, and correct ordering of mixed right-to-left text, for the later markets | After India launch |
+| A-17 | Shaped text is not selectable in the PDF; consider an invisible text layer if customers ask | Later |
+| A-18 | Done in phase 3: the signing record repeats its headings in the signer's language | Done |
+| A-19 | Error replies from the server on the signing screens (wrong code, expired link, too many tries) are in English only. Send a code with each and translate it in the app. | 3 |
+| A-20 | Speed up the signing page on a weak signal. Measured at 400 kbit/s: 22 seconds to the first page of a 1.7 MB document. The PDF reader's worker (about 1 MB before compression) and 17 font families loaded on every page are the largest pieces. | 3 |
+| A-21 | Check the client's new routing on the live host: `/` and `/pricing` must serve their ready-made pages and every other path must reach `/app.html`. Tested locally against a stand-in host only. | First deploy |
+| A-22 | Browser tests for the dashboard, templates, bulk send, billing, settings and the admin app | 2 |
+| A-23 | The wording on the signature stamp ("Electronically signed") is English whatever the signer's language. Decide whether it should follow the language. | With the lawyer |
+| A-24 | The signing page asks the server to restore a sender's login on every visit and logs a harmless error. Skip that call on signer and public pages. | 3 |
 
 ---
 
@@ -215,7 +258,7 @@ The server refuses to start in production if any of these is missing, apart from
 | `GCS_BUCKET_NAME` | your bucket name |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` | from your mail provider |
 
-Optional: `BILLING_ENABLED` (off by default in production), `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `SIGNING_LINK_TTL_DAYS` (30), `FILE_URL_TTL_SECONDS` (3600), `TRUST_PROXY` (1 on Cloud Run).
+Optional: `BILLING_ENABLED` (off by default in production), `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `SIGNING_LINK_TTL_DAYS` (30), `FILE_URL_TTL_SECONDS` (3600), `TRUST_PROXY` (1 on Cloud Run). Messaging: `MESSAGING_ENABLED` (off by default in production) and `MESSAGING_PROVIDER`; only the development and test providers exist so far.
 
 ### Scheduler jobs
 
@@ -231,6 +274,8 @@ Each sends a `POST` with the header `X-Internal-Secret: <INTERNAL_JOB_SECRET>`.
 ### Web apps
 
 Both use `VITE_API_BASE_URL`, set to the API's address without `/api` (for example `https://api.pactdoc.com`). The app and the API must share a parent domain, or sign-in will not survive a page reload.
+
+The client build (`npm run build`) now does two things: it builds the app, then writes the public pages out as HTML. In `client/dist`, `index.html` is the landing page, `pricing/`, `verify/` and `userguide/` hold the other public pages, and `app.html` is the empty shell for everything else. The host must send unknown paths to `/app.html`; `client/vercel.json` does this. Set `VITE_SITE_URL` if the public address is not `https://pactdoc.com`: it is used for canonical links and the sitemap.
 
 ### Payment webhooks
 
@@ -249,6 +294,15 @@ Both use `VITE_API_BASE_URL`, set to the API's address without `/api` (for examp
 - Deleting a document hides it but keeps its audit log.
 - Paid plans cannot be bought in production until billing is switched on.
 - The free plan's limit of 15 documents a month is now enforced exactly, and bulk send counts against it.
+- The product is called PactDoc everywhere in the apps and emails. Signatures and contacts saved in the browser under the old name are not carried over.
+- Senders can choose each signer's language (English or Hindi) and can send by SMS or WhatsApp once a provider is connected.
+- Typed names and values in Indian scripts now appear in the signed PDF. They are drawn as shapes, so they cannot be selected or copied.
+- A signer who was sent the document in Hindi sees every screen in Hindi and can switch language on the page. Their signing record carries Hindi headings beside the English.
+- On a phone, the signing page fits the screen and its main button sits in a bar at the bottom.
+- Signers can no longer move or resize fields.
+- A date field shows the day of signing, written as 11 Oct 2026. Senders see it empty when placing it.
+- The ready-made signature stamp now reads "Electronically signed" with the date, and makes no other claim.
+- Signatures and initials have no placeholder name any more: a signer with no name on file must type one.
 
 ---
 
@@ -258,7 +312,7 @@ Full task lists are in `PACTDOC_IMPLEMENTATION_PLAN.md`. Each phase is gated by 
 
 | Phase | Tasks | First thing to settle | Outside dependency |
 | --- | ---: | --- | --- |
-| 3. India fit | 14 | Whether the PDF library renders Hindi, Tamil and similar scripts correctly (P3-01) | SMS sender registration, WhatsApp business verification, translators, DNS |
+| 3. India fit | 14 (9 done, 3 partly) | The code is done. What is left waits on others: a messaging provider (P3-07, P3-08), translators for six more languages (P3-05), the Mumbai move (P3-11), cloud names and DNS for the rename (P3-12). | SMS sender registration, WhatsApp business verification, translators, DNS, Mumbai move |
 | 4. Templates and plans | 17 | Which engine renders guided templates (P4-02) | Lawyer for template packs; tax registration for invoices |
 | 5. Teams | 11 | Access-matrix tests before the data migration (P5-03) | None |
 | 6. Strong signatures and API | 15 | Quotes and sandbox access from two eSign providers (P6-01) | Provider contract; registered business |

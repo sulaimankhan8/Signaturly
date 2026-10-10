@@ -72,6 +72,7 @@ export default function AssignFields() {
       recipientId: activeRecipient.id,
       recipientName: activeRecipient.name,
       recipientEmail: activeRecipient.email,
+      recipientPhone: activeRecipient.phone || "",
       recipientColor: activeRecipient.color,
       type,
       page: currentPage,
@@ -89,7 +90,8 @@ export default function AssignFields() {
           : type === "signature" || type === "initials"
           ? 0.12
           : 0.06,
-      value: type === "date" ? new Date().toLocaleDateString() : "",
+      // A date field is left empty here: it takes the date on which its signer signs
+      value: "",
       checked: false,
       options: type === "dropdown" ? ["Choice A", "Choice B", "Choice C"] : [],
     };

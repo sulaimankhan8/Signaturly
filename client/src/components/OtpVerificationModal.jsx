@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import API from "../api/axios";
+import { useTranslation } from "react-i18next";
 
 export function OtpVerificationModal({
   token,
@@ -9,6 +10,7 @@ export function OtpVerificationModal({
   onVerified,
 }) {
   const isPasscode = authType === "passcode";
+  const { t } = useTranslation();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -28,10 +30,10 @@ export function OtpVerificationModal({
       setLoading(true);
       setError(null);
       await API.post("/sign/otp/send", { token });
-      setSentMessage(`Verification code sent to ${recipientEmail}`);
+      setSentMessage(t("verify.sent", { contact: recipientEmail }));
       setCountdown(60);
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to send verification code");
+      setError(err.response?.data?.message || err.response?.data?.error || t("verify.sendFailed"));
     } finally {
       setLoading(false);
     }
@@ -40,12 +42,12 @@ export function OtpVerificationModal({
   const handleVerify = async (e) => {
     e.preventDefault();
     if (!code.trim()) {
-      setError(isPasscode ? "Please enter the document access passcode." : "Please enter the 6-digit verification code.");
+      setError(isPasscode ? t("verify.needPasscode") : t("verify.needCode"));
       return;
     }
 
     if (!isPasscode && code.trim().length !== 6) {
-      setError("Please enter the full 6-digit verification code.");
+      setError(t("verify.needFullCode"));
       return;
     }
 
@@ -66,8 +68,9 @@ export function OtpVerificationModal({
       }
     } catch (err) {
       setError(
-        err.response?.data?.error ||
-          (isPasscode ? "Invalid access passcode. Please check with the sender." : "Verification failed. Check your code.")
+        err.response?.data?.message ||
+          err.response?.data?.error ||
+          (isPasscode ? t("verify.invalidPasscode") : t("verify.failed"))
       );
     } finally {
       setLoading(false);
@@ -75,7 +78,7 @@ export function OtpVerificationModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[9999] flex items-center justify-center p-4 selection:bg-red-600 selection:text-white">
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-[9999] flex items-center justify-center p-4 overflow-y-auto selection:bg-red-600 selection:text-white">
       <div className="bg-[#111420] border border-red-500/20 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 text-gray-200 font-sans">
         
         {/* Header Badge */}
@@ -84,17 +87,17 @@ export function OtpVerificationModal({
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-          <span>{isPasscode ? "Passcode Protected Document" : "Pre-Sign 2FA Authentication"}</span>
+          <span>{isPasscode ? t("verify.badgePasscode") : t("verify.badgeOtp")}</span>
         </div>
 
         <div>
           <h2 className="text-xl sm:text-2xl font-display font-bold text-white tracking-tight">
-            {isPasscode ? "Enter Access Passcode" : "Identity Verification Required"}
+            {isPasscode ? t("verify.titlePasscode") : t("verify.titleOtp")}
           </h2>
           <p className="text-xs text-gray-400 mt-1 leading-relaxed">
             {isPasscode
-              ? `The sender has protected "${documentTitle || "this document"}" with a private access code.`
-              : `To comply with digital signature verification standards, verify your email before opening "${documentTitle || "this document"}".`}
+              ? t("verify.bodyPasscode", { document: documentTitle || "" })
+              : t("verify.bodyOtp", { document: documentTitle || "" })}
           </p>
         </div>
 
@@ -121,7 +124,7 @@ export function OtpVerificationModal({
         <form onSubmit={handleVerify} className="space-y-4">
           <div>
             <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
-              Signer Email
+              {t("verify.contact")}
             </label>
             <input
               type="text"
@@ -133,12 +136,12 @@ export function OtpVerificationModal({
 
           <div>
             <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
-              {isPasscode ? "Document Passcode" : "6-Digit Verification Code"}
+              {isPasscode ? t("verify.passcodeLabel") : t("verify.codeLabel")}
             </label>
             {isPasscode ? (
               <input
                 type="password"
-                placeholder="Enter passcode"
+                placeholder={t("verify.passcodePlaceholder")}
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 autoFocus
@@ -147,6 +150,8 @@ export function OtpVerificationModal({
             ) : (
               <input
                 type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
                 maxLength={6}
                 placeholder="000000"
                 value={code}
@@ -166,10 +171,10 @@ export function OtpVerificationModal({
                 className="flex-1 py-3 px-3 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 disabled:opacity-40 rounded-xl text-xs font-semibold transition-colors"
               >
                 {loading
-                  ? "Sending..."
+                  ? t("verify.sending")
                   : countdown > 0
-                  ? `Resend (${countdown}s)`
-                  : "Request Code"}
+                  ? t("verify.resend", { seconds: countdown })
+                  : t("verify.request")}
               </button>
             )}
             <button
@@ -179,7 +184,7 @@ export function OtpVerificationModal({
                 isPasscode ? "w-full" : "flex-[2]"
               } py-3 px-4 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-950/50 border border-red-500/30 transition-all flex items-center justify-center gap-1.5`}
             >
-              <span>{loading ? "Verifying..." : "Verify & Unlock Canvas"}</span>
+              <span>{loading ? t("verify.verifying") : t("verify.submit")}</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
@@ -188,7 +193,7 @@ export function OtpVerificationModal({
         </form>
 
         <div className="pt-3 border-t border-white/5 text-[10px] text-gray-500 text-center">
-          Statutory Compliance Notice: Cryptographic verification log is timestamped and recorded in the audit trail.
+          {t("verify.notice")}
         </div>
       </div>
     </div>

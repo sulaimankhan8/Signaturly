@@ -5,10 +5,10 @@
  */
 export const HOUSE_ADS = [
   {
-    id: "signaturly-pro-ltd",
+    id: "pactdoc-pro-ltd",
     badge: "Special Founder Deal",
     title: "⚡ Get Unlimited Signatures Forever",
-    subtitle: "Upgrade to Signaturly Pro Lifetime Pass ($69). Never see ads, enjoy custom branding and unlimited envelopes.",
+    subtitle: "Upgrade to PactDoc Pro Lifetime Pass ($69). Never see ads, enjoy custom branding and unlimited envelopes.",
     cta: "Claim Lifetime Deal ($69) →",
     targetUrl: "/settings?tab=billing",
     isInternal: true,
@@ -27,7 +27,7 @@ export const HOUSE_ADS = [
     icon: "🛠️",
   },
   {
-    id: "signaturly-pro-annual",
+    id: "pactdoc-pro-annual",
     badge: "Save 32% Today",
     title: "💼 Professional E-Signatures for Teams",
     subtitle: "Switch to Pro Creator for $49/year. Includes CSV bulk send, reusable legal templates, and priority support.",

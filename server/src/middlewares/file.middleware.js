@@ -64,6 +64,27 @@ export const serveProtectedFile = async (req, res) => {
     res.setHeader("Cache-Control", "private, no-store");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+
+    // A PDF reader on a slow connection asks for the file in pieces and shows the first page
+    // before the rest has arrived
+    res.setHeader("Accept-Ranges", "bytes");
+    res.setHeader("Access-Control-Expose-Headers", "Accept-Ranges, Content-Range, Content-Length");
+
+    if (req.headers.range) {
+      const ranges = req.range(buffer.length, { combine: true });
+      if (ranges === -1) {
+        res.setHeader("Content-Range", `bytes */${buffer.length}`);
+        return res.status(416).end();
+      }
+      // A malformed header, or several separate ranges, gets the whole file
+      if (Array.isArray(ranges) && ranges.type === "bytes" && ranges.length === 1) {
+        const { start, end } = ranges[0];
+        res.status(206);
+        res.setHeader("Content-Range", `bytes ${start}-${end}/${buffer.length}`);
+        return res.end(buffer.subarray(start, end + 1));
+      }
+    }
+
     return res.send(buffer);
   } catch (err) {
     console.error("File serving middleware error:", err.message);

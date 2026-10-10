@@ -72,7 +72,7 @@ export const createCheckoutSession = async ({ userId, plan, gateway = "stripe" }
             price_data: {
               currency: "usd",
               product_data: {
-                name: `Signaturly Pro — ${planInfo.name}`,
+                name: `PactDoc — ${planInfo.name}`,
                 description: "Unlimited electronic signatures, custom templates & priority processing.",
               },
               unit_amount: Math.round(planInfo.priceUsd * 100),
@@ -148,6 +148,6 @@ export const createBillingPortalSession = async (userId) => {
 
   return {
     url: `${CLIENT_URL}/settings?tab=billing`,
-    message: "Dev Mode: Subscription managed directly in Signaturly Settings.",
+    message: "Dev Mode: Subscription managed directly in PactDoc Settings.",
   };
 };

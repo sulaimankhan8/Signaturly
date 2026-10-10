@@ -16,7 +16,7 @@ import path from "path";
 
 const nukeDatabase = async () => {
   console.log("\n=======================================================");
-  console.log("💣  SIGNATURLY PRO - TOTAL DATABASE & SYSTEM NUKE  💣");
+  console.log("💣  PACTDOC - TOTAL DATABASE & SYSTEM NUKE  💣");
   console.log("=======================================================\n");
 
   try {

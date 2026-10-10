@@ -60,7 +60,7 @@ export const generateBsaEvidenceCertificate = async (pdfId) => {
   });
   currentY -= 18;
 
-  const declarationText = `I, System Administrator of Signaturly Pro, do hereby certify and declare that the electronic record titled "${pdf.originalFileName}" (Document ID: ${pdf._id}) was produced and recorded by a computer system operating in the ordinary course of business activities. The system was operating properly at all material times during the generation, transmission, and cryptographic logging of this agreement.`;
+  const declarationText = `I, System Administrator of PactDoc, do hereby certify and declare that the electronic record titled "${pdf.originalFileName}" (Document ID: ${pdf._id}) was produced and recorded by a computer system operating in the ordinary course of business activities. The system was operating properly at all material times during the generation, transmission, and cryptographic logging of this agreement.`;
 
   page.drawText(declarationText, {
     x: 40,
@@ -138,7 +138,7 @@ export const generateBsaEvidenceCertificate = async (pdfId) => {
     borderWidth: 1,
   });
 
-  page.drawText("OFFICIAL SEAL: SIGNATURLY PRO NEUTRAL RECORD CUSTODIAN", {
+  page.drawText("OFFICIAL SEAL: PACTDOC NEUTRAL RECORD CUSTODIAN", {
     x: 55,
     y: currentY - 20,
     size: 9,

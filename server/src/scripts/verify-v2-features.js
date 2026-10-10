@@ -19,11 +19,11 @@ import {
   sendSecurityRateLimitAlert,
 } from "../services/alert.service.js";
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/signaturly";
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/pactdoc";
 
 async function runV2Verification() {
   console.log("==========================================================");
-  console.log("🧪 STARTING SIGNATURLY PRO v2.0 AUTOMATED FEATURE SUITE");
+  console.log("🧪 STARTING PACTDOC v2.0 AUTOMATED FEATURE SUITE");
   console.log("==========================================================\n");
 
   let passedTests = 0;
@@ -46,7 +46,7 @@ async function runV2Verification() {
     console.log("✓ Connected to MongoDB.\n");
 
     // Clean up past test artifacts
-    const testEmail = `v2_test_${Date.now()}@signaturly.test`;
+    const testEmail = `v2_test_${Date.now()}@pactdoc.test`;
     let user = await User.create({
       name: "V2 Test Runner",
       email: testEmail,
@@ -110,7 +110,7 @@ async function runV2Verification() {
     console.log("\n--- 4. Developer API Keys & Webhooks ---");
     // Test 6: API Key Generation & Cryptographic Hashing
     const { fullKey, keyPrefix, keyHash } = ApiKey.generateKey();
-    assert(fullKey.startsWith("sig_live_"), "API key generated with 'sig_live_' prefix");
+    assert(fullKey.startsWith("pd_live_"), "API key generated with 'pd_live_' prefix");
     assert(keyHash.length === 64, "SHA-256 key hash generated with 64 hex characters");
 
     const apiKeyDoc = await ApiKey.create({

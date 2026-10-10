@@ -25,6 +25,7 @@ const loadRecipient = async (token, res) => {
 
 const METHOD_LABELS = {
   email_otp: "a one-time code sent by email",
+  sms_otp: "a one-time code sent to their phone",
   passcode: "the access passcode set by the sender",
 };
 
@@ -44,7 +45,7 @@ const markVerified = async (recipient, method, req) => {
     actorEmail: recipient.email,
     description: `${recipient.name} passed the identity check using ${METHOD_LABELS[method]}.`,
     authMethod: method,
-    otpVerified: method === "email_otp",
+    otpVerified: method === "email_otp" || method === "sms_otp",
     ipAddress: req.ip || req.socket?.remoteAddress,
     userAgent: req.headers["user-agent"],
   });
@@ -89,7 +90,7 @@ router.post("/verify", otpVerifyLimiter, validate({ body: schemas.otpVerify }), 
     return res.status(400).json({ error: result.reason });
   }
 
-  await markVerified(recipient, "email_otp", req);
+  await markVerified(recipient, recipient.channel !== "email" && recipient.phone ? "sms_otp" : "email_otp", req);
   return res.json({ success: true, message: "Identity verified successfully" });
 }));
 

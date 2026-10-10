@@ -63,3 +63,8 @@ logs/
 # Development-only document seal certificate (generated on first use)
 .dev-seal.p12
 *.p12
+
+# Browser tests
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/

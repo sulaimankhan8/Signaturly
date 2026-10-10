@@ -9,6 +9,7 @@ import {
 } from "../services/recipient.service.js";
 import { getFileUrl } from "../services/storage.service.js";
 import { currentKeyOf, downloadKeyOf } from "../services/documentFiles.service.js";
+import { maskPhone } from "../services/messaging/index.js";
 
 const maskEmail = (email = "") => {
   const [local, domain] = String(email).split("@");
@@ -31,7 +32,9 @@ export const getPublicSigningSessionController = asyncHandler(async (req, res) =
         {
           recipient: {
             name: recipient.name,
-            email: maskEmail(recipient.email),
+            email: recipient.email ? maskEmail(recipient.email) : maskPhone(recipient.phone),
+            language: recipient.language || "en",
+            channel: recipient.channel || "email",
             status: recipient.status,
             authType: recipient.authType,
             authVerified: false,
@@ -64,9 +67,13 @@ export const getPublicSigningSessionController = asyncHandler(async (req, res) =
           id: recipient._id,
           name: recipient.name,
           email: recipient.email,
+          phone: recipient.phone ? maskPhone(recipient.phone) : "",
+          language: recipient.language || "en",
+          channel: recipient.channel || "email",
           role: recipient.role,
           color: recipient.color,
           status: recipient.status,
+          signedAt: recipient.signedAt || null,
           authType: recipient.authType || "none",
           authVerified: true,
         },

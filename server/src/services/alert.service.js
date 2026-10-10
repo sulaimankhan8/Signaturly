@@ -8,7 +8,7 @@ const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL;
 /**
  * Low-level alert dispatcher
  */
-const dispatchRawAlert = async ({ text, title = "Signaturly Pro Alert", color = "purple" }) => {
+const dispatchRawAlert = async ({ text, title = "PactDoc Alert", color = "purple" }) => {
   // 1. Telegram Dispatch
   if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
     try {

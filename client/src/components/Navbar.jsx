@@ -618,14 +618,14 @@ export default function Navbar() {
               <div className="absolute top-full right-0 mt-2 w-64 bg-[#12141e] border-2 border-white/20 rounded-2xl shadow-[5px_5px_0px_0px_#000] p-3 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-2">
                 <div className="p-2 bg-white/5 rounded-xl border border-white/10">
                   <p className="text-xs font-black text-white truncate">
-                    {user?.name || "Signaturly User"}
+                    {user?.name || "PactDoc User"}
                   </p>
                   <p className="text-[11px] text-gray-400 truncate">
-                    {user?.email || "user@signaturly.pro"}
+                    {user?.email || "user@pactdoc.com"}
                   </p>
                   <div className="mt-1.5 flex items-center justify-between">
                     <span className="inline-block text-[9px] font-mono font-bold uppercase tracking-wider text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/30">
-                      Signaturly Account
+                      PactDoc Account
                     </span>
                     <button
                       onClick={() => {

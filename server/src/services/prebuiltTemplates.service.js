@@ -220,7 +220,7 @@ const createContractDoc = async ({
   });
 
   // Footer Disclaimer
-  page.drawText("Executed under India IT Act 2000 (Sec 10A), US ESIGN (15 U.S.C. 7001), and EU eIDAS (No 910/2014) • Signaturly Pro", {
+  page.drawText("Executed under India IT Act 2000 (Sec 10A), US ESIGN (15 U.S.C. 7001), and EU eIDAS (No 910/2014) • PactDoc", {
     x: 36,
     y: 20,
     size: 6.5,

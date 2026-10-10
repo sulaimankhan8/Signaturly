@@ -54,12 +54,12 @@ const Landing = () => {
 
   const faqs = [
     {
-      q: "Are electronic signatures generated with Signaturly Pro legally binding?",
-      a: "Yes! Signaturly Pro complies with Section 10A of the Indian Information Technology Act 2000, the US ESIGN Act (15 U.S.C. § 7001), and EU eIDAS statutory regulations. Every executed agreement comes with an audit certificate that lists every signing event with SHA-256 document hashes.",
+      q: "Are electronic signatures generated with PactDoc legally binding?",
+      a: "Yes! PactDoc complies with Section 10A of the Indian Information Technology Act 2000, the US ESIGN Act (15 U.S.C. § 7001), and EU eIDAS statutory regulations. Every executed agreement comes with an audit certificate that lists every signing event with SHA-256 document hashes.",
     },
     {
       q: "What is the difference between a full signature and initials?",
-      a: "Signaturly Pro provides dedicated studios for both. Full signatures generate our Verified E-Sign Stamp with unique security hash IDs, cursive typography, and drawing pads. Initials support monogram circle seals and compact stamps designed for document margin approval.",
+      a: "PactDoc provides dedicated studios for both. Full signatures generate our Verified E-Sign Stamp with unique security hash IDs, cursive typography, and drawing pads. Initials support monogram circle seals and compact stamps designed for document margin approval.",
     },
     {
       q: "Can I send contracts to multiple signers in a specific order?",
@@ -67,7 +67,7 @@ const Landing = () => {
     },
     {
       q: "How does Bulk Sending work?",
-      a: "Simply pick any prebuilt or custom template, upload a CSV spreadsheet with recipient names and emails, and Signaturly Pro automatically generates customized contracts and dispatches private signing links in one batch.",
+      a: "Simply pick any prebuilt or custom template, upload a CSV spreadsheet with recipient names and emails, and PactDoc automatically generates customized contracts and dispatches private signing links in one batch.",
     },
   ];
 
@@ -418,7 +418,7 @@ const Landing = () => {
             </span>
             <h2 className="text-3xl font-black text-white uppercase tracking-tight">Worldwide Legal Non-Repudiation</h2>
             <p className="text-gray-300 text-sm leading-relaxed font-medium">
-              Every document signed on Signaturly Pro satisfies electronic contract formation rules with cryptographic integrity safeguards:
+              Every document signed on PactDoc satisfies electronic contract formation rules with cryptographic integrity safeguards:
             </p>
             <ul className="space-y-3 text-xs text-gray-200 font-bold">
               <li className="flex items-start gap-2.5">
@@ -733,7 +733,7 @@ const Landing = () => {
         <div className="max-w-4xl mx-auto space-y-12">
           <div className="text-center space-y-3">
             <h2 className="text-3xl font-black text-white uppercase">Frequently Asked Questions</h2>
-            <p className="text-gray-400 text-xs sm:text-sm font-medium">Everything you need to know about Signaturly Pro.</p>
+            <p className="text-gray-400 text-xs sm:text-sm font-medium">Everything you need to know about PactDoc.</p>
           </div>
 
           <div className="space-y-4">
@@ -774,7 +774,7 @@ const Landing = () => {
           </div>
         </div>
         <div className="max-w-7xl mx-auto mt-6 text-center text-gray-500 text-[11px] font-mono">
-          © {new Date().getFullYear()} Signaturly Pro. Compliant with IT Act 2000 Section 10A, US ESIGN, and EU eIDAS.
+          © {new Date().getFullYear()} PactDoc. Compliant with IT Act 2000 Section 10A, US ESIGN, and EU eIDAS.
         </div>
       </footer>
     </div>

@@ -5,6 +5,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { createRecipientsForDoc } from "./recipient.service.js";
 import { eventBus, EventTypes } from "../events/index.js";
 import { notifyUserDocumentUpdate } from "./sse.service.js";
+import { normalizePhone } from "./messaging/index.js";
 
 export const sendDocumentToRecipients = async ({
   pdfId,
@@ -52,10 +53,16 @@ export const sendDocumentToRecipients = async ({
 
     let matchedRecipient = null;
 
-    if (!matchedRecipient && f.recipientEmail) {
+    if (!matchedRecipient && typeof f.recipientEmail === "string" && f.recipientEmail) {
       matchedRecipient = recipients.find(
-        (r) => r.email.toLowerCase() === f.recipientEmail.toLowerCase()
+        (r) => r.email && r.email.toLowerCase() === f.recipientEmail.toLowerCase()
       );
+    }
+
+    // Signers reached by phone have no email to match on
+    if (!matchedRecipient && typeof f.recipientPhone === "string" && f.recipientPhone) {
+      const phone = normalizePhone(f.recipientPhone);
+      matchedRecipient = recipients.find((r) => r.phone && r.phone === phone);
     }
 
     if (!matchedRecipient && f.recipientName) {

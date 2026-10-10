@@ -120,7 +120,7 @@ export default function UserGuide() {
           title: "Step 1: Landing Page & Onboarding Entry",
           url: "/landing",
           screenshot: "/guide_screenshots/01_landing.png",
-          actionDescription: "User visits the Signaturly homepage and clicks the primary onboarding button.",
+          actionDescription: "User visits the PactDoc homepage and clicks the primary onboarding button.",
           callouts: [
             { pin: "①", title: "Top Navigation CTA", text: "Click 'Get Started' button in navbar to open registration form." },
             { pin: "②", title: "Verify Doc Portal", text: "Direct public access to cryptographic signature validation (/verify)." },
@@ -308,7 +308,7 @@ export default function UserGuide() {
           title: "Step 1: Public Document Verification Portal",
           url: "/verify",
           screenshot: "/guide_screenshots/10_verify.png",
-          actionDescription: "Verify any Signaturly executed document for authenticity without requiring an account.",
+          actionDescription: "Verify any PactDoc executed document for authenticity without requiring an account.",
           callouts: [
             { pin: "①", title: "PDF Upload Dropzone", text: "Drop signed PDF file to run client-side SHA-256 checksum calculation." },
             { pin: "②", title: "SHA-256 Hash Input", text: "Or paste 64-character hexadecimal certificate hash directly." },
@@ -337,7 +337,7 @@ export default function UserGuide() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider bg-yellow-400 text-black px-2 py-0.5 rounded border border-black">
-                  Signaturly Live Guide
+                  PactDoc Live Guide
                 </span>
                 <span className="text-[11px] font-mono text-gray-400">/userguide</span>
                 <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded font-mono font-bold">

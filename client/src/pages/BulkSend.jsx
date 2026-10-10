@@ -112,7 +112,7 @@ const BulkSend = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "signaturly_bulk_recipients_sample.csv";
+    a.download = "pactdoc_bulk_recipients_sample.csv";
     a.click();
     URL.revokeObjectURL(url);
   };

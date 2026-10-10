@@ -5,7 +5,6 @@ import forge from "node-forge";
 import signpdfModule from "@signpdf/signpdf";
 import p12SignerModule from "@signpdf/signer-p12";
 import placeholderModule from "@signpdf/placeholder-pdf-lib";
-import utilsModule from "@signpdf/utils";
 import { PDFDocument } from "pdf-lib";
 import { env } from "../config/env.js";
 import { Pdf } from "../models/Pdf.model.js";
@@ -19,7 +18,6 @@ import { appendAuditEvent } from "./auditLedger.service.js";
 const signpdf = signpdfModule.default || signpdfModule;
 const { P12Signer } = p12SignerModule;
 const { pdflibAddPlaceholder } = placeholderModule;
-const { extractSignature } = utilsModule;
 
 const DEV_P12_PASSWORD = "dev-only-seal";
 const DEV_P12_FILE = ".dev-seal.p12";
@@ -142,6 +140,57 @@ export const sealPdfBuffer = async (buffer, { reason = "Document completed" } = 
 };
 
 /**
+ * Cuts a DER structure out of a buffer that may have padding after it, using the length the
+ * structure itself declares. Returns null when the bytes are not a DER sequence.
+ */
+export const sliceDer = (bytes) => {
+  if (bytes.length < 2 || bytes[0] !== 0x30) return null;
+
+  let length = bytes[1];
+  let header = 2;
+  if (length & 0x80) {
+    const lengthBytes = length & 0x7f;
+    if (lengthBytes === 0 || lengthBytes > 4 || bytes.length < 2 + lengthBytes) return null;
+    length = 0;
+    for (let i = 0; i < lengthBytes; i++) length = length * 256 + bytes[2 + i];
+    header = 2 + lengthBytes;
+  }
+
+  const total = header + length;
+  return total <= bytes.length ? bytes.subarray(0, total) : null;
+};
+
+/**
+ * Finds the last signature in a PDF: the bytes it covers and the signature itself.
+ *
+ * The signature sits in a fixed-size slot padded with zeros. Its real length is read from the
+ * signature's own header. (The signing library's helper instead strips trailing zero bytes, which
+ * cuts short any signature that happens to end in a zero: about one in 256.)
+ */
+export const extractPdfSignature = (buffer) => {
+  const text = buffer.toString("latin1");
+  const matches = [...text.matchAll(/\/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]/g)];
+  if (matches.length === 0) return null;
+
+  const ByteRange = matches[matches.length - 1].slice(1, 5).map(Number);
+  const [start, firstLength, secondOffset, secondLength] = ByteRange;
+  if (start + firstLength > buffer.length || secondOffset + secondLength > buffer.length || secondOffset <= start + firstLength) {
+    return null;
+  }
+
+  const signedData = Buffer.concat([
+    buffer.subarray(start, start + firstLength),
+    buffer.subarray(secondOffset, secondOffset + secondLength),
+  ]);
+
+  // Between the two ranges: "<" + hex digits + ">"
+  const hex = buffer.subarray(start + firstLength + 1, secondOffset - 1).toString("latin1").replace(/[^0-9a-fA-F]/g, "");
+  const der = sliceDer(Buffer.from(hex, "hex"));
+
+  return { ByteRange, signedData, signature: der ? der.toString("binary") : null };
+};
+
+/**
  * Inspects a PDF's certificate signature.
  * Returns whether one is present, whether the file is unchanged since it was applied,
  * and whether it was applied with this service's own certificate.
@@ -149,13 +198,14 @@ export const sealPdfBuffer = async (buffer, { reason = "Document completed" } = 
 export const inspectSeal = (buffer) => {
   const result = { present: false, intact: false, issuedByThisService: false, signerName: null, signedAt: null };
 
-  let extracted;
-  try {
-    extracted = extractSignature(buffer);
-  } catch {
+  const extracted = extractPdfSignature(buffer);
+  if (!extracted) return result;
+  result.present = true;
+
+  if (!extracted.signature) {
+    result.error = "The signature could not be read";
     return result;
   }
-  result.present = true;
 
   try {
     const { signature, signedData, ByteRange } = extracted;

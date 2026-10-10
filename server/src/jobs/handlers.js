@@ -10,6 +10,7 @@ import {
   sendCancellationNotificationEmail,
   sendReminderEmail,
 } from "../services/email.service.js";
+import { sendMessage } from "../services/messaging/index.js";
 import { withDocumentLock } from "../services/documentLock.service.js";
 import { sealDocument } from "../services/pdfSeal.service.js";
 
@@ -34,6 +35,19 @@ const loadRecipientContext = async (recipientId) => {
   return { recipient, pdf, sender: sender || { name: "Sender", email: "" } };
 };
 
+const usesMessaging = (recipient) => recipient.channel !== "email" && Boolean(recipient.phone);
+const signingLink = (recipient) => `${env.appUrl}/sign/${recipient.token}`;
+
+// Sends by SMS or WhatsApp in the signer's language
+const message = (recipient, template, params) =>
+  sendMessage({
+    channel: recipient.channel,
+    to: recipient.phone,
+    template,
+    language: recipient.language,
+    params,
+  });
+
 export const registerJobHandlers = () => {
   registerJobHandler(
     "email.signing_request",
@@ -43,7 +57,15 @@ export const registerJobHandlers = () => {
       if (!ctx || !["pending", "partially_signed"].includes(ctx.pdf.status)) return;
       if (["signed", "declined"].includes(ctx.recipient.status)) return;
 
-      await sendSigningRequestEmail({ ...ctx, customMessage: customMessage || ctx.pdf.message });
+      if (usesMessaging(ctx.recipient)) {
+        await message(ctx.recipient, "signing_request", {
+          sender: ctx.sender.name || ctx.sender.email,
+          document: ctx.pdf.originalFileName,
+          link: signingLink(ctx.recipient),
+        });
+      } else {
+        await sendSigningRequestEmail({ ...ctx, customMessage: customMessage || ctx.pdf.message });
+      }
       await setDelivery(recipientId, "sent");
     },
     { onFailed: markUndelivered }
@@ -56,7 +78,15 @@ export const registerJobHandlers = () => {
       if (!ctx || !["pending", "partially_signed"].includes(ctx.pdf.status)) return;
       if (["signed", "declined"].includes(ctx.recipient.status)) return;
 
-      await sendReminderEmail({ ...ctx, customMessage });
+      if (usesMessaging(ctx.recipient)) {
+        await message(ctx.recipient, "reminder", {
+          sender: ctx.sender.name || ctx.sender.email,
+          document: ctx.pdf.originalFileName,
+          link: signingLink(ctx.recipient),
+        });
+      } else {
+        await sendReminderEmail({ ...ctx, customMessage });
+      }
       await setDelivery(recipientId, "sent");
     },
     { onFailed: markUndelivered }
@@ -66,13 +96,20 @@ export const registerJobHandlers = () => {
     const ctx = await loadRecipientContext(recipientId);
     if (!ctx) return;
 
-    // Each party downloads through their own signing link; no file link is ever emailed
+    // Each party downloads through their own signing link; no file link is ever sent
+    if (usesMessaging(ctx.recipient)) {
+      await message(ctx.recipient, "completed", {
+        document: ctx.pdf.originalFileName,
+        link: signingLink(ctx.recipient),
+      });
+      return;
+    }
+
     await sendCompletionEmail({
       recipientEmail: ctx.recipient.email,
-      recipientName: ctx.recipient.name,
       pdf: ctx.pdf,
-      senderName: env.appName,
-      downloadUrl: `${env.appUrl}/sign/${ctx.recipient.token}`,
+      downloadUrl: signingLink(ctx.recipient),
+      language: ctx.recipient.language,
     });
   });
 
@@ -83,9 +120,7 @@ export const registerJobHandlers = () => {
 
     await sendCompletionEmail({
       recipientEmail: owner.email,
-      recipientName: owner.name,
       pdf,
-      senderName: env.appName,
       downloadUrl: `${env.appUrl}/dashboard`,
     });
   });
@@ -103,12 +138,18 @@ export const registerJobHandlers = () => {
     const ctx = await loadRecipientContext(recipientId);
     if (!ctx) return;
 
+    if (usesMessaging(ctx.recipient)) {
+      await message(ctx.recipient, "cancelled", { document: ctx.pdf.originalFileName });
+      return;
+    }
+
     await sendCancellationNotificationEmail({
       recipientEmail: ctx.recipient.email,
       recipientName: ctx.recipient.name,
       pdf: ctx.pdf,
       eventType,
       reason,
+      language: ctx.recipient.language,
     });
   });
 

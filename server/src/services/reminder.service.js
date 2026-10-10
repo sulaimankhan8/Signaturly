@@ -111,8 +111,8 @@ export const processAutomatedReminders = async () => {
             aggregateId: pdf._id,
             actor: {
               id: sender._id,
-              name: "Signaturly Automation",
-              email: "system@signaturly.com",
+              name: "PactDoc Automation",
+              email: "system@pactdoc.com",
             },
             payload: {
               recipient: claimedRecipient,

@@ -13,11 +13,29 @@ const recipientSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // A signer is reached by email, by phone, or both. At least one is always present.
     email: {
       type: String,
-      required: true,
+      default: "",
       trim: true,
       lowercase: true,
+    },
+    // International format, for example +919876543210
+    phone: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    // Where the signing link, reminders and codes are sent
+    channel: {
+      type: String,
+      enum: ["email", "sms", "whatsapp"],
+      default: "email",
+    },
+    // Language of everything this signer receives and sees
+    language: {
+      type: String,
+      default: "en",
     },
     role: {
       type: String,
@@ -78,7 +96,7 @@ const recipientSchema = new mongoose.Schema(
     // How and when the signer actually proved who they are (never inferred from authType)
     authMethod: {
       type: String,
-      enum: ["email_link", "email_otp", "passcode"],
+      enum: ["email_link", "message_link", "email_otp", "sms_otp", "passcode"],
       default: "email_link",
     },
     authVerifiedAt: {

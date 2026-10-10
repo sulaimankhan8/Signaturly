@@ -1,34 +1,72 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import UploadPdf from "./pages/UploadPdf";
-import HomeRedirect from "./pages/HomeRedirect";
-import Dashboard from "./pages/Dashboard";
-import PdfEditor from "./pages/PdfEditor";
-import SendDocument from "./pages/SendDocument";
-import AssignFields from "./pages/AssignFields";
-import SigningPage from "./pages/SigningPage";
-import SignatureRemover from "./pages/RemoveBg";
-import Templates from "./pages/Templates";
-import TemplateEditor from "./pages/TemplateEditor";
-import UseTemplate from "./pages/UseTemplate";
-import Settings from "./pages/Settings";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import VerifyEmail from "./pages/VerifyEmail";
-import BulkSend from "./pages/BulkSend";
-import Landing from "./pages/Landing";
-import FontTestLab from "./pages/FontTestLab";
-import UserGuide from "./pages/UserGuide";
-import PublicVerify from "./pages/PublicVerify";
-import Pricing from "./pages/Pricing";
-import TeamWorkspaces from "./pages/TeamWorkspaces";
-import ApiSettings from "./pages/ApiSettings";
 import { hydrateAuth } from "./store/authActions";
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { useDispatch } from "react-redux";
 
 import TermsConsentModal from "./components/TermsConsentModal";
+
+/**
+ * Each page is fetched when it is first opened. A signer on a phone downloads the signing page
+ * and nothing else: not the dashboard, the editor or the landing page.
+ *
+ * A page can also be fetched ahead of the first render with `preload()`. It is then drawn at once,
+ * with no loading spinner in between, which matters for the public pages that arrive from the
+ * server already written out as HTML (see scripts/prerender.mjs).
+ */
+const page = (loader) => {
+  let Loaded = null;
+  const Lazy = lazy(loader);
+  const Page = (props) => (Loaded ? <Loaded {...props} /> : <Lazy {...props} />);
+  Page.preload = () =>
+    loader().then((module) => {
+      Loaded = module.default;
+    });
+  return Page;
+};
+
+const Login = page(() => import("./pages/Login"));
+const Register = page(() => import("./pages/Register"));
+const UploadPdf = page(() => import("./pages/UploadPdf"));
+const HomeRedirect = page(() => import("./pages/HomeRedirect"));
+const Dashboard = page(() => import("./pages/Dashboard"));
+const PdfEditor = page(() => import("./pages/PdfEditor"));
+const SendDocument = page(() => import("./pages/SendDocument"));
+const AssignFields = page(() => import("./pages/AssignFields"));
+const SigningPage = page(() => import("./pages/SigningPage"));
+const SignatureRemover = page(() => import("./pages/RemoveBg"));
+const Templates = page(() => import("./pages/Templates"));
+const TemplateEditor = page(() => import("./pages/TemplateEditor"));
+const UseTemplate = page(() => import("./pages/UseTemplate"));
+const Settings = page(() => import("./pages/Settings"));
+const ForgotPassword = page(() => import("./pages/ForgotPassword"));
+const ResetPassword = page(() => import("./pages/ResetPassword"));
+const VerifyEmail = page(() => import("./pages/VerifyEmail"));
+const BulkSend = page(() => import("./pages/BulkSend"));
+const Landing = page(() => import("./pages/Landing"));
+const FontTestLab = page(() => import("./pages/FontTestLab"));
+const UserGuide = page(() => import("./pages/UserGuide"));
+const PublicVerify = page(() => import("./pages/PublicVerify"));
+const Pricing = page(() => import("./pages/Pricing"));
+const TeamWorkspaces = page(() => import("./pages/TeamWorkspaces"));
+const ApiSettings = page(() => import("./pages/ApiSettings"));
+
+// The pages that are served as ready-made HTML
+const PRERENDERED = { "/": HomeRedirect, "/pricing": Pricing, "/verify": PublicVerify, "/userguide": UserGuide };
+
+/**
+ * Fetches the code of a pre-rendered page before the app starts, so the app can take over the
+ * HTML already on screen without blanking it. Resolves at once for every other page.
+ */
+export const preloadPageFor = (pathname) => {
+  const Page = PRERENDERED[pathname.replace(/\/+$/, "") || "/"];
+  return Page ? Page.preload().catch(() => {}) : Promise.resolve();
+};
+
+const PageLoading = () => (
+  <div className="min-h-screen bg-[#08090d] flex items-center justify-center">
+    <div className="w-10 h-10 border-4 border-white/10 border-t-red-600 rounded-full animate-spin" />
+  </div>
+);
 
 export default function App() {
   const dispatch = useDispatch();
@@ -41,39 +79,37 @@ export default function App() {
   return (
     <BrowserRouter>
       <TermsConsentModal />
-      <Routes>
-        <Route path="/" element={<HomeRedirect />} />
-        <Route path="/landing" element={<Landing />} />
-        <Route path="/pricing" element={<Pricing />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/workspaces" element={<TeamWorkspaces />} />
-        <Route path="/developer" element={<ApiSettings />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/upload" element={<UploadPdf />} />
-        <Route path="/signature-remover" element={<SignatureRemover />} />
-        <Route path="/templates" element={<Templates />} />
-        <Route path="/templates/bulk" element={<BulkSend />} />
-        <Route path="/templates/edit/:templateId" element={<TemplateEditor />} />
-        <Route path="/templates/use/:templateId" element={<UseTemplate />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/editor/:pdfId" element={<PdfEditor />} />
-        <Route path="/send/:pdfId" element={<SendDocument />} />
-        <Route path="/assign/:pdfId" element={<AssignFields />} />
-        <Route path="/sign/:token" element={<SigningPage />} />
-        <Route path="/verify" element={<PublicVerify />} />
-        {/* Isolated Font Testing Suite (Accessible by direct URL only) */}
-        <Route path="/test" element={<FontTestLab />} />
-        {/* Comprehensive Interactive User Guide (Accessible at /userguide) */}
-        <Route path="/userguide" element={<UserGuide />} />
-      </Routes>
+      <Suspense fallback={<PageLoading />}>
+        <Routes>
+          <Route path="/" element={<HomeRedirect />} />
+          <Route path="/landing" element={<Landing />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/workspaces" element={<TeamWorkspaces />} />
+          <Route path="/developer" element={<ApiSettings />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/upload" element={<UploadPdf />} />
+          <Route path="/signature-remover" element={<SignatureRemover />} />
+          <Route path="/templates" element={<Templates />} />
+          <Route path="/templates/bulk" element={<BulkSend />} />
+          <Route path="/templates/edit/:templateId" element={<TemplateEditor />} />
+          <Route path="/templates/use/:templateId" element={<UseTemplate />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/editor/:pdfId" element={<PdfEditor />} />
+          <Route path="/send/:pdfId" element={<SendDocument />} />
+          <Route path="/assign/:pdfId" element={<AssignFields />} />
+          <Route path="/sign/:token" element={<SigningPage />} />
+          <Route path="/verify" element={<PublicVerify />} />
+          {/* Isolated Font Testing Suite (Accessible by direct URL only) */}
+          <Route path="/test" element={<FontTestLab />} />
+          {/* Comprehensive Interactive User Guide (Accessible at /userguide) */}
+          <Route path="/userguide" element={<UserGuide />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }
-
-
-
-

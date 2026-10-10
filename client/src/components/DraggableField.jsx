@@ -2,6 +2,8 @@ import Draggable from "react-draggable";
 import { ResizableBox } from "react-resizable";
 import { useState, useEffect, useRef } from "react";
 import "react-resizable/css/styles.css";
+import { useTranslation } from "react-i18next";
+import { formatFieldDate, parseFieldDate, toDateInputValue } from "../utils/fieldDate";
 
 export default function DraggableField({
   field,
@@ -13,7 +15,12 @@ export default function DraggableField({
   onRemove,
   signerColor = null,
   signerName = null,
+  // A signer fills fields in but cannot move, resize or remove them
+  locked = false,
+  // Called when the field is clicked or tapped (the click itself is not passed on to the page behind)
+  onActivate = null,
 }) {
+  const { t } = useTranslation();
   const [localField, setLocalField] = useState(field);
   const [isEditing, setIsEditing] = useState(false);
   const inputRef = useRef(null);
@@ -24,7 +31,7 @@ export default function DraggableField({
   }, [field]);
 
   useEffect(() => {
-    if (!isSelected) return;
+    if (!isSelected || locked) return;
 
     const handleKeyDown = (e) => {
       if (isEditing) return;
@@ -39,7 +46,7 @@ export default function DraggableField({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isSelected, isEditing, localField.id, onRemove, onSelect]);
+  }, [isSelected, locked, isEditing, localField.id, onRemove, onSelect]);
 
   const xPx = localField.xPercent * pageWidth;
   const yPx = localField.yPercent * pageHeight;
@@ -64,7 +71,7 @@ export default function DraggableField({
   };
 
   const renderToolbar = () => {
-    if (!isSelected) return null;
+    if (!isSelected || locked) return null;
 
     return (
       <div
@@ -73,17 +80,17 @@ export default function DraggableField({
         onClick={(e) => e.stopPropagation()}
       >
         <span className="font-bold capitalize px-1 text-[11px]" style={{ color: activeColor }}>
-          {signerName ? `${signerName}: ` : ""}{localField.type}
+          {signerName ? `${signerName}: ` : ""}{t(`fieldType.${localField.type}`, localField.type)}
         </span>
 
         {localField.type !== "signature" && localField.type !== "initials" && (
           <div className="flex items-center space-x-1 border-l border-r border-white/10 px-2">
-            <span className="text-gray-400 text-[10px] uppercase font-mono">Font:</span>
+            <span className="text-gray-400 text-[10px] uppercase font-mono">{t("field.font")}</span>
             <button
               type="button"
               className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center text-gray-200 font-bold text-xs"
               onClick={() => handleFontSizeChange(-1)}
-              title="Decrease font size"
+              title={t("field.smaller")}
             >
               −
             </button>
@@ -94,7 +101,7 @@ export default function DraggableField({
               type="button"
               className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center text-gray-200 font-bold text-xs"
               onClick={() => handleFontSizeChange(1)}
-              title="Increase font size"
+              title={t("field.larger")}
             >
               +
             </button>
@@ -105,7 +112,7 @@ export default function DraggableField({
           type="button"
           className="text-red-400 hover:text-white hover:bg-red-600/30 p-1 rounded-lg transition-colors"
           onClick={() => onRemove(localField.id)}
-          title="Delete Field (Del)"
+          title={t("field.remove")}
         >
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -134,7 +141,7 @@ export default function DraggableField({
           onClick={() => setIsEditing(true)}
         >
           {localField.value || (
-            <span className="text-gray-400 italic font-normal">Click to enter text...</span>
+            <span className="text-gray-400 italic font-normal">{t("field.enterText")}</span>
           )}
         </div>
       )}
@@ -142,11 +149,7 @@ export default function DraggableField({
   );
 
   const renderDateField = () => {
-    const getDateValue = () => {
-      if (!localField.value) return "";
-      const d = new Date(localField.value);
-      return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
-    };
+    const getDateValue = () => toDateInputValue(parseFieldDate(localField.value));
 
     return (
       <div className="w-full h-full relative flex items-center px-2">
@@ -155,8 +158,9 @@ export default function DraggableField({
           value={getDateValue()}
           onChange={(e) => {
             if (e.target.value) {
-              const d = new Date(e.target.value);
-              handleUpdate({ value: d.toLocaleDateString() });
+              // The input gives YYYY-MM-DD; read it as a local date, not as midnight UTC
+              const [year, month, day] = e.target.value.split("-").map(Number);
+              handleUpdate({ value: formatFieldDate(new Date(year, month - 1, day)) });
             }
           }}
           className="w-full h-full bg-transparent text-gray-900 outline-none cursor-pointer font-medium"
@@ -171,7 +175,7 @@ export default function DraggableField({
       {localField.signatureUrl || localField.value ? (
         <img
           src={localField.signatureUrl || localField.value}
-          alt="Signature"
+          alt={t("fieldType.signature")}
           className="w-full h-full object-contain pointer-events-none"
         />
       ) : (
@@ -180,7 +184,7 @@ export default function DraggableField({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
           </svg>
           <span className="text-[10px] font-bold tracking-wider uppercase">
-            {localField.type === "initials" ? "Initials" : "Signature"}
+            {localField.type === "initials" ? t("fieldType.initials") : t("fieldType.signature")}
           </span>
         </div>
       )}
@@ -277,6 +281,7 @@ export default function DraggableField({
     <Draggable
       position={{ x: xPx, y: yPx }}
       cancel=".react-resizable-handle, input, select, button"
+      disabled={locked}
       onStart={() => onSelect(localField.id)}
       onStop={(_, d) => {
         const xPercent = Math.min(Math.max(d.x / pageWidth, 0), 0.98);
@@ -286,16 +291,18 @@ export default function DraggableField({
     >
       <div
         ref={fieldRef}
-        className="absolute cursor-move select-none"
+        data-testid={`field-${localField.type}`}
+        className={`absolute select-none ${locked ? "cursor-pointer" : "cursor-move"}`}
         onClick={(e) => {
           e.stopPropagation();
           onSelect(localField.id);
+          if (onActivate) onActivate(localField);
         }}
       >
         <ResizableBox
           width={w}
           height={h}
-          resizeHandles={["se"]}
+          resizeHandles={locked ? [] : ["se"]}
           minConstraints={localField.type === "radio" || localField.type === "checkbox" ? [24, 24] : [40, 24]}
           maxConstraints={[pageWidth - xPx, pageHeight - yPx]}
           onResizeStart={() => onSelect(localField.id)}
@@ -322,10 +329,12 @@ export default function DraggableField({
 
             {renderFieldContent()}
 
-            <div
-              className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 border-r-2 border-b-2 pointer-events-none"
-              style={{ borderColor: activeColor }}
-            />
+            {!locked && (
+              <div
+                className="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 border-r-2 border-b-2 pointer-events-none"
+                style={{ borderColor: activeColor }}
+              />
+            )}
           </div>
         </ResizableBox>
       </div>

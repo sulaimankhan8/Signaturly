@@ -73,7 +73,7 @@ export default function AdminDashboard() {
   });
 
   const fetchAdminData = async (range = timeRange) => {
-    const adminToken = localStorage.getItem("signaturly_admin_token");
+    const adminToken = localStorage.getItem("pactdoc_admin_token");
     if (!adminToken) {
       navigate("/login");
       return;
@@ -96,7 +96,7 @@ export default function AdminDashboard() {
       setAuditLogs(logsRes.data.logs || []);
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
-        localStorage.removeItem("signaturly_admin_token");
+        localStorage.removeItem("pactdoc_admin_token");
         navigate("/login");
         return;
       }
@@ -111,14 +111,14 @@ export default function AdminDashboard() {
   }, [timeRange]);
 
   const handleAdminLogout = () => {
-    localStorage.removeItem("signaturly_admin_token");
+    localStorage.removeItem("pactdoc_admin_token");
     navigate("/login");
   };
 
   // The admin token travels in a header, never in the address bar
   const handleDownloadBsaCert = async (docId) => {
     try {
-      const adminToken = localStorage.getItem("signaturly_admin_token");
+      const adminToken = localStorage.getItem("pactdoc_admin_token");
       const res = await fetch(`${getAdminBaseUrl()}/admin/documents/${docId}/bsa-certificate`, {
         headers: { Authorization: `Bearer ${adminToken}` },
       });
@@ -443,7 +443,7 @@ export default function AdminDashboard() {
 
             <div className="pt-2 flex items-center justify-between border-t border-white/5">
               <div className="text-[11px] font-bold text-gray-300 truncate max-w-[120px]">
-                admin@signaturly.pro
+                admin@pactdoc.com
               </div>
               <button
                 onClick={handleAdminLogout}

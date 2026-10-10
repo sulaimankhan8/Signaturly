@@ -8,6 +8,11 @@ import { ApiError } from "../utils/ApiError.js";
 import { readFile, saveFile } from "./storage.service.js";
 import { currentKeyOf, nextVersionKeyOf } from "./documentFiles.service.js";
 import { createChainedAuditLog } from "./auditLedger.service.js";
+import { drawShapedText } from "./textShaping.service.js";
+import { formatDate } from "../utils/format.js";
+import { describeIdentityCheck } from "../utils/identityCheck.js";
+
+const MAX_FIELD_TEXT_LENGTH = 500;
 
 export const MAX_SIGNATURE_IMAGE_BYTES = 2 * 1024 * 1024;
 
@@ -116,14 +121,15 @@ const executeSignPdf = async ({
           : height * 0.55;
 
         const padLeft = 8 * (pw / 612);
-        const textValue = (field.value || "").replace(/[^\x00-\x7F]/g, "");
+        const textValue = typeof field.value === "string" ? field.value.replace(/\s+/g, " ").trim() : "";
 
         if (textValue) {
-          page.drawText(textValue, {
+          // Shaped drawing keeps every script intact; long values shrink to stay inside the field
+          drawShapedText(page, textValue.slice(0, MAX_FIELD_TEXT_LENGTH), {
             x: x + padLeft,
             y: y + height / 2 - fontSize * 0.35,
             size: Math.max(8, fontSize),
-            color: rgb(0, 0, 0),
+            maxWidth: Math.max(10, width - padLeft * 2),
           });
         }
         break;
@@ -135,13 +141,15 @@ const executeSignPdf = async ({
           : height * 0.55;
 
         const padLeft = 8 * (pw / 612);
-        const dateValue = (field.value || new Date().toLocaleDateString()).replace(/[^\x00-\x7F]/g, "");
+        // No date given: today's date, written so day and month cannot be confused
+        const dateValue =
+          typeof field.value === "string" && field.value.trim() ? field.value.trim() : formatDate(new Date());
 
-        page.drawText(dateValue, {
+        drawShapedText(page, dateValue.slice(0, 40), {
           x: x + padLeft,
           y: y + height / 2 - fontSize * 0.35,
           size: Math.max(8, fontSize),
-          color: rgb(0, 0, 0),
+          maxWidth: Math.max(10, width - padLeft * 2),
         });
         break;
       }
@@ -310,15 +318,8 @@ const executeSignPdf = async ({
 
   if (recipientId) {
     const rec = await Recipient.findById(recipientId);
-    const passed = rec?.authVerified === true && rec.authVerifiedAt;
-    if (passed && rec.authMethod === "email_otp") {
-      authMethod = "Email link + one-time code";
-      otpVerified = true;
-    } else if (passed && rec.authMethod === "passcode") {
-      authMethod = "Email link + access passcode";
-    } else {
-      authMethod = "Email link";
-    }
+    authMethod = describeIdentityCheck(rec);
+    otpVerified = Boolean(rec?.authVerified && rec.authVerifiedAt && ["email_otp", "sms_otp"].includes(rec.authMethod));
   }
 
   // Create cryptographically chained audit trail entry

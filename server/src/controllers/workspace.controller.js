@@ -52,7 +52,7 @@ export const inviteMemberController = asyncHandler(async (req, res) => {
 
   const targetUser = await User.findOne({ email: email.toLowerCase().trim() });
   if (!targetUser) {
-    throw new ApiError(404, `User with email ${email} is not registered on Signaturly`);
+    throw new ApiError(404, `User with email ${email} is not registered on PactDoc`);
   }
 
   // Check if already member

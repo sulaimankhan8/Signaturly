@@ -2,13 +2,13 @@ version: "3.8"
 
 services:
   # ==============================================================================
-  # SIGNATURLY PRO - BACKEND API SERVICE
+  # PACTDOC - BACKEND API SERVICE
   # ==============================================================================
   backend:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: signaturly-api
+    container_name: pactdoc-api
     restart: unless-stopped
     ports:
       - "5000:5000"
@@ -29,4 +29,4 @@ services:
 
 networks:
   default:
-    name: signaturly-network
+    name: pactdoc-network

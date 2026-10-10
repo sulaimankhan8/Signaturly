@@ -113,7 +113,7 @@ export const AdInterstitialModal = ({ documentName, onProceed, show = true }) =>
         {/* Footer Note */}
         <p className="text-[11px] text-center text-neutral-500">
           💡 Sender can upgrade to{" "}
-          <span className="text-purple-400 font-semibold">Signaturly Pro</span> to remove sponsor gates for all recipients.
+          <span className="text-purple-400 font-semibold">PactDoc</span> to remove sponsor gates for all recipients.
         </p>
       </div>
     </div>

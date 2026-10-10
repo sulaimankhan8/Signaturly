@@ -45,7 +45,7 @@ export default function SendDocument() {
   useEffect(() => {
     // Load saved contacts from localStorage
     try {
-      const stored = localStorage.getItem("signaturly_saved_contacts");
+      const stored = localStorage.getItem("pactdoc_saved_contacts");
       if (stored) {
         setSavedContacts(JSON.parse(stored));
       }
@@ -123,7 +123,12 @@ export default function SendDocument() {
         toast.error(`Please provide a name for Recipient #${i + 1}`);
         return;
       }
-      if (!r.email.trim() || !r.email.includes("@")) {
+      const byPhone = r.channel === "sms" || r.channel === "whatsapp";
+      if (byPhone && !(r.phone || "").trim()) {
+        toast.error(`Please provide a mobile number for Recipient #${i + 1}`);
+        return;
+      }
+      if (!byPhone && (!r.email.trim() || !r.email.includes("@"))) {
         toast.error(`Please provide a valid email for Recipient #${i + 1}`);
         return;
       }
@@ -134,13 +139,13 @@ export default function SendDocument() {
 
       // Add to contact cache if not existing
       const cleanEmail = r.email.trim().toLowerCase();
-      if (!contactsToSave.some((c) => c.email.toLowerCase() === cleanEmail)) {
+      if (cleanEmail && !contactsToSave.some((c) => c.email.toLowerCase() === cleanEmail)) {
         contactsToSave.push({ name: r.name.trim(), email: cleanEmail });
       }
     }
 
     try {
-      localStorage.setItem("signaturly_saved_contacts", JSON.stringify(contactsToSave.slice(-25)));
+      localStorage.setItem("pactdoc_saved_contacts", JSON.stringify(contactsToSave.slice(-25)));
     } catch (e) {}
 
     // Pass configuration to AssignFields stage
@@ -300,12 +305,58 @@ export default function SendDocument() {
                   </label>
                   <input
                     type="email"
-                    required
+                    required={!recipient.channel || recipient.channel === "email"}
                     placeholder="john@company.com"
                     value={recipient.email}
                     onChange={(e) => updateRecipient(recipient.id, { email: e.target.value })}
                     className="w-full px-3 py-2 bg-[#12141c] border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-red-500"
                   />
+                </div>
+
+                {/* Mobile number: needed to send by SMS or WhatsApp */}
+                <div className="w-full sm:w-40">
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
+                    Mobile (optional)
+                  </label>
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    placeholder="+91 98765 43210"
+                    value={recipient.phone || ""}
+                    onChange={(e) => updateRecipient(recipient.id, { phone: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#12141c] border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-red-500"
+                  />
+                </div>
+
+                {/* How the signing link reaches this person */}
+                <div className="w-full sm:w-32">
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
+                    Send by
+                  </label>
+                  <select
+                    value={recipient.channel || "email"}
+                    onChange={(e) => updateRecipient(recipient.id, { channel: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#12141c] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-red-500"
+                  >
+                    <option value="email">Email</option>
+                    <option value="whatsapp">WhatsApp</option>
+                    <option value="sms">SMS</option>
+                  </select>
+                </div>
+
+                {/* Language of the emails, messages and signing page this person sees */}
+                <div className="w-full sm:w-28">
+                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
+                    Language
+                  </label>
+                  <select
+                    value={recipient.language || "en"}
+                    onChange={(e) => updateRecipient(recipient.id, { language: e.target.value })}
+                    className="w-full px-3 py-2 bg-[#12141c] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-red-500"
+                  >
+                    <option value="en">English</option>
+                    <option value="hi">हिन्दी</option>
+                  </select>
                 </div>
 
                 {/* Role */}

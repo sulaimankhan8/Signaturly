@@ -1,8 +1,8 @@
 {
-  "name": "signaturly-pro-monorepo",
+  "name": "pactdoc-pro-monorepo",
   "version": "1.0.0",
   "private": true,
-  "description": "Signaturly Pro Enterprise Platform - Local Development & Production Orchestration",
+  "description": "PactDoc Enterprise Platform - Local Development & Production Orchestration",
   "scripts": {
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
@@ -11,6 +11,7 @@
     "build:admin": "npm --prefix admin run build",
     "build:all": "npm run build:client && npm run build:admin",
     "test": "npm --prefix server run test",
+    "test:e2e": "npm --prefix e2e test",
     "test:v2": "npm --prefix server run test:v2",
     "verify": "npm --prefix server run verify",
     "seed-admin": "npm --prefix server run seed-admin",

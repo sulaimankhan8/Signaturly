@@ -62,7 +62,7 @@ const apiKeySchema = new mongoose.Schema(
  */
 apiKeySchema.statics.generateKey = function () {
   const secret = crypto.randomBytes(24).toString("hex");
-  const prefix = `sig_live_${secret.substring(0, 6)}`;
+  const prefix = `pd_live_${secret.substring(0, 6)}`;
   const fullKey = `${prefix}_${secret}`;
   const keyHash = crypto.createHash("sha256").update(fullKey).digest("hex");
 

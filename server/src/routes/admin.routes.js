@@ -79,7 +79,7 @@ router.get("/analytics", async (req, res) => {
     const adminUsers = await User.find({
       $or: [
         { role: { $in: ["admin", "superadmin"] } },
-        { email: "admin@signaturly.pro" },
+        { email: "admin@pactdoc.com" },
       ],
     }).select("_id");
     const adminUserIds = adminUsers.map((u) => u._id);
@@ -224,7 +224,7 @@ router.get("/users", async (req, res) => {
 
     const query = {
       role: { $nin: ["admin", "superadmin"] },
-      email: { $ne: "admin@signaturly.pro" },
+      email: { $ne: "admin@pactdoc.com" },
     };
     if (search.trim()) {
       query.$and = [
