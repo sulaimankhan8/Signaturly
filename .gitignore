@@ -59,3 +59,7 @@ logs/
 # ================================
 .cache/
 .tmp/
+
+# Development-only document seal certificate (generated on first use)
+.dev-seal.p12
+*.p12

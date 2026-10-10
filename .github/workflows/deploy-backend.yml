@@ -23,9 +23,27 @@ permissions:
   contents: read
 
 jobs:
+  test:
+    name: Server tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm test
+
   deploy:
     name: Build & Deploy to Cloud Run
     runs-on: ubuntu-latest
+    # Nothing is deployed unless the test suite passes
+    needs: test
 
     steps:
       - name: 📥 Checkout Repository
@@ -71,4 +89,5 @@ jobs:
             --min-instances 0 \
             --max-instances 1 \
             --memory 512Mi \
-            --set-env-vars="NODE_ENV=production,CORS_ORIGIN=*,MONGO_URI=mongodb+srv://suleman111111111111111_db_user:WOCfS74qN0fbJcc8@cluster0.0e0cvkg.mongodb.net/?appName=Cluster0,JWT_ACCESS_SECRET=access_secret_123,JWT_REFRESH_SECRET=refresh_secret_456,ADMIN_SECRET_KEY=signaturly-superadmin-secret,STORAGE_PROVIDER=gcs,GCP_PROJECT_ID=project-9aac115a-73f9-4e8a-9a7,GCS_BUCKET_NAME=signaturly-vault-project-9aac115a-73f9-4e8a-9a7,GCS_SIGNED_URL_EXPIRES=900,SMTP_HOST=smtp.gmail.com,SMTP_PORT=465,SMTP_USER=suleman111111111111111@gmail.com,SMTP_PASS=vgsatqmnxjowucfs,SMTP_FROM=suleman111111111111111@gmail.com"
+            --set-env-vars="^@^NODE_ENV=production@STORAGE_PROVIDER=gcs@GCP_PROJECT_ID=${{ env.PROJECT_ID }}@GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}@GCS_SIGNED_URL_EXPIRES=900@SMTP_HOST=${{ vars.SMTP_HOST }}@SMTP_PORT=${{ vars.SMTP_PORT }}@SMTP_FROM=${{ vars.SMTP_FROM }}@CORS_ORIGIN=${{ vars.CORS_ORIGIN }}@APP_URL=${{ vars.APP_URL }}" \
+            --set-secrets="MONGO_URI=MONGO_URI:latest,JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,ADMIN_SECRET_KEY=ADMIN_SECRET_KEY:latest,ADMIN_JWT_SECRET=ADMIN_JWT_SECRET:latest,AUDIT_HMAC_KEY=AUDIT_HMAC_KEY:latest,SEAL_P12_BASE64=SEAL_P12_BASE64:latest,SEAL_P12_PASSWORD=SEAL_P12_PASSWORD:latest,INTERNAL_JOB_SECRET=INTERNAL_JOB_SECRET:latest,SMTP_USER=SMTP_USER:latest,SMTP_PASS=SMTP_PASS:latest"
