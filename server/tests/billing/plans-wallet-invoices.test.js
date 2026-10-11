@@ -99,6 +99,15 @@ describe("P4-13 the plan catalogue", () => {
     expect((await subOf(user.id)).plan).toBe("pro_monthly");
   });
 
+  it("matches the copy of the price list the landing page ships with", async () => {
+    // The landing page shows prices in its ready-made HTML, from a copy kept with the client.
+    // If a price or an allowance changes on the server, this fails until the copy is changed too.
+    const { PRICING_FALLBACK } = await import("../../../client/src/config/pricingFallback.js");
+    const pick = ({ id, name, tier, documentsPerMonth, priceInr, interval, perSeat, purchasable }) => ({ id, name, tier, documentsPerMonth, priceInr, interval, perSeat, purchasable });
+    expect(PRICING_FALLBACK.plans.map(pick)).toEqual(publicCatalogue().plans.map(pick));
+    expect(PRICING_FALLBACK.pricesIncludeGst).toBe(publicCatalogue().pricesIncludeGst);
+  });
+
   it("lists plans publicly, without the plan that is no longer sold", async () => {
     const res = await api().get("/api/public/plans");
     expect(res.status).toBe(200);

@@ -5,12 +5,17 @@ import { draft, signIn } from "./helpers.js";
 test.describe("plans and billing", () => {
   test("the pricing page shows the plans in rupees and leads to sign-up", async ({ page }) => {
     await page.goto("/pricing");
-    await expect(page.getByRole("heading", { name: "Plans and pricing" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Choose the Perfect Plan/ })).toBeVisible();
 
     await expect(page.getByTestId("plan-free")).toContainText("5 documents a month");
     await expect(page.getByTestId("plan-pro")).toContainText("₹299");
     await expect(page.getByTestId("plan-pro")).toContainText("50 documents a month");
-    await page.getByRole("button", { name: "Yearly" }).click();
+    await expect(page.getByTestId("plan-business")).toContainText("₹499");
+    await expect(page.getByTestId("plan-enterprise")).toContainText("₹2,499");
+    await expect(page.getByTestId("comparison")).toContainText("Team workspaces, roles and invitations");
+    // A year costs ten months: the toggle says what that saves
+    await page.getByRole("button", { name: /Annual/ }).click();
+    await expect(page.getByRole("button", { name: /Annual/ })).toContainText("SAVE 17%");
     await expect(page.getByTestId("plan-pro")).toContainText("₹2,990");
     await expect(page.getByTestId("topups")).toContainText("10 extra documents");
 

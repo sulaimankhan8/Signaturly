@@ -11,22 +11,20 @@ pnpm-debug.log*
 # Environment Variables
 # ================================
 .env
-.env.local
-.env.development
-.env.production
+.env.*
+# The examples hold names only, never values, and are meant to be shared
+!.env.example
 
 # ================================
 # Frontend (Vite / React)
 # ================================
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
+dist/
+.vite/
 
 # ================================
 # Backend (Node / Express)
 # ================================
-backend/node_modules/
-backend/dist/
+coverage/
 
 # ================================
 # PDF / Uploads / Generated Files

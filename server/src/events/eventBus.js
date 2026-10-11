@@ -1,5 +1,6 @@
 import { EventEmitter } from "events";
 import { v4 as uuidv4 } from "uuid";
+import { env } from "../config/env.js";
 
 class EventBus extends EventEmitter {
   constructor() {
@@ -36,6 +37,12 @@ class EventBus extends EventEmitter {
       },
       payload,
     };
+
+    // On a development machine each event is shown as it happens: its type and the document
+    // it is about, never its contents. Production logs stay quiet.
+    if (!env.isProd && !env.isTest) {
+      console.log(`[EventBus] 📡 ${eventType} for document ${eventEnvelope.aggregateId} (${this.listenerCount(eventType)} listener(s))`);
+    }
 
     for (const { handlerName, handlerFn } of this.recorders) {
       try {

@@ -14,10 +14,30 @@ import { PasswordReset } from "../models/PasswordReset.model.js";
 import fs from "fs";
 import path from "path";
 
+// This drops the whole database that MONGO_URI points at, and every uploaded file. It cannot be
+// undone, so it runs only when asked for by its full name, and never against production.
+const CONFIRMATION = "--yes-wipe-everything";
+
 const nukeDatabase = async () => {
   console.log("\n=======================================================");
   console.log("💣  PACTDOC - TOTAL DATABASE & SYSTEM NUKE  💣");
   console.log("=======================================================\n");
+
+  if (process.env.NODE_ENV === "production") {
+    console.error("Refused: NODE_ENV is production. This script never runs against production.");
+    process.exit(1);
+  }
+  if (!process.argv.includes(CONFIRMATION)) {
+    let host = "the database in MONGO_URI";
+    try {
+      host = new URL(String(process.env.MONGO_URI).replace(/^mongodb(\+srv)?:/, "http:")).hostname;
+    } catch {
+      // The address could not be read; say nothing more specific
+    }
+    console.error(`Nothing was deleted. This would drop every collection on ${host} and delete every uploaded file.`);
+    console.error(`If that is what you want, run:  npm run db:nuke -- ${CONFIRMATION}`);
+    process.exit(1);
+  }
 
   try {
     await connectDB();

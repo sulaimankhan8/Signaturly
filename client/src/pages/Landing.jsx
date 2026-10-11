@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Toaster } from "react-hot-toast";
+import PricingCards from "../components/PricingCards";
+import { PRICING_FALLBACK } from "../config/pricingFallback";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -419,20 +421,29 @@ const Landing = () => {
       </section>
 
       {/* Pricing Section */}
-      {/* Pricing Section */}
       <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-8 bg-[#090a0f]">
-        <div className="max-w-4xl mx-auto text-center space-y-6">
-          <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight uppercase">Start free. Pay when you send more.</h2>
-          <p className="text-gray-300 text-sm sm:text-base max-w-2xl mx-auto">
-            The Free plan covers a handful of documents a month and the Starter templates. Pro adds more documents, every Pro template pack
-            and bulk send. Prices are in rupees and include GST.
-          </p>
+        <div className="max-w-7xl mx-auto space-y-16">
+          <div className="text-center space-y-4 max-w-3xl mx-auto">
+            <span className="px-3.5 py-1.5 rounded bg-yellow-400 text-black font-black uppercase text-xs border-2 border-black shadow-[3px_3px_0px_0px_#ef4444]">
+              Transparent Pricing
+            </span>
+            <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight uppercase">
+              Pick Your Power Tier
+            </h2>
+            <p className="text-gray-400 text-xs sm:text-sm max-w-lg mx-auto">
+              Start with {PRICING_FALLBACK.plans[0].documentsPerMonth} free documents a month, and pay only when you send more. Prices are in rupees and include GST.
+            </p>
+          </div>
+
+          {/* The same four cards as the pricing page */}
+          <PricingCards user={user} />
+
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link
               to="/pricing"
               className="px-8 py-4 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-sm uppercase tracking-wider rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_#ef4444]"
             >
-              See plans and prices
+              Compare plans in full
             </Link>
             <Link to="/t" className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-black text-sm uppercase tracking-wider rounded-xl border-2 border-white/20">
               Browse templates

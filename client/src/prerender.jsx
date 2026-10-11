@@ -32,7 +32,7 @@ export const PAGES = [
     component: Pricing,
     title: "Pricing — PactDoc",
     description: "PactDoc plans and prices in rupees: start free, move to Pro when you send more.",
-    contains: "Plans and pricing",
+    contains: "Choose the Perfect Plan",
     // The price list fetched from the API during the build, when it could be reached
     usesPlans: true,
     priority: "0.9",

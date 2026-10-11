@@ -4,14 +4,16 @@
 
 The security fixes (phase 1) are almost complete, the core of the trust layer (phase 2) is built, and the code side of phases 3, 4 and 5 is finished and tested. Of phase 6, the public API, webhooks, test mode and embedded signing are built and tested; **Aadhaar eSign is postponed to the next version** (your decision, 11 October 2026) and is switched off. 525 server tests and 56 browser tests passed in the last full run. Four Razorpay tests were added after it and pass with the other billing tests; the full suite has not been run again since. Phases 1 to 3 are committed and pushed on the branch `fix/phase1-security`; phases 4, 5 and 6 are not committed. Nothing is merged to `main` or deployed, and the product is **not safe to put in front of real users** until the blockers below are cleared.
 
-Related documents in this folder:
+Related documents:
 
 | Document | What it is |
 | --- | --- |
 | `PACTDOC_IMPLEMENTATION_PLAN.md` | Every task with its id, files and test. The ids below (P1-07, P2-03) refer to it. |
-| `PACTDOC_PRODUCT_TECHNOLOGY_AUDIT.md` | The audit findings (C1 to M10) the fixes answer. Do not publish while the repo is public. |
-| `PACTDOC_INDIA_STRATEGY_BUILD_PLAN.md` | Market, industries, templates, plans. |
-| `PACTDOC_BUSINESS_MARKET_REPORT.md` | Competitors and pricing. |
+| `docs/reports/PACTDOC_PRODUCT_TECHNOLOGY_AUDIT.md` | The audit findings (C1 to M10) the fixes answer. Do not publish while the repo is public. |
+| `docs/reports/PACTDOC_INDIA_STRATEGY_BUILD_PLAN.md` | Market, industries, templates, plans. |
+| `docs/reports/PACTDOC_BUSINESS_MARKET_REPORT.md` | Competitors and pricing. |
+| `README.md` | How to run everything on your own machine, and where each document is. |
+| `docs/archive/` | Documents from before the audit. Not maintained; do not rely on them. |
 
 ---
 
@@ -202,7 +204,7 @@ Test harness with an in-memory database (S-03), test helpers (S-04), email outbo
 | --- | --- | --- |
 | P0-06 Secrets out of the workflow | The workflow reads secrets from Secret Manager | You create the secrets |
 | S-09 Deploy gated by tests | Tests must pass before deploy | Separate staging and production deploys |
-| S-13 Retire old scripts | The two credential-bearing scripts are deleted | Remove `verify-*.js` and `nuke-db` from the production image |
+| S-13 Retire old scripts | The credential-bearing scripts, the two old `verify-*.js` scripts and the `scratch/` folder are deleted. The script that drops the database now refuses to run without an explicit flag, refuses in production, and is left out of the production image | Nothing in code |
 | P1-12 Validate all input | A global guard rejects database-operator input; schemas on all public and sign-in routes | Schemas on the remaining signed-in routes |
 | P1-18 Link expiry | 30-day expiry, random 64-character tokens, no links in the bulk-send response | A new token on every reminder was dropped by design: only an email change issues a new link |
 | P1-25 Admin lock-down | No promotion, separate secret, seeded admins only, login rate limit | Authenticator-app 2FA |

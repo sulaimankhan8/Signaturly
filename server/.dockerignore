@@ -11,3 +11,5 @@ coverage/
 *.md
 .DS_Store
 Thumbs.db
+# The script that drops the whole database has no business in the production image
+src/scripts/nuke-db.js

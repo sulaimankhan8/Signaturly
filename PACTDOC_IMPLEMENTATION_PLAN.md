@@ -155,7 +155,7 @@ Found and fixed while writing the tests: a viewer could send from a ready-made t
 | S-09 | Partly | Tests gate the deploy; no separate staging deploy |
 | S-10 | Not started | Yours: branch protection |
 | S-11, S-12 | Not started | Migrations tool; logger and error tracking |
-| S-13 | Partly | Two credential-bearing scripts deleted; `verify-*.js` and `nuke-db` remain |
+| S-13 | Partly | Credential-bearing scripts, the old `verify-*.js` scripts and `scratch/` deleted; `nuke-db` guarded by a flag, refused in production and left out of the image. The checks the old scripts made were not ported one by one; the Vitest suites cover the same ground |
 | P0-01 to P0-05 | Not confirmed | Yours: private repo and rotation |
 | P0-06 | Partly | Workflow reads Secret Manager; the secrets must be created |
 | P0-07, P0-08 | Not started | History clean-up; misuse check |
