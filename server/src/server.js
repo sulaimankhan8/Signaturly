@@ -3,6 +3,7 @@ import { connectDB } from "./config/db.js";
 import { env, assertValidEnv } from "./config/env.js";
 import { initBackgroundJobs } from "./config/cron.js";
 import { initEventSystem } from "./events/index.js";
+import { syncCatalogue } from "./services/templateCatalogue.service.js";
 
 // Global Process Safety Guards
 process.on("unhandledRejection", (reason, promise) => {
@@ -16,9 +17,17 @@ process.on("uncaughtException", (err) => {
 // Refuse to start with missing or placeholder secrets
 assertValidEnv();
 
-connectDB().then(() => {
+connectDB().then(async () => {
   // Initialize Event-Driven Architecture subsystems
   initEventSystem();
+
+  // Copy any template that ships with this release and is not in the database yet
+  try {
+    const { inserted } = await syncCatalogue();
+    if (inserted) console.log(`Template catalogue: ${inserted} new template version(s) added`);
+  } catch (err) {
+    console.error("Template catalogue could not be synced:", err.message);
+  }
 
   const server = app.listen(env.port, () => {
     console.log(`🚀 Server running on port ${env.port}`);

@@ -51,6 +51,9 @@ const MESSAGES = {
     "completed.text": 'All parties have completed signing "{document}". Download here: {link}',
     "completed.sms": '"{document}" has been signed by everyone. Download your copy from {app}: {link}',
 
+    "badge.line": "Signed with {app}.",
+    "badge.cta": "Send your own documents for signature, free.",
+
     "cancelled.subject": 'Document Cancelled: "{document}"',
     "cancelled.sms": '"{document}" on {app} has been cancelled. Any signatures already given on it are void.',
 
@@ -130,6 +133,9 @@ const MESSAGES = {
     "completed.note": "हस्ताक्षर की हर घटना का रिकॉर्ड इस दस्तावेज़ के साथ रखा गया है।",
     "completed.text": 'सभी पक्षों ने "{document}" पर हस्ताक्षर कर दिए हैं। यहाँ से डाउनलोड करें: {link}',
     "completed.sms": '"{document}" पर सभी ने हस्ताक्षर कर दिए हैं। अपनी प्रति {app} से डाउनलोड करें: {link}',
+
+    "badge.line": "{app} के साथ हस्ताक्षरित।",
+    "badge.cta": "अपने दस्तावेज़ हस्ताक्षर के लिए मुफ़्त भेजें।",
 
     "cancelled.subject": 'दस्तावेज़ रद्द: "{document}"',
     "cancelled.sms": '{app} पर "{document}" रद्द कर दिया गया है। इस पर पहले दिए गए हस्ताक्षर अब मान्य नहीं हैं।',

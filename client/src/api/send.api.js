@@ -20,3 +20,14 @@ export const remindRecipientApi = async (recipientId, payload = {}) => {
   return res.data.data;
 };
 
+// Moves a signer from Aadhaar eSign back to ordinary signing
+export const useOrdinarySigningApi = async (recipientId) => {
+  const res = await API.post(`/esign/recipients/${recipientId}/use-ordinary-signing`);
+  return res.data?.data;
+};
+
+// Whether Aadhaar eSign can be chosen, and what one signature costs
+export const fetchEsignAvailabilityForSenderApi = async () => {
+  const res = await API.get("/esign/availability");
+  return res.data?.data;
+};

@@ -11,12 +11,15 @@ import { sha256FromBuffer } from "./hash.service.js";
 import { readFile, saveFile } from "./storage.service.js";
 import { eventBus, EventTypes } from "../events/index.js";
 import { ApiError } from "../utils/ApiError.js";
+import { assertRecordAccess } from "./authorize.service.js";
 
 const MAX_BULK_RECIPIENTS = 500;
 
 export const processBulkSendFromTemplate = async ({
   templateId,
   userId,
+  workspaceId = null,
+  billingUserId = userId,
   recipientsList = [],
   customMessage = "",
   ipAddress = "",
@@ -33,8 +36,8 @@ export const processBulkSendFromTemplate = async ({
   const user = await User.findById(userId);
   if (!user) throw new ApiError(404, "User not found");
 
-  const template = await Template.findOne({ _id: templateId, userId });
-  if (!template) throw new ApiError(404, "Template not found or unauthorized");
+  const template = await Template.findOne({ _id: String(templateId) });
+  await assertRecordAccess(template, userId, "template.use", { notFound: "Template not found" });
 
   const templatePdfPath = template.sourcePdfPath;
   let sourceBuffer;
@@ -45,7 +48,7 @@ export const processBulkSendFromTemplate = async ({
   }
 
   // Every row counts as one document against the plan
-  await reserveQuota(userId, recipientsList.length);
+  await reserveQuota(billingUserId, recipientsList.length);
 
   const batchId = `BATCH-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
   const dispatchedDocuments = [];
@@ -79,6 +82,7 @@ export const processBulkSendFromTemplate = async ({
       // 2. Create PDF record first (placeholder fields)
       const pdf = await Pdf.create({
         userId,
+        workspaceId: template.workspaceId || workspaceId,
         originalFileName: originalDocName,
         storagePath: savedStoragePath,
         originalHash: fileHash,
@@ -158,7 +162,7 @@ export const processBulkSendFromTemplate = async ({
   }
 
   // Rows that failed are not charged
-  await releaseQuota(userId, recipientsList.length - dispatchedDocuments.length);
+  await releaseQuota(billingUserId, recipientsList.length - dispatchedDocuments.length);
 
   // Increment template usage count
   template.usageCount = (template.usageCount || 0) + dispatchedDocuments.length;

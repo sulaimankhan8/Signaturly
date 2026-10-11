@@ -2,7 +2,7 @@
 
 **Status as of 11 October 2026.** PactDoc is the product name. The apps and emails say PactDoc; the cloud resource names and the older documents still say Signaturly.
 
-The security fixes (phase 1) are almost complete, the core of the trust layer (phase 2) is built, and the code side of phase 3 (India fit) is finished: what remains there needs a provider account, translators or your approval. 223 server tests and 28 browser tests pass. Phases 1 and 2 are committed on a branch; phase 3 is not committed yet. Nothing is pushed or deployed, and the product is **not safe to put in front of real users** until the blockers below are cleared.
+The security fixes (phase 1) are almost complete, the core of the trust layer (phase 2) is built, and the code side of phases 3, 4 and 5 is finished and tested. Of phase 6, the public API, webhooks, test mode and embedded signing are built and tested; **Aadhaar eSign is postponed to the next version** (your decision, 11 October 2026) and is switched off. 525 server tests and 56 browser tests passed in the last full run. Four Razorpay tests were added after it and pass with the other billing tests; the full suite has not been run again since. Phases 1 to 3 are committed and pushed on the branch `fix/phase1-security`; phases 4, 5 and 6 are not committed. Nothing is merged to `main` or deployed, and the product is **not safe to put in front of real users** until the blockers below are cleared.
 
 Related documents in this folder:
 
@@ -19,21 +19,25 @@ Related documents in this folder:
 
 | Phase | Goal | Tasks | Done | Partly | Not started |
 | --- | --- | ---: | ---: | ---: | ---: |
-| Setup | Test harness, CI, environments | 13 | 5 | 2 | 6 |
+| Setup | Test harness, CI, environments | 13 | 5 | 3 | 5 |
 | 0. Emergency | Leaked credentials are dead | 8 | 0 | 1 | 7 |
 | 1. Secure | Access-control and abuse bugs fixed | 32 | 29 | 3 | 0 |
 | 2. Trust | Sealed PDFs, audit log, jobs, billing | 22 | 9 | 7 | 6 |
 | 3. India fit | Languages, WhatsApp and SMS, India hosting, rename | 14 | 9 | 3 | 2 |
-| 4. Templates and plans | Template engine, first packs, new pricing | 17 | 0 | 0 | 17 |
-| 5. Teams | Workspace-owned documents and roles | 11 | 0 | 0 | 11 |
-| 6. Strong signatures and API | Aadhaar eSign, public API, Enterprise | 15 | 0 | 0 | 15 |
-| **Total** | | **132** | **52** | **16** | **64** |
+| 4. Templates and plans | Template engine, first packs, new pricing | 17 | 13 | 3 | 1 |
+| 5. Teams | Workspace-owned documents and roles | 11 | 9 | 2 | 0 |
+| 6. Strong signatures and API | Aadhaar eSign (postponed), public API, Enterprise | 15 | 4 | 10 | 1 |
+| **Total** | | **132** | **78** | **32** | **22** |
 
-Where the work lives: branch `fix/phase1-security`. Phases 1 and 2 are in three commits there; phase 3 so far is uncommitted. Nothing has been pushed. Run the server tests with `npm --prefix server test` and the browser tests with `npm --prefix e2e test` (after `npm --prefix e2e install`; they use the Chrome already on the machine).
+A task counts as done when the test the plan names for it passes. Five of the ten "partly" tasks in phase 6 are the Aadhaar eSign scaffolding, which is postponed.
 
-Checked so far: 223 server tests; 28 browser tests in Chrome, on a 360-pixel phone profile and a desktop one (signing by touch, signing in Hindi with a one-time code, a slow connection, declining, sending to a Hindi signer through the sender's screens, the public pages with scripts off); both web apps build; the bilingual signing record was rendered to an image and inspected.
+Where the work lives: branch `fix/phase1-security`. Phases 1 to 3 are in four commits there, pushed to GitHub on 11 October 2026; phases 4, 5 and 6 are uncommitted. `main` is unchanged, so the deployed code is still the code the audit describes. Run the server tests with `npm --prefix server test` and the browser tests with `npm --prefix e2e test` (after `npm --prefix e2e install`; they use the Chrome already on the machine).
 
-Not checked: a real phone in the hand; the seal in Adobe Acrobat; the Hindi wording by a native speaker; the new page routing on the live host (A-21); the browser tests on CI, which have not run because nothing is pushed.
+Checked on 11 October 2026: 525 server tests, among them an access test generated from the list of routes that calls each of a team's 53 routes as an outsider, viewer, member, admin and owner; 56 browser tests in Chrome, on a 360-pixel phone profile and a desktop one (everything listed before, and now also: buying Business, starting a team, inviting a colleague who joins and uploads into it; switching two-step sign-in on and signing in with a code; joining several PDFs into one document; saving a contact list; making an API key and a webhook; a team's name on the signing page; a signing page refusing to show inside another website); both web apps build.
+
+Found and fixed by writing those tests: a viewer in a team could send from a ready-made template and save a team template; a document or bulk send could be charged to the wrong team when the sender belonged to two; an API key could read documents of another workspace its maker belonged to; a webhook address written as an IPv4 address inside IPv6 passed the private-address check; an Enterprise account could not invite anyone because its seat count started at one; a teammate could not open a team document in the editor.
+
+Not checked: the workspace migration on real data (only on seeded data); single sign-on against a real identity provider (only a simulated one); webhooks against a real receiver (only a simulated one); the frame-blocking headers on the live host; a real payment through Razorpay (only the simulated purchase and signed test events); a real phone in the hand; the seal in Adobe Acrobat; the Hindi wording by a native speaker; the new page routing on the live host (A-21); the browser tests on CI, which have not run because nothing since phase 3 is pushed.
 
 ---
 
@@ -45,17 +49,23 @@ Not checked: a real phone in the hand; the seal in Adobe Acrobat; the Hindi word
 | 2 | Production ran on placeholder secrets | You | The deployed JWT secrets were short, guessable placeholder values and the admin key was the built-in default, which the admin login page also pre-filled. Anyone could have forged a login. The new code refuses to start with such values. |
 | 3 | New secrets do not exist yet | You | The deploy now reads 11 secrets from Secret Manager (section 7). Until they are created, a deploy fails. |
 | 4 | No backups | You | The free database tier has none. Move to a tier with backups and run one restore. |
-| 5 | Nothing is pushed or deployed | You decide | The work is on a local branch only. Pushing to `main` triggers a deploy, which fails until the secrets exist. |
+| 5 | The fixes are on a branch, not on `main` | You decide | The branch is pushed; `main`, and so whatever is deployed, still has every hole the audit lists. Merging to `main` triggers a deploy, which fails until the secrets exist. |
+| 5a | The audit is public | You | The pushed branch contains `PACTDOC_PRODUCT_TECHNOLOGY_AUDIT.md`, which lists each weakness of the deployed code with file and line, and the repository is public. Make the repository private now; it is one setting and undoes nothing. |
+| 5b | CI failed on the pushed branch | Code, done locally | Two causes, both fixed in the uncommitted work: the test tools need Node 22 while CI and the server image used Node 20 (which also passed its end of life in April 2026), and one browser test read a code email before it had been queued. The next push should pass. |
 | 6 | Legal wording and templates unreviewed | You | A lawyer has not reviewed the terms, privacy notice, consent text or certificates. |
-| 7 | Browser tests cover signing and one send only | Code | The dashboard, templates, bulk send, billing, settings and the admin app have no browser test yet (A-22). |
+| 6a | Phases 4 to 6 have had no second pair of eyes | You decide | They are tested but uncommitted, and they change who can read and send every document. Commit them to the branch and let CI run before anything is merged. |
+| 6b | The workspace migration has not been run on real data | Code, then you | `002-workspaces-2026-10` is tested forwards, twice and backwards on seeded data. Before production: back up, run it on a copy, compare counts. New code treats a document with no workspace as its creator's own, so deploying first and migrating after is safe. |
+| 7 | Browser tests do not cover everything | Code | Signing, sending, guided templates and the admin's template page are covered. The dashboard, bulk send, billing, settings and the rest of the admin app are not (A-22). |
 
 ---
 
 ## 3. Your to-do list
 
-Tasks only the account owner can do, in the order they block things.
+Tasks only the account owner can do, in the order they block things. Section 10 has the steps for each outside service.
 
-- [ ] Make the GitHub repository private (P0-01)
+- [ ] Buy `pactdoc.com` (section 10, step 1). It looked unregistered on 11 October 2026, and the public repository names it
+
+- [ ] Make the GitHub repository private (P0-01). More urgent since 11 October: the audit document is now in a public branch
 - [ ] Change the MongoDB password and review who can reach the database (P0-02)
 - [ ] Generate new JWT access and refresh secrets, at least 32 characters each (P0-03)
 - [ ] Generate a new admin key and a new SMTP app password (P0-04)
@@ -72,6 +82,13 @@ Tasks only the account owner can do, in the order they block things.
 - [ ] Choose a database tier with backups (P2-18)
 - [ ] Choose a transactional email provider and add SPF, DKIM and DMARC for pactdoc.com (P2-13)
 - [ ] Engage a contracts lawyer: terms, privacy notice, consent text, certificates, template packs. The terms pop-up shown to new senders makes strong legal statements that nobody has reviewed.
+- [ ] Have the lawyer review the eight Starter templates and their state notes first. They are written and working, but hidden in production until a reviewer's name and date are recorded against each, on the Templates page of the admin app (P4-09)
+- [ ] Decide whether the Free plan may fill in the Starter templates by answering questions. The plan table says Free has no guided templates but does have the Starter pack; the code currently allows it (A-26)
+- [ ] Confirm or change the prices the code proposes beyond Free and Pro: yearly Pro at ₹2,990, extra documents at ₹79 for 10, ₹349 for 50 and ₹1,299 for 200, SMS at 25 paise and WhatsApp at 80 paise a message (A-31)
+- [ ] Ask an accountant to confirm how GST is shown: prices include 18% GST, a buyer with no state on file is treated as in your state, and wallet credit is invoiced when it is bought (A-34)
+- [ ] Once registered for GST, set `SELLER_LEGAL_NAME`, `SELLER_ADDRESS` and `SELLER_GSTIN`. Until then customers get receipts with no tax shown
+- [ ] Create Razorpay keys and try one real payment in Razorpay's test mode before switching billing on (A-32)
+- [ ] Make sure the address on the pricing page's "Talk to us" button, sales@pactdoc.com, exists
 - [ ] Find a native Hindi speaker to review the signing screens, emails and the signing record (A-13)
 - [ ] After the first deploy of the client, open `/`, `/pricing` and a signing link on the live site and confirm each shows the right page (A-21)
 - [ ] Register the business and for tax; run a trademark search on PactDoc
@@ -124,6 +141,24 @@ Tasks only the account owner can do, in the order they block things.
 | Signing works on a 360-pixel phone: the page is drawn to the width of the screen, the main action sits in a bar at the bottom, signatures are drawn with a finger, pinch-zoom is allowed. A signer downloads the signing page alone, not the whole app, and a long document is fetched in pieces so page 1 appears before the rest has arrived. | P3-13 |
 | The landing, pricing, verification and user-guide pages are written out as HTML when the site is built, each with its own title, description and canonical link, plus a generated sitemap. The build fails if one comes out empty. Template pages will join when they exist (P4-08). | P3-14 |
 
+### Phase 4: templates and plans (13 of 17)
+
+| What now holds | Tasks |
+| --- | --- |
+| A template is data: questions, signers, text with placeholders, a signature hint, state notes, a reviewer, a version. The templates that ship with the code are copied into the database on start-up and never overwrite a stored version. The 14 hand-drawn templates are gone: 13 were converted, each without its closing clause that declared the e-signature valid under three countries' laws, and the promissory note was dropped because the IT Act still excludes it between private individuals. | P4-01 |
+| Templates are laid out in the API itself, on the PDF library, with the phase 3 shaping for Indian scripts. A two-page Hindi agreement renders in about 0.6 seconds. Only this option was built and measured; the headless-browser alternative was compared on paper. Record: `docs/decisions/0002-template-renderer.md` | P4-02 |
+| Answers plus a template give an A4 PDF with each signer's signature and date placed, amounts in figures and in words (Rs. 1,25,000, Rupees One Lakh Twenty Five Thousand only), dates worked out (eleven months less a day), clauses that appear only when they apply, and the same file byte for byte for the same input. The last clause travels with the signatures, so no page holds signatures alone. | P4-03 |
+| A fill-in screen: questions with checks, a preview that redraws as the sender types, a draft saved as they go, then who signs, with names carried over from the answers. A browser test fills in the rent agreement on a free account, sends it, and has landlord and tenant sign, one in English and one in Hindi. | P4-04 |
+| One table says what each plan includes. Routes ask it and never name a plan. Template packs open by plan tier, and a locked pack is shown with the plan that opens it. Bulk send is limited per plan (25 recipients on Pro). | P4-06 |
+| The admin app has a Templates page: every template with its versions and the number of documents each made. A published version cannot be edited; a change is drafted as the next version, read as a PDF, then published, and documents already sent keep the version they were made from. A draft with a broken placeholder is refused with the reason. A lawyer's review is recorded against one exact version and does not carry over to the next. Every action is kept in the version's history with the admin who took it. Structure (signers, questions, text) is edited as JSON, not in a visual editor. | P4-05 |
+| The fill-in screen shows, before anything is sent, whether an ordinary e-signature is usual, whether stamp duty applies, the note for the chosen state, and whether a lawyer has reviewed the template. | P4-07 |
+| The site has a public template library at `/t` and a page for each template at `/t/<key>`: what it is for, who signs, what the sender will be asked, the headings it covers, the stamp-duty and state notes, and whether a lawyer has reviewed it. The agreement's wording is not on the public page. "Use this template" leads through sign-up and sign-in to that template's questions. The pages are written out as HTML at build time and listed in the sitemap. | P4-08 |
+| One price list holds every plan, pack and price. Free is 5 documents a month; Pro is ₹299 for 50. The lifetime plan cannot be bought, by button or by a payment naming it; accounts that have it keep it. A payment that does not match the price of what it names grants nothing. A migration moves existing accounts over: free accounts to 5 documents, paid accounts keep unlimited documents until the period they paid for ends. | P4-13 |
+| Every plan is metered. Packs of extra documents can be bought on any plan; they are used after the month's allowance and carry over to the next month. Sends that arrive together cannot pass the limit, and a send that fails gives its documents back. | P4-14 |
+| A prepaid wallet with a ledger. The balance cannot go below zero under any number of simultaneous charges, the ledger always adds up to the balance, and the same payment or message is never applied twice. SMS and WhatsApp messages are paid from it; with an empty wallet the message is not sent. | P4-15, A-14 |
+| Every payment gets an invoice, numbered without gaps within the financial year, whose total equals the payment. With your GST number configured it is a tax invoice showing CGST and SGST or IGST by the buyer's state; without it, a receipt with no tax. Customers can add their GST number and download invoices as PDFs. | P4-16 |
+| A new pricing page in rupees, fed by the same price list as checkout, and a billing page for plan, usage, extra documents, wallet, invoice details and invoices. Old dollar prices and the lifetime offer are gone from every screen. Emails and the finished signing page for documents sent from a Free account carry "Signed with PactDoc" and an invitation to send one's own; paid accounts' do not. | P4-17 |
+
 ### Setup (5 of 13)
 
 Test harness with an in-memory database (S-03), test helpers (S-04), email outbox for tests (S-05), a CI workflow that runs tests, builds and a secret scan on every pull request (S-08), and browser tests in `e2e/` that run the built client against the real server on a throwaway database (S-07), added to CI as their own job.
@@ -150,6 +185,14 @@ Test harness with an in-memory database (S-03), test helpers (S-04), email outbo
 - The PDF reader's worker script was loaded from a third-party network on every page view. It is now served with the app.
 - Pinch-zoom was switched off on every page.
 - The sitemap and robots file listed pages that do not exist.
+- The server image and CI ran on Node 20, which stopped receiving security fixes in April 2026. Both now use Node 22, the version everything is developed and tested on. The image itself has not been rebuilt and tried yet.
+- A new account's first screen asked for its subscription several times at once; all but one request failed with a server error. Found by the plan-access tests.
+- Every ready-made template printed "LEGALLY COMPLIANT (IT ACT / ESIGN / eIDAS)" across its header and ended with a clause declaring the signature admissible. Both went with the old generator.
+- The templates page called the old templates "attorney-vetted" and quoted dollar prices for plans.
+- A template draft was lost if the sender left the page within a second and a half of typing, or when a send was refused. It is now saved on the way out.
+- The dashboard and settings screens read usage figures the server never sent, and so always showed a limit of 15.
+- The landing page's answers still described the old signature stamp's "security hash IDs" and claimed compliance with three countries' laws.
+- The old name was still on screen in the navigation bar, the landing page and the admin panel, written across two tags so the name test missed it. The test now reads text with its tags removed. A "Pro" badge beside the logo, shown to every account whatever its plan, is gone too.
 
 ---
 
@@ -173,6 +216,70 @@ Test harness with an in-memory database (S-03), test helpers (S-04), email outbo
 | P3-07 SMS provider | One messaging interface with development and test providers; refuses to send in production | A commercial provider, sender registration, approved templates |
 | P3-08 WhatsApp | Same interface and templates | Business verification, template approval, delivery-status callbacks |
 | P3-12 Rename to PactDoc | App name, emails, pages, storage keys, API key prefix and package names all say PactDoc; a test keeps the old name out | Cloud resource names in the deploy workflow, DNS, and the old documents (A-11) |
+| P4-09 Starter pack | All eight templates are written, render with every combination of choices, and are open to every plan | Lawyer review. Until then they are marked "not yet reviewed" and hidden in production |
+| S-11 Migrations | A small runner (`npm run migrate`) that runs each data migration once, with the plans migration as its first | Running it as a step of every deploy |
+
+---
+
+## 5a. Phases 5 and 6: what is built
+
+Written and tested on 11 October 2026. Every line marked done has the test the plan asked for, and it passes.
+
+### Phase 5: teams (9 done, 2 partly)
+
+| Task | Status | What holds now | Still open |
+| --- | --- | --- | --- |
+| P5-01 Workspace ownership | Done | Documents and saved templates belong to a workspace; every user has a personal one; the active workspace comes from a header and is ignored unless the user belongs to it. The migration is tested forwards, twice, and backwards. | Running it on real data (blocker 6b). Audit entries do not carry the workspace, to leave the hash-chained log alone. |
+| P5-02 One permission helper | Done | Roles viewer, member, admin, owner and one table of the lowest role for each action. | |
+| P5-03 Access matrix | Done | Read from the route files, so a new route fails the suite until someone says how it is protected. 152 routes listed; 53 called as outsider and as each role. | |
+| P5-04 Invitations | Done | By email, for people with or without an account; only the invited address can accept; expire in 7 days and hold a seat meanwhile. | |
+| P5-05 Business plan | Partly | ₹499 a seat, 100 documents a seat pooled; seats added mid-period for the share of the period left; the next period can be bought with fewer seats but not fewer than the people in the team. | Never tried against Razorpay. Seats are not removed part-way through a period, by design. The price is my proposal. |
+| P5-06 Branding and shared templates | Done | A team's name, colour, footer and logo on signing emails, the signing page and the head of the signing record. | A logo uploaded as a file does not show in emails. |
+| P5-07 Contact lists and bulk send | Done | Lists from typed rows or CSV with a report of rows left out; one job per row; progress, reasons for failures, retry. A 500-person send completes in the test. | The older bulk-send screen still exists beside it. |
+| P5-08 Switcher and activity | Done | Workspace picker; team page with members, invitations, roles, branding, rules, activity. | |
+| P5-09 Two-step sign-in | Done | Authenticator-app codes with ten recovery codes; each code works once; a team can require it. | Enforced on documents and sending, not on every team route. |
+| P5-10 HR and professional packs | Partly | Ten HR and eight professional templates drafted and rendering. Several PDFs can be joined into one document and signed in one sitting. | Lawyer review. The joined papers become one file; they are not sealed separately. |
+| P5-11 Downgrade and removal | Done | A removed member's documents pass to the owner; a lapsed plan makes team workspaces read-only. | |
+
+### Phase 6: the API and stronger signatures (4 done, 10 partly, 1 not started)
+
+| Task | Status | What holds now | Still open |
+| --- | --- | --- | --- |
+| P6-01 Provider quotes | Not started | Postponed with the rest of Aadhaar eSign. | Yours, when you take it up: section 5b. |
+| P6-02 to P6-06 Aadhaar eSign | Partly, postponed | The flow, wallet charge and refund, ordering and fallback exist and are tested against a stand-in provider. It is off unless `ESIGN_PROVIDER` is set, and the stand-in is refused in production. | A licensed provider; the provider's signature inside the PDF; sealing after it without breaking it; a button for the fallback. |
+| P6-07 Lending and real-estate packs | Partly | Eight lending and five real-estate templates drafted and rendering. Promissory note, agreement for sale and sale deed are left out on purpose. | Lawyer review. |
+| P6-08 E-stamping | Partly | Decision note: not built now. `docs/decisions/0003-e-stamping.md` | Your confirmation. |
+| P6-09 API keys | Done | Live and test prefixes, scopes, 120 requests a minute a key; a key works only in its own workspace and only while its maker belongs there and the plan includes the API. | |
+| P6-10 Public API | Partly | `/api/v1`: upload, send, read, list, void, download link, remind, send from a saved template, manage webhooks. Tested. | Tests generated from `docs/api/openapi.yaml`. Guided templates, contact lists and repeat-safe requests are not in the API. |
+| P6-11 Webhooks | Done | Signed deliveries, five attempts with growing waits, a 30-day log, replay with the same event id. Private and local addresses are refused in every spelling tried. | A name that resolves to a public address when checked and a private one a moment later would get through. |
+| P6-12 Embedded signing | Done | A 15-minute session for one signer and one listed website; the signing page refuses to draw inside any other site (checked in a browser); each session is written to the audit log. | The headers that forbid framing every other page are set in `client/vercel.json` and unchecked on the live host. |
+| P6-13 Test mode | Done | Watermarked, never counted, never emailed; live and test keys cannot see each other's documents. | |
+| P6-14 Developer documentation | Partly | `docs/api/README.md` and the OpenAPI file. | The examples are not run automatically. No request collection. |
+| P6-15 Enterprise | Partly | Single sign-on limited to DNS-proved domains; a daily retention job that erases finished documents after a set number of days and keeps the audit log. Both tested, the first against a simulated provider. | An organisation's own web address. A dry-run mode for the retention job before it is scheduled. |
+
+### Decisions made while building this that are yours to confirm
+
+1. Business is ₹499 a seat a month with 100 documents a seat, pooled.
+2. A member of a team works under the team owner's plan: its features, its allowance and its wallet. The team that holds a document pays for it.
+3. Test documents send no email at all, so a test key cannot be used to send free email.
+4. Single sign-on creates an account for a new person at a verified domain and gives them a seat as a member.
+5. The retention rule erases files for good and keeps the audit log.
+6. Seats are never taken away part-way through a paid period; a smaller count applies from the next purchase.
+7. Enterprise has no seat limit unless one is set for the account.
+
+### Templates
+
+73 templates are in the code: Starter 8, general business 13, rentals 9, housing society 12, HR 10, professional firms 8, lending 8, real estate 5. All render. Only the 13 general ones carry over from before; none has been reviewed by a lawyer, so all stay hidden in production. Hindi versions (P4-12) are not started.
+
+## 5b. Aadhaar eSign, when you take it up
+
+Postponed to the next version. What it needs, in order:
+
+1. A registered Indian business, with PAN and GST details and a live site with terms and a privacy notice.
+2. Quotes and sandbox access from two providers. A reseller (for example Digio, Leegality or SignDesk) is quicker than applying to a licensed provider directly. Ask each for the price per signature, any monthly minimum, how long production approval takes, whether they return the signed PDF, and how they notify your server.
+3. The real provider written against the interface in `server/src/services/esign/`, the seal changed to an appended signature, and the result checked in `pdfsig` and Adobe Acrobat. About two to three weeks after sandbox credentials arrive.
+
+The domain: you said you will buy `pactdoc.com`. On 11 October 2026 it had no DNS record, which usually means it is unregistered. The code and these documents name it, and the repository is public, so buy it before someone else does.
 
 ---
 
@@ -187,7 +294,6 @@ Test harness with an in-memory database (S-03), test helpers (S-04), email outbo
 | S-01, S-10 | Staging project; branch protection | You |
 | S-02 | Local `docker-compose.dev.yml` | Code |
 | S-06 | Component tests for the web apps | Code |
-| S-11 | Database migrations tool | Code |
 | S-12 | Structured logger with redaction; error tracking | Code, plus an error-tracking account |
 | P2-13 | Transactional email provider and bounce handling | Your provider choice |
 | P2-16 | Billing page: plan, invoices, cancel | Code, after P2-14 |
@@ -197,6 +303,7 @@ Test harness with an in-memory database (S-03), test helpers (S-04), email outbo
 | P2-22 | Optional 2FA for senders | Code |
 | P3-05 | Marathi, Tamil, Telugu, Kannada, Gujarati and Bengali wording | Translators; the keys already fall back to English |
 | P3-11 | Move hosting, storage and database to the Mumbai region | Your approval of a maintenance window |
+| P4-10 to P4-12 | Rentals pack, housing-society pack, Hindi versions | Lawyer and translator; Code builds the definitions |
 
 ### Added along the way (not in the original plan)
 
@@ -215,7 +322,7 @@ Test harness with an in-memory database (S-03), test helpers (S-04), email outbo
 | A-11 | Rewrite the user guide, deployment guide and Word documents after the rename; they describe features inaccurately | 3 |
 | A-12 | Rotate-certificate procedure: documents sealed with an old certificate stop showing as "sealed by this service" | 2 |
 | A-13 | Have a native speaker review the Hindi wording, and the lawyer approve the consent sentence in each language | Before launch |
-| A-14 | Charge SMS and WhatsApp messages to the credit wallet before switching messaging on in production | 4, with P4-15 |
+| A-14 | Done in phase 4: SMS and WhatsApp messages are paid from the sender's wallet | Done |
 | A-15 | Trim the font packages: about 28 MB ships, only Regular and Bold are used | 3 |
 | A-16 | Fonts for Arabic and Japanese, and correct ordering of mixed right-to-left text, for the later markets | After India launch |
 | A-17 | Shaped text is not selectable in the PDF; consider an invisible text layer if customers ask | Later |
@@ -226,6 +333,18 @@ Test harness with an in-memory database (S-03), test helpers (S-04), email outbo
 | A-22 | Browser tests for the dashboard, templates, bulk send, billing, settings and the admin app | 2 |
 | A-23 | The wording on the signature stamp ("Electronically signed") is English whatever the signer's language. Decide whether it should follow the language. | With the lawyer |
 | A-24 | The signing page asks the server to restore a sender's login on every visit and logs a harmless error. Skip that call on signer and public pages. | 3 |
+| A-25 | The fill-in screen reaches signers by email only. Add mobile number and WhatsApp or SMS, as the ordinary send screen has. | 4 |
+| A-26 | Your decision: may Free accounts fill in the Starter templates by answering questions? Allowed today. | You |
+| A-27 | The Business tier is defined in the plan table but no plan buys it yet; it arrives with the new plans (P4-13) and workspaces for teams (phase 5). | 4 |
+| A-28 | Text in Indian scripts makes PDFs about 150 KB a page. Fine for a few pages; look again before offering long templates in those scripts. | Later |
+| A-29 | Public template pages are written when the client is built, from the API's list at that moment. A template published or reviewed later gets its page only at the next build. Trigger a client rebuild from the admin app when a template is published, reviewed or retired (a deploy hook). | 4 |
+| A-30 | The public template pages and the fill-in screen are in English only. Translate them with the other sender screens. | With P4-12 |
+| A-31 | Your decision: the prices the code proposes beyond Free and Pro (yearly Pro, extra-document packs, message prices, the Enterprise "from" price). All are in `server/src/config/plans.js`. | You |
+| A-32 | Razorpay checkout is written but has never met Razorpay: order creation and the payment window need a test-mode trial. The old Stripe checkout, which charged in dollars, was removed; Stripe's webhook handlers remain. | Before billing is switched on |
+| A-33 | A plan bought today is prepaid for one month or year and does not renew by itself. Automatic renewal needs Razorpay Subscriptions with a UPI or card mandate (the rest of P2-14). | 2 |
+| A-34 | An accountant should confirm the GST treatment in invoices, and whether wallet credit should be invoiced when bought or when spent. | Before billing is switched on |
+| A-35 | Run `npm run migrate` as a step of every deploy. | First deploy |
+| A-36 | The billing page is in English only, and has no "cancel plan" because plans do not renew. Revisit both with A-33. | 4 |
 
 ---
 
@@ -251,6 +370,8 @@ The server refuses to start in production if any of these is missing, apart from
 
 ### Plain settings, as GitHub repository variables
 
+The deploy stops with a message naming the variable if one of these four rows is missing.
+
 | Name | Example |
 | --- | --- |
 | `CORS_ORIGIN` | `https://app.pactdoc.com,https://admin.pactdoc.com` (exact origins, never `*`) |
@@ -258,7 +379,33 @@ The server refuses to start in production if any of these is missing, apart from
 | `GCS_BUCKET_NAME` | your bucket name |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` | from your mail provider |
 
-Optional: `BILLING_ENABLED` (off by default in production), `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, `SIGNING_LINK_TTL_DAYS` (30), `FILE_URL_TTL_SECONDS` (3600), `TRUST_PROXY` (1 on Cloud Run). Messaging: `MESSAGING_ENABLED` (off by default in production) and `MESSAGING_PROVIDER`; only the development and test providers exist so far.
+Optional variables, passed to the server only when they have a value:
+
+| Name | What it does |
+| --- | --- |
+| `BILLING_ENABLED` | `true` switches paid plans on. Off by default in production |
+| `RAZORPAY_KEY_ID` | Sells plans, extra documents and wallet credit through Razorpay. Needs the two Razorpay secrets below |
+| `SELLER_LEGAL_NAME`, `SELLER_ADDRESS`, `SELLER_GSTIN`, `SELLER_STATE_CODE` | Printed on invoices. Without a GST number, receipts are issued |
+| `API_URL` | The API's public address, for example `https://api.pactdoc.com`. Needed for single sign-on |
+| `TEMPLATES_ALLOW_UNREVIEWED` | `true` shows templates no lawyer has reviewed. Leave unset for real customers |
+| `USAGE_CHARGING_ENABLED` | Takes each SMS or WhatsApp message from the sender's wallet. On by default in production |
+| `MESSAGING_ENABLED`, `MESSAGING_PROVIDER` | SMS and WhatsApp. Leave unset: only development providers exist |
+| `SIGNING_LINK_TTL_DAYS`, `FILE_URL_TTL_SECONDS`, `TRUST_PROXY` | Defaults are 30, 3600 and 1 |
+| `OPTIONAL_SECRETS` | The names of the optional secrets you have created, separated by commas |
+
+Optional secrets, in Secret Manager like the others. The deploy mounts only the ones named in `OPTIONAL_SECRETS`, because asking for a secret that does not exist fails the deploy.
+
+| Name | What it is |
+| --- | --- |
+| `RAZORPAY_KEY_SECRET` | The secret half of the Razorpay key |
+| `RAZORPAY_WEBHOOK_SECRET` | The passphrase you type when adding the webhook in Razorpay |
+| `DATA_ENCRYPTION_KEY` | Encrypts two-step sign-in keys and single sign-on secrets. `openssl rand -hex 32`. Set it before the first user switches two-step sign-in on, and never change it: without it the audit key is used, and changing either makes what was encrypted unreadable |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Not needed: nothing in the app takes a Stripe payment today (section 10, step 9) |
+| `FILE_URL_SECRET` | Signs file links. Defaults to the access secret |
+
+Until 11 October 2026 the deploy passed none of the optional settings, so the Razorpay keys could not have reached the server whatever was configured. It also listed the plain settings on the command line in a way that broke on a sender address containing `@`. Both are fixed in `.github/workflows/deploy-backend.yml` and `.github/scripts/cloud_run_settings.py`; the script has been run locally, the workflow has not yet run on GitHub.
+
+`ESIGN_PROVIDER` is deliberately not passed: Aadhaar eSign is postponed.
 
 ### Scheduler jobs
 
@@ -270,12 +417,13 @@ Each sends a `POST` with the header `X-Internal-Secret: <INTERNAL_JOB_SECRET>`.
 | `/api/internal/cron/reminders` | Every 4 hours |
 | `/api/internal/cron/expirations` | Hourly |
 | `/api/internal/cron/subscriptions` | Hourly |
+| `/api/internal/cron/retention` | Daily. It erases files for good: give it a dry run first (not built yet) |
 
 ### Web apps
 
 Both use `VITE_API_BASE_URL`, set to the API's address without `/api` (for example `https://api.pactdoc.com`). The app and the API must share a parent domain, or sign-in will not survive a page reload.
 
-The client build (`npm run build`) now does two things: it builds the app, then writes the public pages out as HTML. In `client/dist`, `index.html` is the landing page, `pricing/`, `verify/` and `userguide/` hold the other public pages, and `app.html` is the empty shell for everything else. The host must send unknown paths to `/app.html`; `client/vercel.json` does this. Set `VITE_SITE_URL` if the public address is not `https://pactdoc.com`: it is used for canonical links and the sitemap.
+The client build (`npm run build`) now does two things: it builds the app, then writes the public pages out as HTML. In `client/dist`, `index.html` is the landing page, `pricing/`, `verify/` and `userguide/` hold the other public pages, and `app.html` is the empty shell for everything else. The host must send unknown paths to `/app.html`; `client/vercel.json` does this. Set `VITE_SITE_URL` if the public address is not `https://pactdoc.com`: it is used for canonical links and the sitemap. While it builds, the client asks the API at `VITE_API_BASE_URL` which templates are on offer and writes a page for each; if the API cannot be reached the build still succeeds, prints a warning, and leaves the template pages out.
 
 ### Payment webhooks
 
@@ -293,7 +441,10 @@ The client build (`npm run build`) now does two things: it builds the app, then 
 - Completed documents download as a sealed copy with the signing record attached.
 - Deleting a document hides it but keeps its audit log.
 - Paid plans cannot be bought in production until billing is switched on.
-- The free plan's limit of 15 documents a month is now enforced exactly, and bulk send counts against it.
+- The Free plan allows 5 documents a month (it was 15), and Pro allows 50 (it was unlimited). Bulk send counts against the allowance. An account that already paid for an unlimited period keeps it until that period ends.
+- The lifetime plan can no longer be bought. Accounts that have it keep Pro features and unlimited documents.
+- Extra documents can be bought in packs on any plan, and are kept until used.
+- There is a billing page (`/billing`) with usage, extra documents, wallet, invoice details and invoices. Prices everywhere are in rupees.
 - The product is called PactDoc everywhere in the apps and emails. Signatures and contacts saved in the browser under the old name are not carried over.
 - Senders can choose each signer's language (English or Hindi) and can send by SMS or WhatsApp once a provider is connected.
 - Typed names and values in Indian scripts now appear in the signed PDF. They are drawn as shapes, so they cannot be selected or copied.
@@ -303,6 +454,13 @@ The client build (`npm run build`) now does two things: it builds the app, then 
 - A date field shows the day of signing, written as 11 Oct 2026. Senders see it empty when placing it.
 - The ready-made signature stamp now reads "Electronically signed" with the date, and makes no other claim.
 - Signatures and initials have no placeholder name any more: a signer with no name on file must type one.
+- The template library is new. A template is filled in by answering questions and sent from one screen; the old "copy to my templates" and "use now" buttons on ready-made templates are gone, along with the 14 old templates themselves.
+- Free accounts can use the eight Starter templates. The other packs show which plan opens them.
+- One bulk send reaches at most 25 recipients on Pro.
+- In production the template library is empty until a lawyer's review is recorded against a template. That is done on the admin app's new Templates page, which also creates, versions, publishes and retires templates.
+- The server now needs Node 22.
+- Documents sent from a Free account show "Signed with PactDoc" in their emails and on the finished signing page.
+- Anyone can browse the templates on offer at `/t` without an account. Signing up from a template page leads straight to that template after sign-in.
 
 ---
 
@@ -313,219 +471,196 @@ Full task lists are in `PACTDOC_IMPLEMENTATION_PLAN.md`. Each phase is gated by 
 | Phase | Tasks | First thing to settle | Outside dependency |
 | --- | ---: | --- | --- |
 | 3. India fit | 14 (9 done, 3 partly) | The code is done. What is left waits on others: a messaging provider (P3-07, P3-08), translators for six more languages (P3-05), the Mumbai move (P3-11), cloud names and DNS for the rename (P3-12). | SMS sender registration, WhatsApp business verification, translators, DNS, Mumbai move |
-| 4. Templates and plans | 17 | Which engine renders guided templates (P4-02) | Lawyer for template packs; tax registration for invoices |
-| 5. Teams | 11 | Access-matrix tests before the data migration (P5-03) | None |
-| 6. Strong signatures and API | 15 | Quotes and sandbox access from two eSign providers (P6-01) | Provider contract; registered business |
+| 4. Templates and plans | 17 (13 done, 3 partly) | The code is done and the Rentals and housing-society packs are drafted. What is left is the Hindi versions (P4-12) and the lawyer's review of every template. | Lawyer for template packs; tax registration for invoices |
+| 5. Teams | 11 (9 done, 2 partly) | The code is done and tested. What is left: a first Razorpay payment for a seat plan, and the lawyer's review of the HR and professional packs. | Lawyer |
+| 6. Strong signatures and API | 15 (4 done, 10 partly) | The API side is done and tested. Aadhaar eSign is postponed to the next version (section 5b). | Provider contract; registered business |
 
 Market order agreed on 11 October 2026: India first; then the Middle East, South-East Asia and Japan; then Europe and the US. The later markets need right-to-left and CJK text, which should be kept in mind when the font and translation work is done in phase 3.
 
 ---
 
+## 10. Setting up each outside service, step by step
+
+This replaces the older "credentials playbook", which had the wrong setting names, addresses and prices. Every name and address below was checked against the code on 11 October 2026. The steps inside each provider's own dashboard are from memory of those dashboards and their menus change, so follow the intent where a label differs.
+
+**Do these in order.** Each step says what you end up holding and where it goes: a *secret* goes into Google Secret Manager, a *variable* into the GitHub repository's variables (Settings, then Secrets and variables, then Actions, then Variables). Never paste a secret into a file in the repository, a chat or a document.
+
+| Step | Service | You end up with | Needed for |
+| --- | --- | --- | --- |
+| 1 | Domain | `pactdoc.com` | Everything public |
+| 2 | GitHub | A private repository with its variables | Deploying |
+| 3 | MongoDB Atlas | `MONGO_URI` | The server starting |
+| 4 | Google Cloud | The secrets, a bucket, scheduler jobs | The server starting |
+| 5 | Email | `SMTP_*` and DNS records | Signing emails |
+| 6 | Seal certificate | `SEAL_P12_BASE64`, `SEAL_P12_PASSWORD` | The server starting |
+| 7 | Vercel | The app and the admin app online | People using it |
+| 8 | Razorpay | Three values and a webhook | Taking money |
+| 9 | Stripe | Nothing yet | Not used today |
+| 10 | First run | Migrations run, an admin account | Operating it |
+
+### Step 1: the domain
+
+1. Buy `pactdoc.com` at any registrar.
+2. Decide the three addresses. The rest of this document assumes:
+   - `app.pactdoc.com` for the app (it also serves the landing, pricing and template pages),
+   - `api.pactdoc.com` for the server,
+   - `admin.pactdoc.com` for the admin app.
+3. Point `pactdoc.com` and `www.pactdoc.com` at the app as well, as redirects to `app.pactdoc.com`. If you would sooner have the site on the bare domain, use `https://pactdoc.com` wherever `app.pactdoc.com` appears below, in `APP_URL`, `CORS_ORIGIN` and `VITE_SITE_URL` alike. Pick one: an address people sign in on must be in `CORS_ORIGIN`.
+
+The app and the server must share the parent domain (`pactdoc.com`), or sign-in does not survive a page reload.
+
+### Step 2: GitHub
+
+1. Make the repository private: Settings, General, Danger Zone, Change visibility. Do this first.
+2. Add these variables:
+
+   | Variable | Value |
+   | --- | --- |
+   | `APP_URL` | `https://app.pactdoc.com` |
+   | `CORS_ORIGIN` | `https://app.pactdoc.com,https://admin.pactdoc.com` |
+   | `GCS_BUCKET_NAME` | the bucket from step 4 |
+   | `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` | from step 5 |
+   | `API_URL` | `https://api.pactdoc.com` |
+
+3. Protect `main`: Settings, Branches, add a rule requiring a pull request and the CI checks.
+
+The link that lets GitHub deploy to Google Cloud without a key file already exists in the workflow. `docs/DEPLOYMENT_GUIDE.md` describes how it was made, should it need making again in a new project.
+
+### Step 3: MongoDB Atlas
+
+1. In [Atlas](https://cloud.mongodb.com), create a cluster on a tier that has backups. The free tier has none and is for development only.
+2. Put it in the same region as the server. The workflow deploys to `us-central1` today; the move to Mumbai is plan task P3-11, and the database should move with it.
+3. Database Access: create a user with a generated password and read-write access to one database only.
+4. Network Access: Cloud Run has no fixed outbound address on the cheapest set-up, so access from anywhere is the usual choice. That leaves the password as the only barrier, so keep it long and change it if it is ever exposed.
+5. Connect, Drivers: copy the connection string, put the password in, and name the database at the end, for example `.../pactdoc_prod?retryWrites=true&w=majority`.
+6. Store it as the secret `MONGO_URI` (step 4).
+7. Turn backups on and restore one once, to a scratch cluster, before any customer's data is in it.
+
+### Step 4: Google Cloud
+
+The project and the deploy link already exist (their ids are at the top of the workflow). What is left:
+
+1. Enable the APIs: Cloud Run, Artifact Registry, Secret Manager, Cloud Scheduler, Cloud Storage.
+2. Create the bucket for documents: uniform access control, public access prevention on, same region as the server. Its name is the variable `GCS_BUCKET_NAME`.
+3. Give the account the service runs as two roles: Storage Object Admin on that bucket, and Secret Manager Secret Accessor. No key file is needed or wanted.
+4. Create the secrets. The eleven the server needs are in section 7. For a random one:
+
+   ```
+   openssl rand -hex 32 | tr -d '\n' | gcloud secrets create JWT_ACCESS_SECRET --data-file=-
+   ```
+
+   Repeat for `JWT_REFRESH_SECRET`, `ADMIN_SECRET_KEY`, `ADMIN_JWT_SECRET`, `AUDIT_HMAC_KEY` and `INTERNAL_JOB_SECRET`, each with its own value. Create `DATA_ENCRYPTION_KEY` the same way and name it in the variable `OPTIONAL_SECRETS`. Write `ADMIN_SECRET_KEY` down somewhere safe: you type it when signing in to the admin app.
+5. After the first deploy, map `api.pactdoc.com` to the service (Cloud Run, Manage custom domains) and add the DNS record it shows you.
+6. Create the scheduler jobs. Each is a POST with one header; the four to create now are in section 7. For example:
+
+   ```
+   gcloud scheduler jobs create http pactdoc-jobs --location=us-central1 \
+     --schedule="* * * * *" --http-method=POST \
+     --uri="https://api.pactdoc.com/api/internal/jobs/run" \
+     --headers="X-Internal-Secret=THE_VALUE_OF_INTERNAL_JOB_SECRET"
+   ```
+
+   Leave the retention job out until it has a dry-run mode.
+
+### Step 5: email
+
+1. Choose a transactional email service that gives SMTP details. A personal Gmail account is fine for trying things and will be rate-limited and marked as spam in real use.
+2. In it, verify `pactdoc.com` as a sending domain. It gives you DNS records: add the SPF and DKIM records it shows, and a DMARC record starting at `v=DMARC1; p=none; rua=mailto:you@pactdoc.com`.
+3. Variables: `SMTP_HOST`, `SMTP_PORT` (587 or 465), `SMTP_FROM` (for example `PactDoc <noreply@pactdoc.com>`).
+4. Secrets: `SMTP_USER` and `SMTP_PASS`.
+5. Create the mailbox `sales@pactdoc.com`: the pricing page's "Talk to us" button writes to it.
+
+### Step 6: the certificate that seals signed PDFs
+
+1. On your own machine: `npm --prefix server run seal:generate`. It prints two values.
+2. Store them as the secrets `SEAL_P12_BASE64` and `SEAL_P12_PASSWORD`. Run it once for staging and once for production; do not reuse one in the other.
+
+This certificate is one you issue yourself, so PDF readers show the seal as valid but from an unknown signer. A certificate from a recognised authority is a later purchase.
+
+### Step 7: Vercel, for the two web apps
+
+1. Import the repository twice, as two projects.
+2. The app: root directory `client`, framework Vite, build command `npm run build`, output `dist`. Environment variables:
+   - `VITE_API_BASE_URL` = `https://api.pactdoc.com` (no path after it),
+   - `VITE_SITE_URL` = `https://app.pactdoc.com` (used for the sitemap and canonical links).
+   Add the domain `app.pactdoc.com`, and `pactdoc.com` and `www.pactdoc.com` as redirects to it.
+3. The admin app: root directory `admin`, framework Vite. One variable, `VITE_API_BASE_URL`, the same value. Add the domain `admin.pactdoc.com`.
+4. Add the DNS records Vercel shows for each domain. If the DNS is at Cloudflare, set those records to "DNS only" so Vercel can issue its certificates.
+5. Deploy the server first. The app's build asks the server which templates are on offer and writes a page for each; if the server is not up, the build still succeeds and the template pages are left out until the next build.
+
+Neither app needs a Razorpay or Stripe key: the server hands the app what it needs when a payment starts.
+
+### Step 8: Razorpay
+
+Do the whole of this in Razorpay's **test mode** first. It has never been run against Razorpay (item A-32).
+
+1. Create the account at [Razorpay](https://dashboard.razorpay.com). Test mode works at once; live mode needs their KYC: business details, PAN, bank account, and a site with terms, privacy and refund pages.
+2. Account and Settings, API Keys, generate a key (in test mode, a test key).
+   - Key Id (`rzp_test_...`, later `rzp_live_...`): the variable `RAZORPAY_KEY_ID`.
+   - Key Secret: the secret `RAZORPAY_KEY_SECRET`.
+3. Account and Settings, Webhooks, add a webhook.
+   - URL: `https://api.pactdoc.com/api/webhooks/razorpay`
+   - Secret: make one up (`openssl rand -hex 32`) and store the same value as the secret `RAZORPAY_WEBHOOK_SECRET`.
+   - Events: tick `payment.captured`. It is the one that grants what was bought.
+4. Variables: `BILLING_ENABLED` = `true`, and `OPTIONAL_SECRETS` = `RAZORPAY_KEY_SECRET,RAZORPAY_WEBHOOK_SECRET` (add `DATA_ENCRYPTION_KEY` to the list if you made it in step 4).
+5. Deploy. The deploy refuses to go ahead if the key id is set and either secret is not named.
+6. Try it: sign in to the app, open Billing, buy 10 extra documents with one of Razorpay's test cards. Within a few seconds the documents should appear, and an invoice under Invoices. If the payment succeeds and nothing appears, look at the webhook's delivery log in Razorpay: a 4xx means the webhook secret does not match.
+7. Only then generate live keys, replace the two key values, and add a second webhook in live mode with the same URL and a new secret.
+
+How a payment is granted, so you can reason about a problem: the server creates an order at Razorpay and writes on it who is buying and what. When Razorpay reports the payment captured, the server reads that order back from Razorpay and grants what the order says, only if the amount paid equals the price. What the browser claims is ignored.
+
+Plans bought this way are prepaid for one period and do not renew by themselves. Razorpay Subscriptions (automatic renewal) are not wired up (item A-33).
+
+### Step 9: Stripe
+
+Nothing to set up. Stripe was the plan when prices were in dollars; with the India-first plans in rupees, checkout goes through Razorpay only, and nothing in the app can start a Stripe payment. The server still has an endpoint that understands Stripe's notices (`/api/webhooks/stripe`), and it answers 503 until `STRIPE_WEBHOOK_SECRET` is set. Leave both Stripe secrets unset.
+
+When you sell outside India, Stripe needs building, not just configuring: prices in other currencies, a Stripe checkout, and tax handling for each market. That is a task for the phase after India.
+
+### Step 10: the first run
+
+1. Push to `main` (or run the workflow by hand). The tests run first; nothing deploys if they fail.
+2. Open `https://api.pactdoc.com/api/health`. It should answer `{"status":"ok"}`. If the service will not start, its log names the setting that is missing or still a placeholder.
+3. Run the data migrations once, from your machine, against the production database, after a backup:
+
+   ```
+   MONGO_URI="the production connection string" npm --prefix server run migrate
+   ```
+
+   They are not run by the deploy (item A-35).
+4. Create the admin account:
+
+   ```
+   MONGO_URI="the production connection string" npm --prefix server run seed:admin -- --email=you@pactdoc.com --password="at least 12 characters"
+   ```
+
+   Sign in at `https://admin.pactdoc.com` with that email and password and the `ADMIN_SECRET_KEY` value.
+5. In the app, sign up, upload a PDF, send it to yourself, sign it, and download the sealed copy.
+6. Open `/`, `/pricing` and a signing link on the live site and confirm each shows the right page (item A-21).
+
+### Not available to set up yet
+
+| Service | State |
+| --- | --- |
+| SMS and WhatsApp | The code can send through a provider, but no commercial provider is written. Needs a provider, sender registration and approved message templates (P3-07, P3-08) |
+| Aadhaar eSign | Postponed to the next version: section 5b |
+| Single sign-on | Nothing to set up on your side beyond `API_URL` and `DATA_ENCRYPTION_KEY`. Each Enterprise customer enters their own identity provider's details on their team page |
+| Analytics, Search Console | The notes in the appendix still apply; nothing in the code depends on them |
+
+---
+
 ## Appendix: earlier reference material
 
-Everything below was written before the October 2026 audit and has **not been re-verified**. It is kept for the step-by-step account set-up notes. The old status tables that sat here were removed because they marked unfinished features as complete. Where this appendix disagrees with sections 1 to 9 above, the sections above are right.
+Everything below was written before the October 2026 audit and has **not been re-verified**. It is kept for its notes on backups, monitoring and search. The account set-up steps that sat here were wrong in many details and have been replaced by section 10; the old text is in the repository's history. Where this appendix disagrees with the sections above, the sections above are right.
 
-Known corrections:
+Known corrections to what remains:
 
 | The appendix says | Correct |
 | --- | --- |
-| Env names `EMAIL_HOST`, `EMAIL_USER`, `EMAIL_PASS` | The code reads `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` |
-| `VITE_API_URL=https://api.../api/v1` | `VITE_API_BASE_URL=https://api...` with no path; there is no `/api/v1` |
-| Webhook URLs under `/api/v1/payments/...` | `/api/webhooks/stripe` and `/api/webhooks/razorpay` |
-| Download a `gcs-key.json` service-account key | Not needed. On Cloud Run the service's own identity is used. Do not create key files. |
-| Allow database access from `0.0.0.0/0` | That leaves the password as the only barrier. Acceptable only with a strong, rotated password; restrict by address once a fixed outbound address is affordable. |
-| Secrets passed with `--set-env-vars` | Secrets come from Secret Manager with `--set-secrets`; see section 7 |
 | Everything runs at $0.00 a month | True for a demo only. Production needs a database tier with backups and a transactional email service. |
-| Domain `signaturly.pro` | The product is PactDoc; plan for `app.`, `api.` and `admin.pactdoc.com` |
+| Domain `signaturly.pro`, product "Signaturly" | The product is PactDoc, at `pactdoc.com` |
 | "Section 65B" certificates | The current law is Section 63 of the Bharatiya Sakshya Adhiniyam, 2023 |
-| Workspaces, developer API and webhooks are complete | They are shells; see phases 5 and 6 |
-
-### 🛠️ Step-by-Step Credentials Acquisition Playbook
-
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                CREDENTIALS ACQUISITION & ACTIVATION WORKFLOW                                    │
-├────────────────────┬──────────────────────────────────┬─────────────────────────────────────────────────────────┤
-│ Provider           │ Portal Link                      │ Key Deliverables & Action Items                         │
-├────────────────────┼──────────────────────────────────┼─────────────────────────────────────────────────────────┤
-│ 1. 💳 Stripe       │ dashboard.stripe.com             │ Live Secret Key, Webhook Secret (`whsec`), 4 Price IDs │
-│ 2. ⚡ Razorpay     │ dashboard.razorpay.com           │ KYC Activation, Live Key ID & Secret, Webhook Secret    │
-│ 3. 🍃 MongoDB      │ cloud.mongodb.com                │ M0 Free Cluster, DB User, `0.0.0.0/0` Network Whitelist │
-│ 4. ☁️ Google Cloud │ console.cloud.google.com         │ Service Account JSON Key, GCS Bucket `us-central1`      │
-│ 5. 📧 Gmail SMTP   │ myaccount.google.com/security    │ 2FA Setup + 16-character App Password                   │
-│ 6. 🌐 Cloudflare   │ dash.cloudflare.com              │ Nameservers, SSL Full/Strict, Web Analytics Toggle      │
-│ 7. 🚀 Vercel       │ vercel.com/dashboard             │ SPA Environment Variables, Custom Domain CNAMEs         │
-└────────────────────┴──────────────────────────────────┴─────────────────────────────────────────────────────────┘
-```
-
----
-
-#### 1. 💳 Stripe (Live Payments, Subscriptions & Webhooks)
-
-1. **Activate Live Mode**:
-   - Log in to [Stripe Dashboard](https://dashboard.stripe.com).
-   - Toggle off **Test Mode** (switch to **Live Mode** in the top right).
-   - Complete your business profile (Business name, Tax ID / PAN / EIN, payout bank account).
-2. **Obtain API Keys**:
-   - Navigate to **Developers** → **API keys**.
-   - Copy **Publishable key** (`pk_live_...`) → set in `VITE_STRIPE_PUBLISHABLE_KEY`.
-   - Click **Reveal live key** to copy **Secret key** (`sk_live_...`) → set in `STRIPE_SECRET_KEY`.
-3. **Create the 4 Product Price IDs**:
-   - Go to **Product catalog** → **Add product**:
-     * **Product 1**: Name: `Signaturly Pro Monthly` | Pricing model: Standard recurring | Price: `$5.99` / month → Copy `price_...` into `STRIPE_PRO_MONTHLY_PRICE_ID`.
-     * **Product 2**: Name: `Signaturly Pro Annual` | Pricing model: Standard recurring | Price: `$49.00` / year → Copy `price_...` into `STRIPE_PRO_ANNUAL_PRICE_ID`.
-     * **Product 3**: Name: `Signaturly Lifetime` | Pricing model: One-time payment | Price: `$69.00` → Copy `price_...` into `STRIPE_LIFETIME_PRICE_ID`.
-     * **Product 4**: Name: `Signaturly Enterprise` | Pricing model: Standard recurring | Price: `$14.99` / month / seat → Copy `price_...` into `STRIPE_ENTERPRISE_PRICE_ID`.
-4. **Configure Webhook Endpoint**:
-   - Navigate to **Developers** → **Webhooks** → **Add an endpoint**.
-   - **Endpoint URL**: `https://api.signaturly.pro/api/v1/payments/stripe/webhook`
-   - **Select Events to listen for**:
-     * `checkout.session.completed`
-     * `customer.subscription.created`
-     * `customer.subscription.updated`
-     * `customer.subscription.deleted`
-     * `invoice.payment_succeeded`
-     * `invoice.payment_failed`
-   - Click **Add endpoint** → Click **Reveal Signing secret** (`whsec_...`) → set in `STRIPE_WEBHOOK_SECRET`.
-
----
-
-#### 2. ⚡ Razorpay (Live Payments & KYC Whitelisting)
-
-1. **Activate Live Account (KYC Whitelisting)**:
-   - Log in to [Razorpay Dashboard](https://dashboard.razorpay.com).
-   - Complete KYC Verification under **Account & Settings** → **Business Profile** (Upload GST/PAN, Bank Statement, and Website Terms/Refund Policy).
-   - Once Razorpay team marks KYC as **Activated**, switch to **Live Mode**.
-2. **Generate Live API Key**:
-   - Go to **Account & Settings** → **API Keys** → **Generate Live Key**.
-   - Download the key details or copy immediately:
-     * **Key ID** (`rzp_live_...`) → set in `RAZORPAY_KEY_ID` (backend) & `VITE_RAZORPAY_KEY_ID` (frontend).
-     * **Key Secret** → set in `RAZORPAY_KEY_SECRET`.
-3. **Configure Webhooks**:
-   - Go to **Account & Settings** → **Webhooks** → **Add New Webhook**.
-   - **Webhook URL**: `https://api.signaturly.pro/api/v1/payments/razorpay/webhook`
-   - **Secret**: Enter a strong custom passphrase (e.g. 32-character random string) → set in `RAZORPAY_WEBHOOK_SECRET`.
-   - **Active Events**:
-     * `payment.captured`
-     * `payment.failed`
-     * `subscription.charged`
-     * `subscription.halted`
-     * `subscription.cancelled`
-
----
-
-#### 3. 🍃 MongoDB Atlas (M0 Always-Free Database & IP Whitelist)
-
-1. **Create Free M0 Cluster**:
-   - Log in to [MongoDB Atlas](https://cloud.mongodb.com).
-   - Click **Create Deployment** → Select **M0 Free (Shared)**.
-   - Choose Cloud Provider **Google Cloud** or **AWS** in region **`us-central1` (Iowa)** (matches Cloud Run region for zero latency).
-2. **Create Database User**:
-   - Go to **Security** → **Database Access** → **Add New Database User**.
-   - Authentication Method: **Password**.
-   - Username: `signaturly_admin`.
-   - Password: Click *Autogenerate Secure Password* and copy it.
-   - Database User Privileges: `Read and write to any database`.
-3. **Configure Network Whitelist (Crucial for Cloud Run)**:
-   - Go to **Security** → **Network Access** → **Add IP Address**.
-   - Click **Allow Access from Anywhere** (`0.0.0.0/0`).
-   - *Why*: Google Cloud Run uses dynamic serverless IP ranges. Atlas TLS encryption + username/password authentication keeps the connection secure.
-4. **Obtain Connection String**:
-   - Go to **Databases** → Click **Connect** on Cluster0 → **Drivers** (Node.js).
-   - Copy connection string:
-     ```
-     mongodb+srv://signaturly_admin:<password>@cluster0.xxxxx.mongodb.net/signaturly?retryWrites=true&w=majority
-     ```
-   - Replace `<password>` with the password you created → set in `MONGO_URI`.
-
----
-
-#### 4. ☁️ Google Cloud Platform (GCP Cloud Run & Storage Vault)
-
-1. **Create GCP Project**:
-   - Open [Google Cloud Console](https://console.cloud.google.com).
-   - Create a new project: `signaturly-prod`.
-2. **Enable Essential APIs**:
-   - In the search bar, enable:
-     * **Cloud Run Admin API**
-     * **Artifact Registry API**
-     * **Cloud Storage API**
-     * **Cloud Monitoring API**
-3. **Create GCS Storage Bucket (PDF Vault)**:
-   - Go to **Cloud Storage** → **Buckets** → **Create**.
-   - Name: `signaturly-legal-vault-prod` (globally unique).
-   - Location: `us-central1` (Standard storage class).
-   - Access control: **Uniform** (Enforce public access prevention).
-4. **Create Service Account & Key**:
-   - Go to **IAM & Admin** → **Service Accounts** → **Create Service Account**.
-   - Name: `signaturly-api-sa`.
-   - Grant Roles:
-     * `Storage Object Admin` (to read/write signed contract PDFs).
-     * `Artifact Registry Reader` (to pull container images).
-     * `Monitoring Viewer` (for automated health & metrics collection).
-   - Click the created Service Account → **Keys** tab → **Add Key** → **Create new key (JSON)**.
-   - Save the downloaded JSON file as `gcs-key.json` and upload to Cloud Run / Secret Manager.
-
----
-
-#### 5. 📧 Transactional Email (Google App Password / In-House SMTP)
-
-1. **Enable 2-Step Verification**:
-   - Log in to your production Gmail account (e.g. `contracts.signaturly@gmail.com`).
-   - Go to [Google Account Security](https://myaccount.google.com/security) → Turn ON **2-Step Verification**.
-2. **Generate App Password**:
-   - In the Google Account search bar, type **App passwords**.
-   - App name: `Signaturly Production`.
-   - Click **Create**.
-   - Google will generate a 16-character code (e.g. `abcd efgh ijkl mnop`).
-3. **Configure Environment Variables**:
-   - `EMAIL_HOST=smtp.gmail.com`
-   - `EMAIL_PORT=465`
-   - `EMAIL_SECURE=true`
-   - `EMAIL_USER=contracts.signaturly@gmail.com`
-   - `EMAIL_PASS=abcdefghijklmnop` (without spaces)
-
----
-
-#### 6. 🌐 Cloudflare (Edge DNS, SSL & Web Analytics)
-
-1. **Add Domain**:
-   - Log in to [Cloudflare Dashboard](https://dash.cloudflare.com) → Click **Add Site** → Enter `signaturly.pro` → Select **Free Plan**.
-   - Copy the two assigned Cloudflare Nameservers (e.g. `dave.ns.cloudflare.com`, `emma.ns.cloudflare.com`).
-   - In your domain registrar (GoDaddy, Namecheap, Google Domains), replace existing nameservers with Cloudflare's.
-2. **Configure DNS Records**:
-   - `CNAME` | `@` | `cname.vercel-dns.com` | Proxied (Orange Cloud ☁️)
-   - `CNAME` | `www` | `cname.vercel-dns.com` | Proxied (Orange Cloud ☁️)
-   - `CNAME` | `admin` | `cname.vercel-dns.com` | Proxied (Orange Cloud ☁️)
-   - `CNAME` | `api` | `signaturly-api-xxxx.a.run.app` | Proxied (Orange Cloud ☁️)
-3. **Set SSL & Web Analytics**:
-   - Go to **SSL/TLS** → Set encryption mode to **Full (Strict)**.
-   - Go to **Analytics & Logs** → **Web Analytics** → Click **Enable Web Analytics** for instant, cookie-free visitor tracking.
-
----
-
-#### 7. 🚀 Vercel (Frontend Client & Admin Deployments)
-
-1. **Import Repository**:
-   - Go to [Vercel Dashboard](https://vercel.com/dashboard) → Click **Add New...** → **Project**.
-   - Select your Git repository `Signaturly`.
-2. **Deploy Customer App**:
-   - **Root Directory**: `client`
-   - **Framework Preset**: `Vite`
-   - **Environment Variables**:
-     * `VITE_API_URL` = `https://api.signaturly.pro/api/v1`
-     * `VITE_STRIPE_PUBLISHABLE_KEY` = `pk_live_...`
-     * `VITE_RAZORPAY_KEY_ID` = `rzp_live_...`
-   - Click **Deploy** → In Project Settings → **Domains** → Add `signaturly.pro` and `www.signaturly.pro`.
-3. **Deploy Admin Portal**:
-   - Create a second project from the same repository.
-   - **Root Directory**: `admin`
-   - **Framework Preset**: `Vite`
-   - **Environment Variables**:
-     * `VITE_API_URL` = `https://api.signaturly.pro/api/v1`
-   - Add domain `admin.signaturly.pro`.
-
----
+| Env names starting `EMAIL_`, and `VITE_API_URL` | The code reads `SMTP_*` and `VITE_API_BASE_URL` |
 
 ## 🗄️ 2. Automated Cold Backups & Snapshot Strategy (GCS Coldline / AWS Glacier)
 

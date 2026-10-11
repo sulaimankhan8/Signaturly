@@ -9,6 +9,25 @@ const PdfSchema = new mongoose.Schema(
       index: true,
     },
 
+    // The workspace the document belongs to. `userId` above is the member who made it.
+    workspaceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Workspace",
+      default: null,
+      index: true,
+    },
+    // Set when a removed member's document passed to the workspace's owner
+    transferredFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    // Made with a test API key: watermarked, never billed, kept apart from real documents
+    testMode: {
+      type: Boolean,
+      default: false,
+    },
+
     originalFileName: {
       type: String,
       required: true,
@@ -78,6 +97,13 @@ const PdfSchema = new mongoose.Schema(
 
     declineReason: {
       type: String,
+    },
+
+    // The guided template this document was made from, and the exact version of its wording
+    template: {
+      key: { type: String },
+      version: { type: Number },
+      language: { type: String },
     },
 
     // Every stamped copy, oldest first. The original upload is never overwritten.

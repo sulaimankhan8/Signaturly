@@ -127,6 +127,26 @@ const recipientSchema = new mongoose.Schema(
       ipAddress: { type: String },
       userAgent: { type: String },
     },
+    // How this person signs. "aadhaar" means Aadhaar eSign through a licensed provider:
+    // the signer proves who they are to the provider with an Aadhaar one-time code.
+    // The Aadhaar number is typed on the provider's page and is never sent to or stored by this service.
+    signatureType: {
+      type: String,
+      enum: ["electronic", "aadhaar"],
+      default: "electronic",
+    },
+    esign: {
+      status: { type: String, enum: ["none", "started", "signed", "failed"], default: "none" },
+      provider: { type: String, default: null },
+      transactionId: { type: String, default: null },
+      // As the provider's certificate names the signer
+      signerName: { type: String, default: null },
+      nameMatches: { type: Boolean, default: null },
+      certificateSerial: { type: String, default: null },
+      certificateIssuer: { type: String, default: null },
+      completedAt: { type: Date, default: null },
+      lastError: { type: String, default: null },
+    },
     // Outcome of the last invitation or reminder email
     delivery: {
       status: { type: String, enum: ["queued", "sent", "failed"], default: "queued" },

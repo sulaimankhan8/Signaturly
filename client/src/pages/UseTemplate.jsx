@@ -85,7 +85,7 @@ export default function UseTemplate() {
     e.preventDefault();
 
     if (!isProOrAbove) {
-      toast.error("Dispatching template contracts requires a Pro Creator or Lifetime Pass subscription.");
+      toast.error("Dispatching template contracts requires the Pro plan.");
       navigate("/pricing");
       return;
     }
@@ -152,13 +152,13 @@ export default function UseTemplate() {
             </div>
             <div className="max-w-xl mx-auto space-y-3">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-yellow-400 text-black px-3 py-1 rounded-full border border-black font-black">
-                Pro Creator Feature
+                Pro Feature
               </span>
               <h2 className="text-2xl sm:text-3xl font-black text-white uppercase">
                 Template Dispatch Requires Pro Tier
               </h2>
               <p className="text-xs sm:text-sm text-gray-300">
-                You are currently on the Free Starter plan. Upgrade to <strong>Pro Creator ($5.99/mo)</strong> or <strong>Lifetime Pass ($69 LTD)</strong> to dispatch <strong>"{template?.name}"</strong> and all 14 vetted contract templates with 1-click legal compliance.
+                You are currently on the Free plan. Upgrade to <strong>the Pro plan</strong> to dispatch <strong>"{template?.name}"</strong> and all 14 vetted contract templates with 1-click legal compliance.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -167,7 +167,7 @@ export default function UseTemplate() {
                 onClick={() => navigate("/pricing")}
                 className="px-8 py-3.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_#ef4444] transition-all cursor-pointer"
               >
-                Upgrade to Pro ($5.99) →
+                Upgrade to Pro →
               </button>
               <button
                 type="button"

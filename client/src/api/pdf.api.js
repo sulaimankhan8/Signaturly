@@ -27,3 +27,12 @@ export const fetchPdfAuditApi = async (id) => {
   const res = await API.get(`/pdf/${id}/audit`);
   return res.data.data;
 };
+
+// Several PDFs, joined in the order given into one document
+export const uploadJoinedPdfsApi = async (files) => {
+  const formData = new FormData();
+  for (const file of files) formData.append("pdfs", file);
+
+  const res = await API.post("/pdf/upload-joined", formData);
+  return res.data.data;
+};

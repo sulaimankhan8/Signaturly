@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/User.model.js";
 import { env } from "../config/env.js";
+import { attachWorkspace } from "../services/workspace.service.js";
 
 export const protect = async (req, res, next) => {
   // Tokens are accepted in the Authorization header only, never in a URL
@@ -32,7 +33,11 @@ export const protect = async (req, res, next) => {
     name: user.name,
     termsAccepted: user.termsAccepted || false,
     emailVerified: user.emailVerified !== false,
+    twoFactorEnabled: Boolean(user.twoFactor?.enabled),
   };
+
+  // Which workspace this request works in, and whose plan pays (see services/workspace.service.js)
+  await attachWorkspace(req);
 
   next();
 };

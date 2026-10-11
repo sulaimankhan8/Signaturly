@@ -3,9 +3,11 @@ import { Pdf } from "../models/Pdf.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { sha256FromBuffer } from "./hash.service.js";
 import { sendDocumentToRecipients } from "./send.service.js";
-import { PREBUILT_TEMPLATES_DEFINITIONS, ensurePrebuiltPdfsExist } from "./prebuiltTemplates.service.js";
 import path from "path";
 import { saveFile, readFile, fileExists } from "./storage.service.js";
+import { assertRecordAccess, recordsIn } from "./authorize.service.js";
+import { PDFDocument } from "pdf-lib";
+import { watermarkTestDocument } from "./pdfUpload.service.js";
 
 export const createTemplate = async ({
   userId,
@@ -15,6 +17,7 @@ export const createTemplate = async ({
   sourcePdfId = null,
   roles = [],
   fields = [],
+  workspaceId = null,
 }) => {
   let sourcePdfPath = "";
   let originalFileName = "";
@@ -31,9 +34,10 @@ export const createTemplate = async ({
     const pdfDoc = await PDFDocument.load(file.buffer);
     pageCount = pdfDoc.getPageCount();
   } else if (sourcePdfId) {
-    // Only the caller's own document can become a template
-    const existingPdf = await Pdf.findOne({ _id: String(sourcePdfId), userId, deletedAt: null });
+    // Only a document the caller can read can become a template
+    const existingPdf = await Pdf.findOne({ _id: String(sourcePdfId), deletedAt: null });
     if (!existingPdf) throw new ApiError(404, "Source PDF not found");
+    await assertRecordAccess(existingPdf, userId, "document.read", { notFound: "Source PDF not found", hideFromOutsiders: true });
     sourcePdfPath = existingPdf.storagePath;
     originalFileName = existingPdf.originalFileName;
     pageCount = existingPdf.pageCount;
@@ -43,6 +47,7 @@ export const createTemplate = async ({
 
   const template = await Template.create({
     userId,
+    workspaceId,
     name: name.trim(),
     description,
     sourcePdfPath,
@@ -57,21 +62,22 @@ export const createTemplate = async ({
   return template;
 };
 
-export const getUserTemplates = async (userId) => {
-  return Template.find({ userId }).sort({ createdAt: -1 });
+// The templates of the workspace the request is working in: a team's shared library, or the user's own
+export const getUserTemplates = async (userId, workspace = null) => {
+  return Template.find(recordsIn(workspace, userId)).sort({ createdAt: -1 });
 };
 
 export const getTemplateById = async (templateId, userId) => {
   const template = await Template.findById(templateId);
   if (!template) throw new ApiError(404, "Template not found");
-  if (template.userId.toString() !== userId) throw new ApiError(403, "Unauthorized");
+  await assertRecordAccess(template, userId, "template.read", { notFound: "Template not found" });
   return template;
 };
 
 export const updateTemplate = async (templateId, userId, updates) => {
   const template = await Template.findById(templateId);
   if (!template) throw new ApiError(404, "Template not found");
-  if (template.userId.toString() !== userId) throw new ApiError(403, "Unauthorized");
+  await assertRecordAccess(template, userId, "template.manage", { notFound: "Template not found" });
 
   if (updates.name) template.name = updates.name.trim();
   if (updates.description !== undefined) template.description = updates.description;
@@ -85,58 +91,10 @@ export const updateTemplate = async (templateId, userId, updates) => {
 export const deleteTemplate = async (templateId, userId) => {
   const template = await Template.findById(templateId);
   if (!template) throw new ApiError(404, "Template not found");
-  if (template.userId.toString() !== userId) throw new ApiError(403, "Unauthorized");
+  await assertRecordAccess(template, userId, "template.manage", { notFound: "Template not found" });
 
   await Template.findByIdAndDelete(templateId);
   return { id: templateId };
-};
-
-export const getPrebuiltTemplatesList = async () => {
-  await ensurePrebuiltPdfsExist();
-  return PREBUILT_TEMPLATES_DEFINITIONS.map((tpl) => ({
-    id: tpl.id,
-    name: tpl.name,
-    description: tpl.description,
-    pageCount: tpl.pageCount,
-    category: tpl.category,
-    roles: tpl.roles,
-    fieldsCount: tpl.fields.length,
-    fileName: tpl.fileName,
-  }));
-};
-
-export const importPrebuiltTemplateToUser = async (prebuiltId, userId) => {
-  await ensurePrebuiltPdfsExist();
-  const def = PREBUILT_TEMPLATES_DEFINITIONS.find((t) => t.id === prebuiltId);
-  if (!def) throw new ApiError(404, "Prebuilt template not found");
-
-  const prebuiltKey = `templates/prebuilt/${def.fileName}`;
-  let buffer;
-  const exists = await fileExists(prebuiltKey);
-  if (!exists) {
-    buffer = await def.generateDoc();
-    await saveFile(prebuiltKey, buffer, "application/pdf");
-  } else {
-    buffer = await readFile(prebuiltKey);
-  }
-
-  // Copy to user's templates
-  const targetFileName = `${Date.now()}-${def.fileName}`;
-  const targetKey = `templates/${userId.toString()}/${targetFileName}`;
-  const targetPath = await saveFile(targetKey, buffer, "application/pdf");
-
-  const template = await Template.create({
-    userId,
-    name: def.name,
-    description: def.description,
-    sourcePdfPath: targetPath,
-    originalFileName: def.fileName,
-    pageCount: def.pageCount,
-    roles: def.roles,
-    fields: def.fields,
-  });
-
-  return template;
 };
 
 export const instantiateDocumentFromTemplate = async ({
@@ -148,10 +106,12 @@ export const instantiateDocumentFromTemplate = async ({
   signingOrder = false,
   ipAddress = "",
   userAgent = "",
+  // Set by a test API key: the document is watermarked and never billed or emailed
+  testMode = false,
 }) => {
   const template = await Template.findById(templateId);
   if (!template) throw new ApiError(404, "Template not found");
-  if (template.userId.toString() !== userId) throw new ApiError(403, "Unauthorized");
+  await assertRecordAccess(template, userId, "template.use", { notFound: "Template not found" });
 
   const isMissing = !(await fileExists(template.sourcePdfPath));
   if (isMissing) {
@@ -159,7 +119,12 @@ export const instantiateDocumentFromTemplate = async ({
   }
 
   // 1. Read template PDF buffer and save to new user document storage path
-  const sourceBuffer = await readFile(template.sourcePdfPath);
+  let sourceBuffer = await readFile(template.sourcePdfPath);
+  if (testMode) {
+    const marked = await PDFDocument.load(sourceBuffer);
+    await watermarkTestDocument(marked);
+    sourceBuffer = Buffer.from(await marked.save());
+  }
   const originalHash = sha256FromBuffer(sourceBuffer);
 
   const newFileName = `${Date.now()}-${template.originalFileName}`;
@@ -169,6 +134,8 @@ export const instantiateDocumentFromTemplate = async ({
   // 2. Create new Pdf document record
   const newPdf = await Pdf.create({
     userId,
+    workspaceId: template.workspaceId || null,
+    testMode,
     originalFileName: template.originalFileName,
     storagePath: newStoragePath,
     originalHash,

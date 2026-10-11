@@ -1,5 +1,5 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uplodedPdf } from "../services/pdfUpload.service.js";
+import { uplodedPdf, joinPdfFiles } from "../services/pdfUpload.service.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { Pdf } from "../models/Pdf.model.js";
@@ -9,11 +9,18 @@ import { getFileUrl } from "../services/storage.service.js";
 import { originalKeyOf, downloadKeyOf, hasSignedCopy } from "../services/documentFiles.service.js";
 import { appendAuditEvent, verifyAuditChainIntegrity } from "../services/auditLedger.service.js";
 import { eventBus, EventTypes } from "../events/index.js";
+import { assertRecordAccess, recordsIn } from "../services/authorize.service.js";
+import { assertTwoFactorPolicy, assertCanWorkIn } from "../services/workspace.service.js";
 
 export const uploadPdfController = asyncHandler(async (req, res) => {
+  // A document is made in the workspace the sender is working in, if their role there allows it
+  assertCanWorkIn(req, "document.create");
+
   const pdf = await uplodedPdf({
-    file: req.file,
+    // Several files arrive on the "join" route and become one document
+    file: Array.isArray(req.files) ? await joinPdfFiles(req.files) : req.file,
     userId: req.user.id,
+    workspaceId: req.workspace.id,
   });
 
   const fileUrl = await getFileUrl(originalKeyOf(pdf));
@@ -58,6 +65,9 @@ const formatPdf = async (pdf) => {
     updatedAt: pdf.updatedAt,
     originalHash: pdf.originalHash || "",
     isSealed: Boolean(pdf.sealedKey),
+    workspaceId: pdf.workspaceId || null,
+    createdBy: pdf.userId,
+    testMode: Boolean(pdf.testMode),
   };
 
   try {
@@ -72,11 +82,13 @@ const formatPdf = async (pdf) => {
   }
 };
 
-// Documents the owner has deleted stay in the database for their audit log but are never listed
-const ownedDocuments = (userId) => Pdf.find({ userId, deletedAt: null }).sort({ createdAt: -1 });
+// The documents of the workspace the request is working in. Deleted ones stay in the database
+// for their audit log but are never listed.
+const ownedDocuments = (req) => Pdf.find({ ...recordsIn(req.workspace, req.user.id), deletedAt: null }).sort({ createdAt: -1 });
 
 export const getMyPdfsController = asyncHandler(async (req, res) => {
-  const pdfs = await ownedDocuments(req.user.id);
+  assertTwoFactorPolicy(req);
+  const pdfs = await ownedDocuments(req);
   const formattedPdfs = await Promise.all(pdfs.map(formatPdf));
 
   res.status(200).json(new ApiResponse(formattedPdfs, "User documents fetched successfully"));
@@ -92,7 +104,7 @@ export const syncUpdatesController = asyncHandler(async (req, res) => {
 
   if (since && !isNaN(since.getTime())) {
     const hasModifications = await Pdf.exists({
-      userId,
+      ...recordsIn(req.workspace, userId),
       updatedAt: { $gt: since },
     });
 
@@ -102,7 +114,7 @@ export const syncUpdatesController = asyncHandler(async (req, res) => {
     }
   }
 
-  const pdfs = await ownedDocuments(userId);
+  const pdfs = await ownedDocuments(req);
   const formattedPdfs = await Promise.all(pdfs.map(formatPdf));
 
   res.status(200).json(
@@ -116,7 +128,7 @@ export const syncUpdatesController = asyncHandler(async (req, res) => {
   );
 });
 
-const loadOwnedPdf = async (id, userId) => {
+const loadOwnedPdf = async (id, userId, action = "document.read") => {
   if (typeof id !== "string" || !mongoose.isValidObjectId(id)) {
     throw new ApiError(400, "Invalid document identifier");
   }
@@ -125,9 +137,7 @@ const loadOwnedPdf = async (id, userId) => {
   if (!pdf) {
     throw new ApiError(404, "Document not found");
   }
-  if (pdf.userId.toString() !== userId) {
-    throw new ApiError(403, "Not authorized for this document");
-  }
+  await assertRecordAccess(pdf, userId, action);
   return pdf;
 };
 
@@ -136,7 +146,7 @@ const loadOwnedPdf = async (id, userId) => {
  * The record and its audit log are kept: an audit trail that disappears with the document proves nothing.
  */
 export const deletePdfController = asyncHandler(async (req, res) => {
-  const pdf = await loadOwnedPdf(req.params.id, req.user.id);
+  const pdf = await loadOwnedPdf(req.params.id, req.user.id, "document.delete");
 
   if (["pending", "partially_signed"].includes(pdf.status)) {
     throw new ApiError(409, "This document is out for signature. Void it before deleting.");
@@ -171,7 +181,8 @@ export const getAuditCertificatePdfController = asyncHandler(async (req, res) =>
   const pdf = await loadOwnedPdf(req.params.id, req.user.id);
   const { generateAuditCertificatePdf } = await import("../services/auditCertificate.service.js");
 
-  const pdfBuffer = await generateAuditCertificatePdf(pdf._id, req.user.id);
+  // Access was checked above, by role; the generator is not asked to check ownership again
+  const pdfBuffer = await generateAuditCertificatePdf(pdf._id, null);
 
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", `attachment; filename="Signing-Record-${pdf._id}.pdf"`);

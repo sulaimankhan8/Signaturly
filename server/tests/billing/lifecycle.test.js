@@ -142,7 +142,7 @@ describe("H1 plan state follows the payment provider", () => {
     const sub = await subOf(user.id);
     expect(sub.plan).toBe("free");
     expect(sub.status).toBe("canceled");
-    expect(sub.monthlyQuota).toBe(15);
+    expect(sub.monthlyQuota).toBe(5);
   });
 
   it("follows a Razorpay subscription from activation through renewal and failure", async () => {

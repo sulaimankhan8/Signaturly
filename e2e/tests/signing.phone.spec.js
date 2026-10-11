@@ -76,6 +76,9 @@ test.describe("signing on a phone", () => {
 
     await expect(page.getByRole("heading", { name: en.completed.title })).toBeVisible({ timeout: 30_000 });
     await expect(page.getByRole("link", { name: en.completed.download })).toBeVisible();
+    // The sender is on the Free plan, so the finished page carries the line and the invitation
+    await expect(page.getByTestId("signed-with-badge")).toContainText(en.completed.badge);
+    await expect(page.getByRole("link", { name: en.completed.inviteLink })).toHaveAttribute("href", "/register");
     expect(await fitsScreen(page)).toBe(true);
 
     expect(await recipientState(doc.token)).toMatchObject({ status: "signed", consent: true });

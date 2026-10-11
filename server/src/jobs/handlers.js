@@ -11,6 +11,8 @@ import {
   sendReminderEmail,
 } from "../services/email.service.js";
 import { sendMessage } from "../services/messaging/index.js";
+import { chargeForMessage } from "../services/wallet.service.js";
+import { brandingFor, billingUserIdOf } from "../services/branding.service.js";
 import { withDocumentLock } from "../services/documentLock.service.js";
 import { sealDocument } from "../services/pdfSeal.service.js";
 
@@ -38,33 +40,50 @@ const loadRecipientContext = async (recipientId) => {
 const usesMessaging = (recipient) => recipient.channel !== "email" && Boolean(recipient.phone);
 const signingLink = (recipient) => `${env.appUrl}/sign/${recipient.token}`;
 
-// Sends by SMS or WhatsApp in the signer's language
-const message = (recipient, template, params) =>
-  sendMessage({
+// Sends by SMS or WhatsApp in the signer's language. The sender's wallet pays for the message
+// first; the job's id is the reference, so a retry of the same job is not charged again.
+const message = async (ctx, template, params, job) => {
+  const { recipient, pdf } = ctx;
+  // The plan that pays for the document's workspace pays for its messages too
+  await chargeForMessage({ userId: await billingUserIdOf(pdf), channel: recipient.channel, reference: `message:${job?._id || `${template}:${recipient._id}`}` });
+  return sendMessage({
     channel: recipient.channel,
     to: recipient.phone,
     template,
     language: recipient.language,
     params,
   });
+};
+
+// Documents sent from a Free account carry a "Signed with PactDoc" line; a team's documents
+// carry the team's own name and colour. Returns the options the email functions take.
+const lookOf = async (pdf) => {
+  const { badge, brand } = await brandingFor(pdf);
+  return { showBadge: badge, brand };
+};
+
+// Documents made with a test API key are for trying an integration out. Nothing is sent to
+// anyone for them: their signing links are read through the API instead.
+const isTest = (pdf) => Boolean(pdf?.testMode);
 
 export const registerJobHandlers = () => {
   registerJobHandler(
     "email.signing_request",
-    async ({ recipientId, customMessage }) => {
+    async ({ recipientId, customMessage }, job) => {
       const ctx = await loadRecipientContext(recipientId);
       // Nothing to send if the signer is gone, has acted, or the document is no longer open
       if (!ctx || !["pending", "partially_signed"].includes(ctx.pdf.status)) return;
       if (["signed", "declined"].includes(ctx.recipient.status)) return;
+      if (isTest(ctx.pdf)) return;
 
       if (usesMessaging(ctx.recipient)) {
-        await message(ctx.recipient, "signing_request", {
+        await message(ctx, "signing_request", {
           sender: ctx.sender.name || ctx.sender.email,
           document: ctx.pdf.originalFileName,
           link: signingLink(ctx.recipient),
-        });
+        }, job);
       } else {
-        await sendSigningRequestEmail({ ...ctx, customMessage: customMessage || ctx.pdf.message });
+        await sendSigningRequestEmail({ ...ctx, customMessage: customMessage || ctx.pdf.message, ...(await lookOf(ctx.pdf)) });
       }
       await setDelivery(recipientId, "sent");
     },
@@ -73,35 +92,36 @@ export const registerJobHandlers = () => {
 
   registerJobHandler(
     "email.reminder",
-    async ({ recipientId, customMessage }) => {
+    async ({ recipientId, customMessage }, job) => {
       const ctx = await loadRecipientContext(recipientId);
       if (!ctx || !["pending", "partially_signed"].includes(ctx.pdf.status)) return;
       if (["signed", "declined"].includes(ctx.recipient.status)) return;
+      if (isTest(ctx.pdf)) return;
 
       if (usesMessaging(ctx.recipient)) {
-        await message(ctx.recipient, "reminder", {
+        await message(ctx, "reminder", {
           sender: ctx.sender.name || ctx.sender.email,
           document: ctx.pdf.originalFileName,
           link: signingLink(ctx.recipient),
-        });
+        }, job);
       } else {
-        await sendReminderEmail({ ...ctx, customMessage });
+        await sendReminderEmail({ ...ctx, customMessage, ...(await lookOf(ctx.pdf)) });
       }
       await setDelivery(recipientId, "sent");
     },
     { onFailed: markUndelivered }
   );
 
-  registerJobHandler("email.completion", async ({ recipientId }) => {
+  registerJobHandler("email.completion", async ({ recipientId }, job) => {
     const ctx = await loadRecipientContext(recipientId);
-    if (!ctx) return;
+    if (!ctx || isTest(ctx.pdf)) return;
 
     // Each party downloads through their own signing link; no file link is ever sent
     if (usesMessaging(ctx.recipient)) {
-      await message(ctx.recipient, "completed", {
+      await message(ctx, "completed", {
         document: ctx.pdf.originalFileName,
         link: signingLink(ctx.recipient),
-      });
+      }, job);
       return;
     }
 
@@ -110,6 +130,7 @@ export const registerJobHandlers = () => {
       pdf: ctx.pdf,
       downloadUrl: signingLink(ctx.recipient),
       language: ctx.recipient.language,
+      ...(await lookOf(ctx.pdf)),
     });
   });
 
@@ -134,12 +155,12 @@ export const registerJobHandlers = () => {
     await sendDeclineEmail({ senderEmail: owner.email, pdf, declinedRecipient, reason });
   });
 
-  registerJobHandler("email.cancellation", async ({ recipientId, eventType, reason }) => {
+  registerJobHandler("email.cancellation", async ({ recipientId, eventType, reason }, job) => {
     const ctx = await loadRecipientContext(recipientId);
-    if (!ctx) return;
+    if (!ctx || isTest(ctx.pdf)) return;
 
     if (usesMessaging(ctx.recipient)) {
-      await message(ctx.recipient, "cancelled", { document: ctx.pdf.originalFileName });
+      await message(ctx, "cancelled", { document: ctx.pdf.originalFileName }, job);
       return;
     }
 

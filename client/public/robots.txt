@@ -3,6 +3,7 @@ Allow: /
 Allow: /pricing
 Allow: /verify
 Allow: /userguide
+Allow: /t
 Disallow: /dashboard
 Disallow: /upload
 Disallow: /editor/

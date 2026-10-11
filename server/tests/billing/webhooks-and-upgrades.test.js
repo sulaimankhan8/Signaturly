@@ -21,7 +21,7 @@ const stripeEvent = (userId, id = "evt_1") =>
 const razorpayEvent = (userId, paymentId = "pay_1") =>
   JSON.stringify({
     event: "payment.captured",
-    payload: { payment: { entity: { id: paymentId, amount: 49900, currency: "INR", notes: { userId, plan: "pro_monthly" } } } },
+    payload: { payment: { entity: { id: paymentId, amount: 29900, currency: "INR", notes: { userId, plan: "pro_monthly" } } } },
   });
 
 const postRaw = (path, payload, headers = {}) =>

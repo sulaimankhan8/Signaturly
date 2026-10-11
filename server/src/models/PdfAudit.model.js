@@ -16,6 +16,12 @@ export const AUDIT_EVENTS = [
   "automated_reminder",
   "recipient_updated",
   "deleted",
+  // Aadhaar eSign: the signer was sent to the provider, the provider confirmed, or it did not go through
+  "esign_started",
+  "esign_verified",
+  "esign_failed",
+  // Removed at the end of the period its workspace keeps documents for
+  "retention_deleted",
 ];
 
 const pdfAuditSchema = new mongoose.Schema(

@@ -100,3 +100,17 @@ export const inkOverlap = (a, b, tolerance = 2) => {
 };
 
 export const inkPixels = (canvas) => inkMask(canvas).reduce((sum, v) => sum + v, 0);
+
+/**
+ * The selectable text of a PDF, page by page, as a reader's "select all" would give it.
+ * Text drawn as outlines (Indian scripts) is not in it.
+ */
+export const pdfText = async (buffer) => {
+  const doc = await getDocument({ data: new Uint8Array(buffer), useSystemFonts: false, verbosity: 0 }).promise;
+  const pages = [];
+  for (let number = 1; number <= doc.numPages; number++) {
+    const content = await (await doc.getPage(number)).getTextContent();
+    pages.push(content.items.map((item) => item.str).join(" ").replace(/\s+/g, " "));
+  }
+  return pages;
+};

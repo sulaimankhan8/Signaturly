@@ -3,6 +3,7 @@ export default {
   loading: "Opening your document...",
   header: {
     signingAs: "Signing as:",
+    sentBy: "Sent by {{name}}",
     downloadReview: "Download Review Copy",
     downloadReviewHint: "Download a copy to read before signing",
     language: "Language",
@@ -15,6 +16,24 @@ export default {
     cancel: "Cancel",
     confirmDecline: "Confirm Decline",
     close: "Close",
+  },
+  esign: {
+    title: "This document is signed with Aadhaar eSign",
+    steps: "Fill in your fields and press Sign. You are then taken to the eSign provider, where you enter your Aadhaar number and the one-time code sent to the mobile number linked to your Aadhaar.",
+    privacy: "Your Aadhaar number is entered on the provider's page only. PactDoc never sees it or stores it.",
+    noPhone: "If no mobile number is linked to your Aadhaar, or the code does not arrive, ask the sender to switch you to ordinary signing.",
+    standIn: "Development stand-in: this is not real Aadhaar eSign and has no legal effect.",
+    unavailable: "Aadhaar eSign is not available right now. Ask the sender to switch you to ordinary signing.",
+    confirming: "Confirming your Aadhaar eSign...",
+    failed: "Aadhaar eSign was not completed. You can press Sign to try again.",
+  },
+  embed: {
+    refusedTitle: "This page cannot be shown here",
+    refusedBody: "For your safety, a signing page opens inside another website only when that website has been approved by the sender. Open it in its own tab to continue.",
+    open: "Open the signing page",
+  },
+  test: {
+    banner: "Test document. It is for trying things out and is not a real agreement.",
   },
   consent: {
     text: "I agree to conduct business electronically and accept this electronic signature (US ESIGN & Section 10A IT Act).",
@@ -43,6 +62,9 @@ export default {
     label: "Signed document",
     download: "Download Signed Copy",
     signedAt: "Signed at {{time}}",
+    badge: "Signed with PactDoc",
+    invite: "Need something signed yourself?",
+    inviteLink: "Send your own documents free",
   },
   declined: {
     title: "Document Declined",

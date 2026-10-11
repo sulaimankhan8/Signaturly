@@ -2,6 +2,7 @@ import { User } from "../models/User.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { randomToken, sha256Hex } from "../utils/tokens.js";
 import { sendEmailVerificationEmail } from "./email.service.js";
+import { verifySecondStep } from "./twoFactor.service.js";
 
 const EMAIL_VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -74,7 +75,7 @@ export const revokeSessions = async (userId) => {
   );
 };
 
-export const loginUser = async ({ email, password }) => {
+export const loginUser = async ({ email, password, code }) => {
   const normalizedEmail = email?.trim().toLowerCase();
   const user = await User.findOne({ email: normalizedEmail }).select("+password");
 
@@ -85,6 +86,13 @@ export const loginUser = async ({ email, password }) => {
   const match = await user.comparePassword(password);
   if (!match) {
     throw new ApiError(401, "Invalid email or password");
+  }
+
+  // Two-step sign-in: the password alone is not enough. The reply says a code is needed
+  // only after the password was right, so it tells a stranger nothing.
+  if (user.twoFactor?.enabled) {
+    if (!code) throw new ApiError(401, "TWO_FACTOR_CODE_NEEDED: Enter the code from your authenticator app.");
+    if (!(await verifySecondStep(user._id, code))) throw new ApiError(401, "TWO_FACTOR_CODE_WRONG: That code is not right.");
   }
 
   const { accessToken, refreshToken } = await issueSession(user);

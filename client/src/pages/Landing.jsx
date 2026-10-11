@@ -1,52 +1,12 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { initiateCheckout, triggerDevMockUpgrade } from "../api/billing.api";
-import toast, { Toaster } from "react-hot-toast";
+import { Toaster } from "react-hot-toast";
 
 const Landing = () => {
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const [activeFaq, setActiveFaq] = useState(null);
-  const [loadingPlan, setLoadingPlan] = useState(null);
-  const [devSimulationModal, setDevSimulationModal] = useState(null);
-
-  const handleDirectPlanCheckout = async (planKey) => {
-    if (!user) {
-      navigate("/register");
-      return;
-    }
-
-    try {
-      setLoadingPlan(planKey);
-      const res = await initiateCheckout(planKey);
-
-      if (res?.isMock) {
-        setDevSimulationModal(res);
-      } else if (res?.checkoutUrl) {
-        window.location.href = res.checkoutUrl;
-      }
-    } catch (err) {
-      console.error("Direct checkout error:", err);
-      toast.error(err.response?.data?.message || "Failed to initialize checkout session");
-    } finally {
-      setLoadingPlan(null);
-    }
-  };
-
-  const handleConfirmDevUpgrade = async (plan) => {
-    try {
-      setLoadingPlan(plan);
-      await triggerDevMockUpgrade(plan);
-      toast.success(`🎉 Account upgraded to ${plan.toUpperCase()} successfully!`);
-      setDevSimulationModal(null);
-      navigate("/dashboard");
-    } catch (err) {
-      toast.error("Dev upgrade failed: " + err.message);
-    } finally {
-      setLoadingPlan(null);
-    }
-  };
 
   const toggleFaq = (index) => {
     setActiveFaq(activeFaq === index ? null : index);
@@ -55,11 +15,11 @@ const Landing = () => {
   const faqs = [
     {
       q: "Are electronic signatures generated with PactDoc legally binding?",
-      a: "Yes! PactDoc complies with Section 10A of the Indian Information Technology Act 2000, the US ESIGN Act (15 U.S.C. § 7001), and EU eIDAS statutory regulations. Every executed agreement comes with an audit certificate that lists every signing event with SHA-256 document hashes.",
+      a: "In India, electronic signatures on most commercial agreements are recognised under the Information Technology Act, 2000. Some documents are excluded, and some need stamping or registration whatever way they are signed. Every completed document comes with a sealed PDF and a signing record. This is general information, not legal advice.",
     },
     {
       q: "What is the difference between a full signature and initials?",
-      a: "PactDoc provides dedicated studios for both. Full signatures generate our Verified E-Sign Stamp with unique security hash IDs, cursive typography, and drawing pads. Initials support monogram circle seals and compact stamps designed for document margin approval.",
+      a: "A full signature goes where the document asks you to sign: you can draw it, type it, upload it, or use a stamp with your name and the date. Initials are the short mark some documents ask for on each page, and have their own panel.",
     },
     {
       q: "Can I send contracts to multiple signers in a specific order?",
@@ -114,7 +74,7 @@ const Landing = () => {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-2xl font-black tracking-tight text-white">
-                  Signatur<span className="text-red-500">ly</span>
+                  Pact<span className="text-red-500">Doc</span>
                 </span>
                 <span className="px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-yellow-400 text-black border-2 border-black shadow-[2px_2px_0px_0px_#ef4444] rounded">
                   PRO
@@ -129,6 +89,7 @@ const Landing = () => {
             <a href="#how-it-works" className="hover:text-yellow-400 transition-colors">Workflow</a>
             <a href="#compliance" className="hover:text-yellow-400 transition-colors">Compliance</a>
             <a href="#pricing" className="hover:text-yellow-400 transition-colors">Pricing</a>
+            <Link to="/t" className="hover:text-yellow-400 transition-colors">Templates</Link>
             <a href="#faq" className="hover:text-yellow-400 transition-colors">FAQ</a>
           </nav>
 
@@ -460,273 +421,25 @@ const Landing = () => {
       {/* Pricing Section */}
       {/* Pricing Section */}
       <section id="pricing" className="py-24 px-4 sm:px-6 lg:px-8 bg-[#090a0f]">
-        <div className="max-w-7xl mx-auto space-y-16">
-          <div className="text-center space-y-4 max-w-3xl mx-auto">
-            <span className="px-3.5 py-1.5 rounded bg-yellow-400 text-black font-black uppercase text-xs border-2 border-black shadow-[3px_3px_0px_0px_#ef4444]">
-              Transparent Pricing
-            </span>
-            <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight uppercase">
-              Pick Your Power Tier
-            </h2>
-            <p className="text-gray-400 text-xs sm:text-sm max-w-lg mx-auto">
-              Start with 15 free monthly envelopes or unlock unlimited legally binding e-signatures with zero recurring fees.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-7xl mx-auto items-stretch">
-            {/* 1. Starter Plan */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-[#151722] border-2 border-white/20 shadow-[6px_6px_0px_0px_#fff] flex flex-col justify-between">
-              <div>
-                <span className="px-2.5 py-1 bg-white/10 text-gray-300 text-[10px] font-black uppercase tracking-wider rounded border border-white/20">
-                  Free Forever
-                </span>
-                <h3 className="text-xl font-black text-white mt-3 uppercase">Free Starter</h3>
-                <div className="my-5">
-                  <span className="text-4xl sm:text-5xl font-black text-white font-mono">$0</span>
-                  <span className="text-xs text-gray-400 font-bold"> / forever</span>
-                </div>
-                <ul className="space-y-2.5 text-xs text-gray-300 font-bold">
-                  <li className="flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    15 Envelope requests / mo
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    2FA Email OTP Verification
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    Draw / Type / Upload Signatures
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    SHA-256 Audit Certificates
-                  </li>
-                </ul>
-              </div>
-              {user ? (
-                <Link
-                  to="/dashboard"
-                  className="mt-8 block text-center py-3 bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-wider rounded-xl text-xs border-2 border-white/30 transition"
-                >
-                  Go to Dashboard
-                </Link>
-              ) : (
-                <Link
-                  to="/register"
-                  className="mt-8 block text-center py-3 bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-wider rounded-xl text-xs border-2 border-white/30 transition"
-                >
-                  Start Free
-                </Link>
-              )}
-            </div>
-
-            {/* 2. Pro Creator */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-[#191c2b] border-4 border-yellow-400 shadow-[8px_8px_0px_0px_#ef4444] flex flex-col justify-between relative transform md:-translate-y-2">
-              <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded bg-red-600 text-white text-[10px] font-black uppercase tracking-wider border-2 border-black shadow-[2px_2px_0px_0px_#fff] whitespace-nowrap">
-                MOST POPULAR
-              </div>
-              <div>
-                <span className="px-2.5 py-1 bg-yellow-400/20 text-yellow-300 text-[10px] font-black uppercase tracking-wider rounded border border-yellow-400/40">
-                  Individual Pro
-                </span>
-                <h3 className="text-xl font-black text-white mt-3 uppercase">Pro Creator</h3>
-                <div className="my-5">
-                  <span className="text-4xl sm:text-5xl font-black text-white font-mono">$5.99</span>
-                  <span className="text-xs text-gray-400 font-bold"> / mo</span>
-                </div>
-                <ul className="space-y-2.5 text-xs text-gray-200 font-bold">
-                  <li className="flex items-center gap-2 text-yellow-400">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    Unlimited document signatures
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    100% Ad-Free for all signers
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    14 Prebuilt legal templates
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    CSV Bulk Mail Merge (150/batch)
-                  </li>
-                </ul>
-              </div>
-              {user ? (
-                <button
-                  type="button"
-                  disabled={loadingPlan !== null}
-                  onClick={() => handleDirectPlanCheckout("pro_monthly")}
-                  className="mt-8 w-full block text-center py-3.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black uppercase tracking-wider rounded-xl text-xs border-2 border-black shadow-[4px_4px_0px_0px_#ef4444] transition-all cursor-pointer"
-                >
-                  {loadingPlan === "pro_monthly" ? "Processing..." : "Upgrade to Pro →"}
-                </button>
-              ) : (
-                <Link
-                  to="/register"
-                  className="mt-8 block text-center py-3.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black uppercase tracking-wider rounded-xl text-xs border-2 border-black shadow-[4px_4px_0px_0px_#ef4444] transition-all"
-                >
-                  Upgrade to Pro →
-                </Link>
-              )}
-            </div>
-
-            {/* 3. Lifetime Pass (LTD) */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-[#151722] via-purple-950/30 to-[#151722] border-2 border-purple-500/50 shadow-[6px_6px_0px_0px_#a855f7] flex flex-col justify-between relative">
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded bg-purple-600 text-white text-[10px] font-black uppercase tracking-wider border border-white/20 whitespace-nowrap">
-                FOUNDER DEAL
-              </div>
-              <div>
-                <span className="px-2.5 py-1 bg-purple-500/20 text-purple-300 text-[10px] font-black uppercase tracking-wider rounded border border-purple-500/40">
-                  Zero Subscriptions
-                </span>
-                <h3 className="text-xl font-black text-white mt-3 uppercase">Lifetime Pass</h3>
-                <div className="my-5">
-                  <span className="text-4xl sm:text-5xl font-black text-white font-mono">$69</span>
-                  <span className="text-xs text-purple-400 font-bold"> one-time</span>
-                </div>
-                <ul className="space-y-2.5 text-xs text-gray-300 font-bold">
-                  <li className="flex items-center gap-2 text-purple-300">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c084fc" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    Unlimited signatures forever
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    All Pro Creator features
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    All future updates included
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    Single user lifetime license
-                  </li>
-                </ul>
-              </div>
-              {user ? (
-                <button
-                  type="button"
-                  disabled={loadingPlan !== null}
-                  onClick={() => handleDirectPlanCheckout("lifetime")}
-                  className="mt-8 w-full block text-center py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black uppercase tracking-wider rounded-xl text-xs border border-purple-400/40 transition cursor-pointer shadow-lg shadow-purple-600/30"
-                >
-                  {loadingPlan === "lifetime" ? "Processing..." : "Claim Lifetime Deal ($69) →"}
-                </button>
-              ) : (
-                <Link
-                  to="/register"
-                  className="mt-8 block text-center py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black uppercase tracking-wider rounded-xl text-xs border border-purple-400/40 transition"
-                >
-                  Claim Lifetime Deal →
-                </Link>
-              )}
-            </div>
-
-            {/* 4. Business & Enterprise */}
-            <div className="p-6 sm:p-8 rounded-3xl bg-[#151722] border-2 border-white/20 shadow-[6px_6px_0px_0px_#fff] flex flex-col justify-between">
-              <div>
-                <span className="px-2.5 py-1 bg-blue-500/20 text-blue-300 text-[10px] font-black uppercase tracking-wider rounded border border-blue-500/40">
-                  Organizations
-                </span>
-                <h3 className="text-xl font-black text-white mt-3 uppercase">Enterprise</h3>
-                <div className="my-5">
-                  <span className="text-4xl sm:text-5xl font-black text-white font-mono">$14.99</span>
-                  <span className="text-xs text-gray-400 font-bold"> / seat / mo</span>
-                </div>
-                <ul className="space-y-2.5 text-xs text-gray-300 font-bold">
-                  <li className="flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    Multi-Tenant Workspaces
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    Custom Brand White-Label
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    Developer REST API Keys
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="3"><polyline points="20 6 9 17 4 12" /></svg>
-                    Webhook Event Stream
-                  </li>
-                </ul>
-              </div>
-              {user ? (
-                <button
-                  type="button"
-                  disabled={loadingPlan !== null}
-                  onClick={() => handleDirectPlanCheckout("enterprise")}
-                  className="mt-8 w-full block text-center py-3 bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-wider rounded-xl text-xs border-2 border-white/30 transition cursor-pointer"
-                >
-                  {loadingPlan === "enterprise" ? "Processing..." : "Get Enterprise →"}
-                </button>
-              ) : (
-                <Link
-                  to="/register"
-                  className="mt-8 block text-center py-3 bg-white/10 hover:bg-white/20 text-white font-black uppercase tracking-wider rounded-xl text-xs border-2 border-white/30 transition"
-                >
-                  Get Enterprise
-                </Link>
-              )}
-            </div>
+        <div className="max-w-4xl mx-auto text-center space-y-6">
+          <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight uppercase">Start free. Pay when you send more.</h2>
+          <p className="text-gray-300 text-sm sm:text-base max-w-2xl mx-auto">
+            The Free plan covers a handful of documents a month and the Starter templates. Pro adds more documents, every Pro template pack
+            and bulk send. Prices are in rupees and include GST.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Link
+              to="/pricing"
+              className="px-8 py-4 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-sm uppercase tracking-wider rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_#ef4444]"
+            >
+              See plans and prices
+            </Link>
+            <Link to="/t" className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-black text-sm uppercase tracking-wider rounded-xl border-2 border-white/20">
+              Browse templates
+            </Link>
           </div>
         </div>
       </section>
-
-      {/* Dev Simulation Direct Confirmation Modal (Single Plan, Zero Redundancy) */}
-      {devSimulationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
-          <div className="bg-[#12141c] border-2 border-purple-500/50 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl text-center space-y-5">
-            <div className="w-14 h-14 rounded-2xl bg-purple-500/20 text-purple-300 flex items-center justify-center text-2xl mx-auto border border-purple-500/40">
-              ⚡
-            </div>
-            <div>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-purple-950 text-purple-300 px-3 py-1 rounded-full border border-purple-800">
-                Zero-Credential Simulation Mode
-              </span>
-              <h3 className="text-xl font-black text-white mt-3">
-                Activate {devSimulationModal.planName}
-              </h3>
-              <p className="text-xs text-gray-400 mt-1">
-                No Stripe secret key detected in backend <code>.env</code>. Click below to simulate an instant 1-click upgrade.
-              </p>
-            </div>
-
-            <div className="bg-[#08090d] p-4 rounded-2xl border border-white/10 text-left text-xs space-y-2">
-              <div className="flex justify-between py-1 border-b border-white/5">
-                <span className="text-gray-400">Selected Tier:</span>
-                <span className="font-bold text-white uppercase">{devSimulationModal.plan}</span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span className="text-gray-400">Total Price:</span>
-                <span className="font-black text-emerald-400 font-mono text-sm">${devSimulationModal.amount} USD</span>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setDevSimulationModal(null)}
-                className="flex-1 py-3 rounded-xl border border-white/20 text-xs font-bold text-gray-300 hover:bg-white/5 transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={loadingPlan !== null}
-                onClick={() => handleConfirmDevUpgrade(devSimulationModal.plan)}
-                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-purple-600/30 transition-all cursor-pointer"
-              >
-                {loadingPlan ? "Activating..." : "Confirm & Activate"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* FAQ Section */}
       <section id="faq" className="py-24 px-4 sm:px-6 lg:px-8 bg-[#0d0f17] border-t-2 border-white/20">
@@ -762,7 +475,7 @@ const Landing = () => {
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t-2 border-white/20 bg-[#090a0f] text-gray-400 text-xs">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2 font-bold">
-            <span className="text-white text-sm font-black">Signatur<span className="text-red-500">ly</span> PRO</span>
+            <span className="text-white text-sm font-black">Pact<span className="text-red-500">Doc</span></span>
             <span>— The Non-Repudiation E-Signature Standard.</span>
           </div>
 

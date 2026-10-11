@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { performLogout } from "../store/authActions";
 import { UpgradeModal } from "./UpgradeModal";
+import WorkspaceSwitcher from "./WorkspaceSwitcher";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -109,10 +110,7 @@ export default function Navbar() {
           </div>
           <div>
             <span className="text-xl font-black text-white tracking-tight">
-              Signatur<span className="text-red-500">ly</span>
-            </span>
-            <span className="ml-2 text-[10px] uppercase font-black tracking-widest bg-yellow-400 text-black px-2 py-0.5 rounded border-2 border-black shadow-[2px_2px_0px_0px_#ef4444]">
-              Pro
+              Pact<span className="text-red-500">Doc</span>
             </span>
           </div>
         </div>
@@ -356,6 +354,28 @@ export default function Navbar() {
                     </span>
                   </div>
                 </button>
+
+                <button
+                  onClick={() => {
+                    navigate("/contacts");
+                    setActiveDropdown(null);
+                  }}
+                  className="w-full text-left p-2.5 rounded-xl hover:bg-white/10 flex items-start gap-3 group transition-all"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center shrink-0 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-5-3.87M9 20H4v-2a4 4 0 015-3.87m8-5.13a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <span className="text-xs font-black text-white block uppercase tracking-wide">
+                      Contact Lists
+                    </span>
+                    <span className="text-[10px] text-gray-400 block leading-tight">
+                      Saved lists, and bulk send with progress
+                    </span>
+                  </div>
+                </button>
               </div>
             )}
           </div>
@@ -574,7 +594,7 @@ export default function Navbar() {
           <button
             onClick={() => navigate("/pricing")}
             className="px-3.5 py-2 text-xs font-black uppercase tracking-wider text-black bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-300 border-2 border-black shadow-[2px_2px_0px_0px_#ef4444] hover:shadow-[3px_3px_0px_0px_#ef4444] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer transform hover:-translate-y-0.5 shrink-0"
-            title="Upgrade to Pro &amp; Unlimited Sending"
+            title="Upgrade to Pro"
           >
             <svg className="w-3.5 h-3.5 text-black shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -732,6 +752,9 @@ export default function Navbar() {
             )}
           </div>
 
+          {/* Shown only to someone in more than one workspace */}
+          <WorkspaceSwitcher className="hidden sm:flex" />
+
           {/* Quick Sign Out (Desktop) */}
           <button
             onClick={handleLogout}
@@ -819,7 +842,7 @@ export default function Navbar() {
             <svg className="w-4 h-4 text-black shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            <span>Upgrade to Pro &bull; Unlimited</span>
+            <span>Upgrade to Pro</span>
           </button>
 
           <div className="space-y-1">
@@ -1076,7 +1099,7 @@ export default function Navbar() {
       <UpgradeModal
         isOpen={upgradeModalOpen}
         onClose={() => setUpgradeModalOpen(false)}
-        reason="Upgrade your workspace for unlimited envelopes, ad-free signing, and enterprise tools."
+        reason="Upgrade your workspace for more documents each month, more template packs and bulk send."
       />
     </header>
   );

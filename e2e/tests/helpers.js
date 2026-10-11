@@ -16,6 +16,19 @@ export const draft = async (options = {}) => {
   return res.json();
 };
 
+export const adminAccount = async () => (await fetch(`${CONTROL_URL}/admin`, { method: "POST" })).json();
+
+export const latestDocumentOf = async (ownerEmail) =>
+  (await fetch(`${CONTROL_URL}/documents?owner=${encodeURIComponent(ownerEmail)}`)).json();
+
+export const signIn = async (page, account) => {
+  await page.goto("/login");
+  await page.getByPlaceholder("name@company.com").fill(account.ownerEmail);
+  await page.getByPlaceholder("••••••••").fill(account.password);
+  await page.locator('button[type="submit"]').click();
+  await page.waitForURL("**/dashboard");
+};
+
 export const recipientsOf = async (pdfId) => (await fetch(`${CONTROL_URL}/recipients?pdfId=${pdfId}`)).json();
 
 export const recipientState = async (token) => (await fetch(`${CONTROL_URL}/recipient?token=${token}`)).json();
@@ -72,3 +85,46 @@ export const inkOn = (locator) =>
     for (let i = 3; i < data.length; i += 4) if (data[i] > 0) drawn += 1;
     return drawn;
   });
+
+// Puts an account on a paid plan without going through checkout
+export const setPlan = async (ownerEmail, plan) => {
+  const res = await fetch(`${CONTROL_URL}/plan`, { method: "POST", body: JSON.stringify({ ownerEmail, plan }) });
+  if (!res.ok) throw new Error(`plan failed: ${res.status} ${await res.text()}`);
+};
+
+// The token in the link of the newest team invitation emailed to an address
+export const invitationFor = async (email) => (await (await fetch(`${CONTROL_URL}/invitation?email=${encodeURIComponent(email)}`)).json()).token;
+
+// A PDF for a file picker, in the shape Playwright's setInputFiles takes
+export const pdfFile = async (name, pages = 1) => {
+  const { base64 } = await (await fetch(`${CONTROL_URL}/pdf?pages=${pages}`)).json();
+  return { name, mimeType: "application/pdf", buffer: Buffer.from(base64, "base64") };
+};
+
+/**
+ * The six-digit code an authenticator app would show for a key, as RFC 6238 defines it.
+ * `ahead` gives the code of a later 30-second step, for a second sign-in inside the same step.
+ */
+export const authenticatorCode = async (key, ahead = 0) => {
+  const { createHmac } = await import("node:crypto");
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const bits = [...key.replace(/\s/g, "").toUpperCase()].map((char) => alphabet.indexOf(char).toString(2).padStart(5, "0")).join("");
+  const secret = Buffer.from(bits.match(/.{8}/g).map((byte) => parseInt(byte, 2)));
+
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 1000 / 30) + ahead));
+  const digest = createHmac("sha1", secret).update(counter).digest();
+  const offset = digest[digest.length - 1] & 0x0f;
+  const number = ((digest[offset] & 0x7f) << 24) | (digest[offset + 1] << 16) | (digest[offset + 2] << 8) | digest[offset + 3];
+  return String(number % 1000000).padStart(6, "0");
+};
+
+// The address of another website that shows the given page of the app inside a frame
+export const framedElsewhere = (url) => `${CONTROL_URL}/frame?src=${encodeURIComponent(url)}`;
+
+// A document of a team that has its own name and colour, sent to one signer
+export const teamDocument = async () => {
+  const res = await fetch(`${CONTROL_URL}/team-document`, { method: "POST" });
+  if (!res.ok) throw new Error(`team document failed: ${res.status} ${await res.text()}`);
+  return res.json();
+};

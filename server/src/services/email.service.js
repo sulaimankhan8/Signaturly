@@ -12,7 +12,22 @@ const esc = (value) =>
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
 
-const emailWrapper = (content, headerTitle = env.appName, language = "en") => `
+// Shown under emails about documents sent from a Free account
+const badgeLine = (language) =>
+  `<p style="margin:0 0 6px 0;">${esc(t(language, "badge.line", { app: env.appName }))} <a href="${esc(env.appUrl)}" style="color:#dc2626;">${esc(t(language, "badge.cta"))}</a></p>`;
+
+// A workspace's colour is used only when it is a plain six-digit hex value
+const brandColor = (brand) => (/^#[0-9a-f]{6}$/i.test(brand?.primaryColor || "") ? brand.primaryColor : null);
+
+// Email programs show images only from web addresses, so a logo stored as a data URL is left out
+const brandHeader = (brand) => {
+  const name = esc(brand?.companyName || env.appName);
+  return /^https:\/\//i.test(brand?.logoUrl || "")
+    ? `<img src="${esc(brand.logoUrl)}" alt="${name}" style="max-height:44px; max-width:220px;">`
+    : `<h1>${name}</h1>`;
+};
+
+const emailWrapper = (content, headerTitle = env.appName, language = "en", { showBadge = false, brand = null } = {}) => `
 <!DOCTYPE html>
 <html lang="${esc(language)}">
 <head>
@@ -29,18 +44,21 @@ const emailWrapper = (content, headerTitle = env.appName, language = "en") => `
     .card { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0; }
     .footer { text-align: center; padding: 18px 24px; color: #64748b; font-size: 12px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; line-height: 1.5; }
     .highlight { color: #dc2626; font-weight: 600; }
+    ${brandColor(brand) ? `.header { border-bottom-color: ${brandColor(brand)}; } .btn { background-color: ${brandColor(brand)}; }` : ""}
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>${esc(env.appName)}</h1>
+      ${brandHeader(brand)}
     </div>
     <div class="body-content">
       ${content}
     </div>
     <div class="footer">
-      <p style="margin:0;">${esc(env.appName)}</p>
+      ${showBadge ? badgeLine(language) : ""}
+      ${brand?.emailFooterText ? `<p style="margin:0 0 6px 0;">${esc(brand.emailFooterText)}</p>` : ""}
+      <p style="margin:0;">${brand?.companyName ? `${esc(brand.companyName)} &middot; ` : ""}${esc(env.appName)}</p>
     </div>
   </div>
 </body>
@@ -71,7 +89,7 @@ const quotedMessage = (message) =>
 const senderLabel = (sender) => sender?.name || sender?.email || env.appName;
 
 // Each signer reads their emails in the language chosen for them when the document was sent
-export const sendSigningRequestEmail = async ({ recipient, pdf, sender, customMessage }) => {
+export const sendSigningRequestEmail = async ({ recipient, pdf, sender, customMessage, showBadge = false, brand = null }) => {
   const language = recipient.language || "en";
   const signingUrl = `${env.appUrl}/sign/${recipient.token}`;
   const params = { document: pdf.originalFileName, sender: senderLabel(sender), link: signingUrl };
@@ -94,12 +112,12 @@ export const sendSigningRequestEmail = async ({ recipient, pdf, sender, customMe
   return sendEmail({
     to: recipient.email,
     subject: t(language, "request.subject", params),
-    html: emailWrapper(content, t(language, "request.heading"), language),
+    html: emailWrapper(content, t(language, "request.heading"), language, { showBadge, brand }),
     text: t(language, "request.text", params),
   });
 };
 
-export const sendCompletionEmail = async ({ recipientEmail, pdf, downloadUrl, language = "en" }) => {
+export const sendCompletionEmail = async ({ recipientEmail, pdf, downloadUrl, language = "en", showBadge = false, brand = null }) => {
   const fileUrl = /^https?:\/\//.test(downloadUrl || "") ? downloadUrl : `${env.appUrl}${downloadUrl || "/dashboard"}`;
   const params = { document: pdf.originalFileName, link: fileUrl };
 
@@ -118,7 +136,7 @@ export const sendCompletionEmail = async ({ recipientEmail, pdf, downloadUrl, la
   return sendEmail({
     to: recipientEmail,
     subject: t(language, "completed.subject", params),
-    html: emailWrapper(content, t(language, "completed.heading"), language),
+    html: emailWrapper(content, t(language, "completed.heading"), language, { showBadge, brand }),
     text: t(language, "completed.text", params),
   });
 };
@@ -196,7 +214,7 @@ export const sendPasswordResetEmail = async ({ email, name, resetToken }) => {
   });
 };
 
-export const sendReminderEmail = async ({ recipient, pdf, sender, customMessage }) => {
+export const sendReminderEmail = async ({ recipient, pdf, sender, customMessage, showBadge = false, brand = null }) => {
   const language = recipient.language || "en";
   const signingUrl = `${env.appUrl}/sign/${recipient.token}`;
   const params = { document: pdf.originalFileName, sender: senderLabel(sender), link: signingUrl };
@@ -215,7 +233,7 @@ export const sendReminderEmail = async ({ recipient, pdf, sender, customMessage 
   return sendEmail({
     to: recipient.email,
     subject: t(language, "reminder.subject", params),
-    html: emailWrapper(content, t(language, "reminder.heading"), language),
+    html: emailWrapper(content, t(language, "reminder.heading"), language, { showBadge, brand }),
     text: t(language, "reminder.text", params),
   });
 };
@@ -238,6 +256,25 @@ export const sendOtpEmail = async ({ email, otp, pdfTitle = "Document", language
     subject: t(language, "otp.subject", params),
     html: emailWrapper(content, t(language, "otp.heading"), language),
     text: t(language, "otp.text", params),
+  });
+};
+
+export const sendWorkspaceInvitationEmail = async ({ email, workspaceName, inviterName, role, link, hasAccount }) => {
+  const content = `
+    ${heading(`You are invited to ${workspaceName}`)}
+    ${paragraph(`${inviterName} has invited you to join the workspace "${workspaceName}" on ${env.appName} as ${role === "admin" ? "an admin" : `a ${role}`}.`)}
+    ${button(link, "Accept Invitation")}
+    <p style="font-size:12px; color:#64748b; line-height:1.5;">
+      ${hasAccount ? "Sign in with this email address to accept." : "You will be asked to create an account with this email address first."}
+      This invitation is valid for <strong>7 days</strong>. If you were not expecting it, you can ignore this email.
+    </p>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: `${inviterName} invited you to ${workspaceName} on ${env.appName}`,
+    html: emailWrapper(content, "Workspace invitation"),
+    text: `${inviterName} invited you to join "${workspaceName}" on ${env.appName}. Accept here: ${link}`,
   });
 };
 

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { loginApi } from "../api/auth.api";
+import { startSsoApi } from "../api/workspace.api";
 import { useDispatch } from "react-redux";
 import { setCredentials } from "../store/authSlice";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { nextPathFrom, withNext } from "../utils/nextPath";
 import toast, { Toaster } from "react-hot-toast";
 
 export default function Login() {
@@ -10,21 +12,52 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // Asked for after the password, for an account with two-step sign-in
+  const [needsCode, setNeedsCode] = useState(false);
+  const [code, setCode] = useState("");
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { search } = useLocation();
+  // Someone who came from a template page is taken on to that template after signing in
+  const next = nextPathFrom(search);
+  // Set when signing in through an organisation's identity provider did not work
+  const ssoError = new URLSearchParams(search).get("sso_error");
+
+  // Sends someone with a work email address to their organisation's own sign-in
+  const signInWithSso = async () => {
+    if (!email.trim()) return toast.error("Enter your work email address first");
+    setIsLoading(true);
+    try {
+      const { redirectUrl } = await startSsoApi(email.trim().toLowerCase());
+      window.location.assign(redirectUrl);
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Single sign-on is not set up for that email address");
+      setIsLoading(false);
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const data = await loginApi({ email: email.trim().toLowerCase(), password });
+      const data = await loginApi({ email: email.trim().toLowerCase(), password, ...(needsCode && code.trim() ? { code: code.trim() } : {}) });
       dispatch(setCredentials(data));
       toast.success("Welcome back!");
-      navigate("/dashboard");
+      navigate(next || "/dashboard");
     } catch (err) {
+      const message = err.response?.data?.message || "";
+      // The password was right and the account has two-step sign-in: ask for the code
+      if (message.startsWith("TWO_FACTOR_CODE_NEEDED")) {
+        setNeedsCode(true);
+        return;
+      }
+      if (message.startsWith("TWO_FACTOR_CODE_WRONG")) {
+        toast.error("That code is not right. Try the newest code from your app, or a recovery code.");
+        return;
+      }
       console.error("Login error:", err);
-      toast.error(err.response?.data?.message || "Login failed. Please check your credentials.");
+      toast.error(message || "Login failed. Please check your credentials.");
     } finally {
       setIsLoading(false);
     }
@@ -140,6 +173,30 @@ export default function Login() {
               </div>
             </div>
 
+            {/* The second step, shown once the password has been accepted */}
+            {needsCode && (
+              <div data-testid="two-factor-step">
+                <label htmlFor="code" className="block text-xs font-black uppercase tracking-wider text-gray-300 mb-2">
+                  Code from your authenticator app
+                </label>
+                <input
+                  id="code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  required
+                  maxLength={12}
+                  className="block w-full px-4 py-3 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-yellow-400 text-sm font-medium tracking-widest"
+                  placeholder="123456"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                />
+                <p className="mt-2 text-[11px] text-gray-400">Lost your phone? Enter one of your recovery codes instead.</p>
+              </div>
+            )}
+
+            {ssoError && <p className="text-xs text-amber-300" data-testid="sso-error">{ssoError}</p>}
+
             {/* Submit Button */}
             <button
               type="submit"
@@ -157,12 +214,16 @@ export default function Login() {
             </button>
           </form>
 
+          <button type="button" onClick={signInWithSso} disabled={isLoading} className="w-full text-center text-[11px] font-bold text-gray-400 hover:text-white disabled:opacity-50">
+            Sign in with your organisation's single sign-on
+          </button>
+
           {/* Register Link */}
           <div className="pt-4 border-t-2 border-white/10 text-center">
             <p className="text-xs text-gray-300 font-medium">
               Don't have an account?{" "}
               <Link
-                to="/register"
+                to={withNext("/register", next)}
                 className="font-black text-yellow-400 hover:text-yellow-300 underline underline-offset-4 ml-1"
               >
                 Create an account

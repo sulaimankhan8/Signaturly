@@ -11,7 +11,7 @@ const subscriptionSchema = new mongoose.Schema(
     },
     plan: {
       type: String,
-      enum: ["free", "pro_monthly", "pro_annual", "lifetime", "enterprise"],
+      enum: ["free", "pro_monthly", "pro_annual", "business_monthly", "lifetime", "enterprise"],
       default: "free",
     },
     status: {
@@ -35,9 +35,27 @@ const subscriptionSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // Documents the plan allows each month
     monthlyQuota: {
       type: Number,
-      default: 15, // 15 documents/month for free starter tier
+      default: 5,
+    },
+    // Documents bought as top-ups. Used only after the month's allowance, and kept across months.
+    extraDocuments: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    // Seats paid for, on plans sold by the seat. The owner takes one.
+    seats: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+    // An account that paid under the old unlimited plans keeps that until this date
+    quotaGrandfatheredUntil: {
+      type: Date,
+      default: null,
     },
     usedThisMonth: {
       type: Number,
@@ -71,7 +89,7 @@ const subscriptionSchema = new mongoose.Schema(
     },
     lastPaymentCurrency: {
       type: String,
-      default: "USD",
+      default: "INR",
     },
     // Plans granted by an administrator, with who granted them
     adminGrants: [

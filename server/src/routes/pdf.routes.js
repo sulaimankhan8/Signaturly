@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { upload } from "../config/multer.js";
+import { upload, uploadSeveral, MAX_FILES_TO_JOIN } from "../config/multer.js";
 import {
   uploadPdfController,
   getMyPdfsController,
@@ -21,6 +21,9 @@ router.post(
   upload.single("pdf"),
   uploadPdfController
 );
+
+// Several PDFs joined into one document, in the order sent
+router.post("/upload-joined", protect, uploadSeveral.array("pdfs", MAX_FILES_TO_JOIN), uploadPdfController);
 
 router.get("/my-documents", protect, getMyPdfsController);
 router.delete("/:id", protect, deletePdfController);

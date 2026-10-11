@@ -1,3 +1,4 @@
+import { assertRecordAccess } from "./authorize.service.js";
 import { Recipient } from "../models/Recipient.model.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { User } from "../models/User.model.js";
@@ -88,6 +89,7 @@ export const createRecipientsForDoc = async ({ pdfId, recipientsData }) => {
       passcodeHash,
       authVerified: authType === "none",
       authMethod: channel === "email" ? "email_link" : "message_link",
+      signatureType: r.signatureType === "aadhaar" && (r.role || "signer") === "signer" ? "aadhaar" : "electronic",
     });
   }
 
@@ -506,9 +508,7 @@ export const updateRecipientEmailService = async ({
   const pdf = await Pdf.findById(recipient.pdfId);
   if (!pdf) throw new ApiError(404, "Document not found");
 
-  if (pdf.userId.toString() !== userId?.toString()) {
-    throw new ApiError(403, "Unauthorized to modify this document's recipients");
-  }
+await assertRecordAccess(pdf, userId, "document.remind");
 
   if (["signed", "declined", "voided", "expired"].includes(pdf.status)) {
     throw new ApiError(400, `Cannot update recipient for a document with status: ${pdf.status}`);

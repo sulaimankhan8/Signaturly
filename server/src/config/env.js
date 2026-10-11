@@ -46,12 +46,32 @@ export const buildEnv = (source) => {
     stripeSecretKey: source.STRIPE_SECRET_KEY,
     stripeWebhookSecret: source.STRIPE_WEBHOOK_SECRET,
     razorpayWebhookSecret: source.RAZORPAY_WEBHOOK_SECRET,
+    razorpayKeyId: source.RAZORPAY_KEY_ID,
+    razorpayKeySecret: source.RAZORPAY_KEY_SECRET,
+    // The seller's details on invoices. Without a GST number, receipts are issued instead of tax invoices.
+    sellerLegalName: source.SELLER_LEGAL_NAME,
+    sellerAddress: source.SELLER_ADDRESS,
+    sellerGstin: source.SELLER_GSTIN,
+    sellerStateCode: source.SELLER_STATE_CODE,
+    // SMS and WhatsApp messages are paid for from the sender's wallet where this is on
+    usageChargingEnabled: toBool(source.USAGE_CHARGING_ENABLED, isProd),
     trustProxy: source.TRUST_PROXY !== undefined ? source.TRUST_PROXY : (isProd ? "1" : ""),
     rateLimitDisabled: toBool(source.RATE_LIMIT_DISABLED, false),
     // SMS and WhatsApp. No commercial provider is wired in yet, so production keeps this off.
     messagingEnabled: toBool(source.MESSAGING_ENABLED, !isProd),
+    // Templates no lawyer has reviewed are hidden in production unless this is switched on
+    templatesAllowUnreviewed: toBool(source.TEMPLATES_ALLOW_UNREVIEWED, !isProd),
     messagingProvider: source.MESSAGING_PROVIDER || (isTest ? "test" : "console"),
     // Key for the audit log's hash chain. Outside production it falls back to a value derived from the access secret.
+    // Key for secrets stored encrypted (two-step sign-in seeds, single sign-on secrets). Falls back to the audit key.
+    dataEncryptionKey: source.DATA_ENCRYPTION_KEY,
+    // Aadhaar eSign is postponed to the next version (owner's decision, 11 October 2026), so it
+    // is off everywhere unless named here. "fake" selects a stand-in for trying the flow in
+    // development; the stand-in is refused in production whatever this says.
+    esignProvider: source.ESIGN_PROVIDER || "",
+    esignCallbackSecret: source.ESIGN_CALLBACK_SECRET,
+    // Where the API itself is reached from outside, for links that identity providers call back
+    apiUrl: source.API_URL || `http://localhost:${source.PORT || 5000}`,
     auditHmacKey: source.AUDIT_HMAC_KEY || (isProd ? undefined : `dev-audit:${source.JWT_ACCESS_SECRET || ""}`),
     // Certificate that seals completed PDFs (PKCS#12, base64). Outside production one is generated on first use.
     sealP12Base64: source.SEAL_P12_BASE64,

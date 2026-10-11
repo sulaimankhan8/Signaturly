@@ -29,3 +29,14 @@ export const deleteWebhookApi = async (webhookId) => {
   const res = await API.delete(`/developer/webhooks/${webhookId}`);
   return res.data?.data;
 };
+
+// What was sent to a webhook lately, and sending one of them again
+export const fetchWebhookDeliveriesApi = async (webhookId) => {
+  const res = await API.get(`/developer/webhooks/${webhookId}/deliveries`);
+  return res.data?.data;
+};
+
+export const replayWebhookDeliveryApi = async (deliveryId) => {
+  const res = await API.post(`/developer/webhooks/deliveries/${deliveryId}/replay`);
+  return res.data?.data;
+};

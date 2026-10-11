@@ -4,8 +4,12 @@
   "description": "",
   "main": "index.js",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "test": "vitest run",
+    "migrate": "node src/scripts/migrate.js",
     "test:v2": "node src/scripts/verify-v2-features.js",
     "test:lifecycle": "node src/scripts/verify-lifecycle.js",
     "verify": "node src/scripts/verify-v2-features.js",

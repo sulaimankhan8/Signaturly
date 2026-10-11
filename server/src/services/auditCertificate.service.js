@@ -10,6 +10,7 @@ import { drawShapedText, measureText, isPlainLatin } from "./textShaping.service
 import { formatEvidenceTime } from "../utils/format.js";
 import { describeIdentityCheck } from "../utils/identityCheck.js";
 import { t, own, LANGUAGE_NAMES, DEFAULT_LANGUAGE } from "../i18n/messages.js";
+import { brandingFor } from "./branding.service.js";
 
 const PAGE = { width: 612, height: 792, margin: 40 };
 const INK = rgb(0.1, 0.1, 0.12);
@@ -191,7 +192,10 @@ export const generateAuditCertificatePdf = async (pdfId, requestingUserId = null
   newPage();
   const completed = pdf.status === "signed";
 
-  write(env.appName, { size: 16, font: bold });
+  // A team's documents carry the team's name at the head of the record. The foot of every page
+  // still says who kept the record.
+  const { brand } = await brandingFor(pdf);
+  write(brand?.companyName || env.appName, { size: 16, font: bold });
   y -= 18;
   const titleKey = completed ? "record.title.completed" : "record.title.pending";
   write(english(titleKey), { size: 11, font: bold, color: MUTED });

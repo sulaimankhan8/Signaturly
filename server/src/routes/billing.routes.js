@@ -4,7 +4,13 @@ import {
   getSubscriptionController,
   createCheckoutSessionController,
   devMockUpgradeController,
+  devPayController,
   createBillingPortalController,
+  getWalletController,
+  getBillingProfileController,
+  updateBillingProfileController,
+  listInvoicesController,
+  downloadInvoiceController,
 } from "../controllers/billing.controller.js";
 import { env } from "../config/env.js";
 
@@ -16,9 +22,16 @@ router.get("/subscription", getSubscriptionController);
 router.post("/checkout", createCheckoutSessionController);
 router.post("/portal", createBillingPortalController);
 
-// The simulated upgrade exists only outside production; in production the route is not registered at all
+router.get("/wallet", getWalletController);
+router.get("/profile", getBillingProfileController);
+router.put("/profile", updateBillingProfileController);
+router.get("/invoices", listInvoicesController);
+router.get("/invoices/:id/pdf", downloadInvoiceController);
+
+// Simulated purchases exist only outside production; in production these routes are not registered at all
 if (env.devBillingSimulation) {
   router.post("/dev-upgrade", devMockUpgradeController);
+  router.post("/dev-pay", devPayController);
 }
 
 export default router;

@@ -2,7 +2,7 @@ import crypto from "crypto";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { handleStripeEvent, handleRazorpayEvent } from "../services/billingEvents.service.js";
 import { WebhookEvent } from "../models/WebhookEvent.model.js";
-import { PLAN_CONFIG } from "../services/billing.service.js";
+import { isPlan } from "../config/plans.js";
 import { env } from "../config/env.js";
 
 const STRIPE_TOLERANCE_SECONDS = 5 * 60;
@@ -56,7 +56,7 @@ const claimEvent = async (provider, eventId, type) => {
 const releaseEvent = (provider, eventId) =>
   WebhookEvent.deleteOne({ provider, eventId: String(eventId) });
 
-const knownPlan = (plan) => (Object.prototype.hasOwnProperty.call(PLAN_CONFIG, plan) ? plan : null);
+const knownPlan = (plan) => (isPlan(plan) ? plan : null);
 
 export const handleStripeWebhookController = asyncHandler(async (req, res) => {
   // No secret configured means no way to trust the caller: refuse rather than accept

@@ -5,16 +5,6 @@ export const fetchMyTemplatesApi = async () => {
   return res.data.data;
 };
 
-export const fetchPrebuiltTemplatesApi = async () => {
-  const res = await API.get("/templates/prebuilt");
-  return res.data.data;
-};
-
-export const importPrebuiltTemplateApi = async (prebuiltId) => {
-  const res = await API.post(`/templates/prebuilt/${prebuiltId}/import`);
-  return res.data.data;
-};
-
 export const fetchTemplateDetailsApi = async (id) => {
   const res = await API.get(`/templates/${id}`);
   return res.data.data;

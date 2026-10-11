@@ -155,13 +155,13 @@ export default function TemplateEditor() {
             </div>
             <div className="max-w-md mx-auto space-y-2">
               <span className="text-[9px] font-mono font-bold uppercase tracking-wider bg-yellow-400 text-black px-2.5 py-0.5 rounded-full border border-black font-black">
-                Pro Creator Feature
+                Pro Feature
               </span>
               <h2 className="text-xl sm:text-2xl font-black text-white uppercase">
                 Template Editor Requires Pro Tier
               </h2>
               <p className="text-xs text-gray-300">
-                Custom reusable template creation, role configuration, and field anchoring require a <strong>Pro Creator ($5.99/mo)</strong> or <strong>Lifetime Pass ($69 LTD)</strong> subscription.
+                Custom reusable template creation, role configuration, and field anchoring require a <strong>the Pro plan</strong> subscription.
               </p>
             </div>
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -170,7 +170,7 @@ export default function TemplateEditor() {
                 onClick={() => navigate("/pricing")}
                 className="px-6 py-2.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_#ef4444] transition-all cursor-pointer"
               >
-                Upgrade to Pro ($5.99) →
+                Upgrade to Pro →
               </button>
               <button
                 type="button"

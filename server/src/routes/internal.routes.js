@@ -6,6 +6,7 @@ import { runDueJobs } from "../jobs/queue.js";
 import { processAutomatedReminders } from "../services/reminder.service.js";
 import { processAutomatedExpirations } from "../services/expiration.service.js";
 import { processSubscriptionLifecycle } from "../services/subscription.service.js";
+import { processRetention } from "../services/retention.service.js";
 
 const router = Router();
 
@@ -39,6 +40,11 @@ router.post("/cron/expirations", asyncHandler(async (req, res) => {
 router.post("/cron/subscriptions", asyncHandler(async (req, res) => {
   await processSubscriptionLifecycle();
   res.json({ ok: true });
+}));
+
+// Once a day: erases finished documents older than their workspace asks to keep
+router.post("/cron/retention", asyncHandler(async (req, res) => {
+  res.json({ ok: true, ...(await processRetention()) });
 }));
 
 export default router;

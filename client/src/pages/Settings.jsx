@@ -9,6 +9,7 @@ import toast, { Toaster } from "react-hot-toast";
 
 import { fetchUserSubscription } from "../api/billing.api";
 import { UpgradeModal } from "../components/UpgradeModal";
+import TwoFactorSettings from "../components/TwoFactorSettings";
 
 export default function Settings() {
   const navigate = useNavigate();
@@ -45,8 +46,8 @@ export default function Settings() {
         setSubscription({
           ...data.subscription,
           usedThisMonth: data.quota?.envelopesUsedThisMonth || 0,
-          monthlyQuota: data.quota?.monthlyLimit || 15,
-          isUnlimited: data.quota?.isUnlimited || data.subscription?.plan !== "free",
+          monthlyQuota: data.quota?.monthlyLimit || 5,
+          isUnlimited: Boolean(data.quota?.isUnlimited),
         });
       }
     } catch (err) {
@@ -399,7 +400,7 @@ export default function Settings() {
                 <div>
                   <h4 className="font-bold text-white uppercase text-[11px] text-yellow-400">Plan Options</h4>
                   <p className="text-gray-400 mt-1 leading-relaxed">
-                    Choose from <strong>Pro Creator ($5.99/mo)</strong>, <strong>Lifetime Pass ($69 once)</strong>, or <strong>Enterprise ($14.99/seat)</strong>.
+                    Compare the plans, or manage your plan, extra documents, wallet and invoices on the billing page.
                   </p>
                 </div>
                 <button
@@ -479,6 +480,13 @@ export default function Settings() {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Two-step sign-in sits with the password, under Security */}
+        {activeTab === "security" && (
+          <div className="mt-6">
+            <TwoFactorSettings />
           </div>
         )}
 

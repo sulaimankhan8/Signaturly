@@ -176,7 +176,7 @@ const BulkSend = () => {
           </div>
         )}
 
-        {/* Free Starter Tier Lock Screen */}
+        {/* Free Tier Lock Screen */}
         {subData && subData.subscription?.plan === "free" ? (
           <div className="bg-[#13151f] border-2 border-yellow-400 rounded-3xl p-8 sm:p-12 shadow-[8px_8px_0px_0px_#ef4444] text-center space-y-8">
             <div className="w-16 h-16 rounded-2xl bg-yellow-400 text-black border-2 border-black flex items-center justify-center text-3xl mx-auto shadow-[4px_4px_0px_0px_#fff]">
@@ -184,13 +184,13 @@ const BulkSend = () => {
             </div>
             <div className="max-w-xl mx-auto space-y-3">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider bg-yellow-400 text-black px-3 py-1 rounded-full border border-black font-black">
-                Pro Creator Feature
+                Pro Feature
               </span>
               <h2 className="text-2xl sm:text-3xl font-black text-white uppercase">
                 CSV Bulk Mail Merge is a Pro Feature
               </h2>
               <p className="text-xs sm:text-sm text-gray-300">
-                You are currently on the Free Starter plan. Upgrade to Pro Creator ($5.99/mo) or Lifetime Pass ($69 LTD) to dispatch customized contracts to up to 150 signers per batch with automated tracking.
+                You are currently on the Free plan. Upgrade to the Pro plan to dispatch customized contracts to up to 150 signers per batch with automated tracking.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -199,7 +199,7 @@ const BulkSend = () => {
                 onClick={() => navigate("/pricing")}
                 className="px-8 py-3.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_#ef4444] transition-all cursor-pointer"
               >
-                Upgrade to Pro ($5.99) →
+                Upgrade to Pro →
               </button>
               <button
                 type="button"

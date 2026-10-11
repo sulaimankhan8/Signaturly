@@ -1,0 +1,419 @@
+openapi: 3.0.3
+info:
+  title: PactDoc API
+  version: "1.0"
+  description: >
+    Send documents for signature and follow what happens to them. See README.md in this folder
+    for test mode, webhook signatures and embedded signing. The code behind this file is
+    server/src/routes/v1.routes.js; the two must be changed together.
+servers:
+  - url: https://api.pactdoc.com/api/v1
+    description: Placeholder. Use the address of your own PactDoc API.
+security:
+  - apiKey: []
+tags:
+  - name: Account
+  - name: Documents
+  - name: Templates
+  - name: Webhooks
+
+paths:
+  /me:
+    get:
+      tags: [Account]
+      summary: The workspace, mode and scopes of the key in use
+      responses:
+        "200":
+          description: The key's details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      workspace: { type: object, properties: { id: { type: string }, name: { type: string } } }
+                      mode: { type: string, enum: [live, test] }
+                      scopes: { type: array, items: { type: string } }
+
+  /documents:
+    get:
+      tags: [Documents]
+      summary: List documents, newest first
+      description: Needs the scope documents:read.
+      parameters:
+        - { name: status, in: query, schema: { $ref: "#/components/schemas/DocumentStatus" } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+        - { name: cursor, in: query, description: The nextCursor of the page before, schema: { type: string } }
+      responses:
+        "200":
+          description: A page of documents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: "#/components/schemas/Document" } }
+                  hasMore: { type: boolean }
+                  nextCursor: { type: string, nullable: true }
+    post:
+      tags: [Documents]
+      summary: Upload a PDF
+      description: Needs the scope documents:write. The file may be up to 25 MB and 500 pages and must not be password-protected.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "201": { $ref: "#/components/responses/Document" }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /documents/{id}:
+    get:
+      tags: [Documents]
+      summary: One document with its recipients
+      parameters: [{ $ref: "#/components/parameters/DocumentId" }]
+      responses:
+        "200": { $ref: "#/components/responses/Document" }
+        "404": { $ref: "#/components/responses/Error" }
+
+  /documents/{id}/send:
+    post:
+      tags: [Documents]
+      summary: Send a document for signature
+      description: >
+        Needs the scope documents:write. Counts one document against the plan, unless the key is
+        a test key. A document can be sent once.
+      parameters: [{ $ref: "#/components/parameters/DocumentId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [recipients]
+              properties:
+                recipients: { type: array, minItems: 1, maxItems: 50, items: { $ref: "#/components/schemas/RecipientInput" } }
+                fields: { type: array, maxItems: 500, items: { $ref: "#/components/schemas/FieldInput" } }
+                message: { type: string, maxLength: 2000 }
+                expiresAt: { type: string, format: date-time, description: Must be in the future }
+                signingOrder: { type: boolean, description: When true, recipients sign one after another in their signingOrder }
+      responses:
+        "200": { $ref: "#/components/responses/Document" }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /documents/{id}/void:
+    post:
+      tags: [Documents]
+      summary: Void a document that is out for signature
+      parameters: [{ $ref: "#/components/parameters/DocumentId" }]
+      responses:
+        "200": { $ref: "#/components/responses/Document" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /documents/{id}/download:
+    get:
+      tags: [Documents]
+      summary: A short-lived link to the file
+      description: The sealed copy with its signing record once everyone has signed, otherwise the file as uploaded.
+      parameters: [{ $ref: "#/components/parameters/DocumentId" }]
+      responses:
+        "200":
+          description: The link
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      url: { type: string }
+                      signed: { type: boolean }
+                      expiresInSeconds: { type: integer }
+
+  /documents/{id}/recipients/{recipientId}/remind:
+    post:
+      tags: [Documents]
+      summary: Send a recipient a reminder
+      parameters:
+        - { $ref: "#/components/parameters/DocumentId" }
+        - { $ref: "#/components/parameters/RecipientId" }
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { message: { type: string, maxLength: 2000 } } }
+      responses:
+        "200":
+          description: The recipient
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { $ref: "#/components/schemas/Recipient" } } }
+
+  /documents/{id}/recipients/{recipientId}/embed:
+    post:
+      tags: [Documents]
+      summary: Create an embedded signing session
+      description: >
+        Returns an address to load in a frame on your own website, valid for 15 minutes.
+        The website's origin must be on the workspace's list of sites allowed to embed signing.
+      parameters:
+        - { $ref: "#/components/parameters/DocumentId" }
+        - { $ref: "#/components/parameters/RecipientId" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [origin]
+              properties:
+                origin: { type: string, example: "https://app.example.com" }
+      responses:
+        "201":
+          description: The session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      url: { type: string }
+                      origin: { type: string }
+                      expiresAt: { type: string, format: date-time }
+        "403": { $ref: "#/components/responses/Error" }
+
+  /templates:
+    get:
+      tags: [Templates]
+      summary: The workspace's saved templates
+      description: Needs the scope templates:read.
+      responses:
+        "200":
+          description: Templates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        name: { type: string }
+                        pageCount: { type: integer }
+                        roles: { type: array, items: { type: object, properties: { id: { type: string }, name: { type: string } } } }
+                        createdAt: { type: string, format: date-time }
+
+  /templates/{id}/documents:
+    post:
+      tags: [Templates]
+      summary: Make a document from a saved template and send it
+      description: Needs the scope documents:write. Counts one document against the plan, unless the key is a test key.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [signers]
+              properties:
+                signers:
+                  type: object
+                  description: One entry for each role of the template, keyed by the role's id
+                  additionalProperties:
+                    type: object
+                    required: [name, email]
+                    properties: { name: { type: string }, email: { type: string, format: email } }
+                message: { type: string, maxLength: 2000 }
+                expiresAt: { type: string, format: date-time }
+                signingOrder: { type: boolean }
+      responses:
+        "201": { $ref: "#/components/responses/Document" }
+
+  /webhooks:
+    get:
+      tags: [Webhooks]
+      summary: The workspace's webhooks
+      description: Needs the scope webhooks:manage.
+      responses:
+        "200":
+          description: Webhooks
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { type: array, items: { $ref: "#/components/schemas/Webhook" } } } }
+    post:
+      tags: [Webhooks]
+      summary: Create a webhook
+      description: The answer contains the signing secret, which is not shown again.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, description: An https address reachable from the internet }
+                events: { type: array, items: { $ref: "#/components/schemas/EventName" } }
+      responses:
+        "201":
+          description: The webhook and its secret
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: "#/components/schemas/Webhook"
+                      - { type: object, properties: { secret: { type: string, example: "whsec_..." } } }
+
+  /webhooks/{id}:
+    delete:
+      tags: [Webhooks]
+      summary: Delete a webhook
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200": { description: Deleted }
+
+  /webhooks/{id}/deliveries:
+    get:
+      tags: [Webhooks]
+      summary: The last 50 deliveries to a webhook, from the last 30 days
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200":
+          description: Deliveries
+          content:
+            application/json:
+              schema: { type: object, properties: { data: { type: array, items: { $ref: "#/components/schemas/Delivery" } } } }
+
+  /webhooks/deliveries/{deliveryId}/replay:
+    post:
+      tags: [Webhooks]
+      summary: Send a delivery again, with the same event id
+      parameters: [{ name: deliveryId, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200": { description: Queued }
+
+components:
+  securitySchemes:
+    apiKey:
+      type: http
+      scheme: bearer
+      description: "An API key: pd_live_... or pd_test_..."
+  parameters:
+    DocumentId: { name: id, in: path, required: true, schema: { type: string } }
+    RecipientId: { name: recipientId, in: path, required: true, schema: { type: string } }
+  responses:
+    Document:
+      description: The document
+      content:
+        application/json:
+          schema: { type: object, properties: { data: { $ref: "#/components/schemas/Document" } } }
+    Error:
+      description: What went wrong
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    DocumentStatus:
+      type: string
+      enum: [draft, uploaded, pending, partially_signed, signed, declined, voided, expired, failed]
+    EventName:
+      type: string
+      enum: [envelope.sent, recipient.viewed, recipient.signed, envelope.completed, envelope.declined, envelope.voided]
+    Document:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        status: { $ref: "#/components/schemas/DocumentStatus" }
+        pageCount: { type: integer }
+        test: { type: boolean, description: Made with a test key }
+        sealed: { type: boolean, description: The completed copy has been sealed }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        recipients: { type: array, items: { $ref: "#/components/schemas/Recipient" } }
+    Recipient:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        role: { type: string, enum: [signer, viewer, approver] }
+        signingOrder: { type: integer }
+        status: { type: string, enum: [pending, sent, viewed, signed, declined] }
+        signatureType: { type: string, enum: [electronic, aadhaar] }
+        viewedAt: { type: string, format: date-time, nullable: true }
+        signedAt: { type: string, format: date-time, nullable: true }
+        declineReason: { type: string, nullable: true }
+        signingUrl: { type: string, description: Present on test documents only }
+    RecipientInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email, description: Required unless channel is sms or whatsapp }
+        phone: { type: string }
+        channel: { type: string, enum: [email, sms, whatsapp], default: email }
+        role: { type: string, enum: [signer, viewer, approver], default: signer }
+        signingOrder: { type: integer, minimum: 1 }
+        language: { type: string, enum: [en, hi], default: en }
+        authType: { type: string, enum: [none, otp, passcode], default: none }
+        passcode: { type: string, description: Required when authType is passcode; at least 4 characters }
+    FieldInput:
+      type: object
+      required: [type, page, xPercent, yPercent]
+      description: Positions and sizes are fractions of the page, from 0 to 1, measured from its top-left corner.
+      properties:
+        type: { type: string, description: "signature, initials, date, text or checkbox", default: signature }
+        page: { type: integer, minimum: 1 }
+        xPercent: { type: number, minimum: 0, maximum: 1 }
+        yPercent: { type: number, minimum: 0, maximum: 1 }
+        widthPercent: { type: number, default: 0.2 }
+        heightPercent: { type: number, default: 0.05 }
+        label: { type: string }
+        required: { type: boolean, default: true }
+        recipientEmail: { type: string, description: Which recipient fills this field }
+    Webhook:
+      type: object
+      properties:
+        id: { type: string }
+        url: { type: string }
+        events: { type: array, items: { $ref: "#/components/schemas/EventName" } }
+        status: { type: string, enum: [active, disabled] }
+        createdAt: { type: string, format: date-time }
+    Delivery:
+      type: object
+      properties:
+        id: { type: string }
+        event: { $ref: "#/components/schemas/EventName" }
+        status: { type: string, enum: [pending, delivered, failed] }
+        attempts: { type: integer }
+        responseStatus: { type: integer, nullable: true }
+        lastError: { type: string }
+        createdAt: { type: string, format: date-time }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+    Error:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+        errors: { type: array, description: Details for each thing that was wrong, where there are several, items: { type: object } }

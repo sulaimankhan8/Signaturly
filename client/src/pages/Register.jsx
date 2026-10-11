@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { registerApi } from "../api/auth.api";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { nextPathFrom, withNext } from "../utils/nextPath";
 import toast, { Toaster } from "react-hot-toast";
 
 export default function Register() {
@@ -10,6 +11,8 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  // Someone who came from a template page is taken on to that template after signing in
+  const next = nextPathFrom(useLocation().search);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -18,7 +21,7 @@ export default function Register() {
     try {
       await registerApi({ name: name.trim(), email: email.trim().toLowerCase(), password });
       toast.success("Account created. Check your email to confirm your address, then sign in.", { duration: 6000 });
-      navigate("/login");
+      navigate(withNext("/login", next));
     } catch (err) {
       console.error("Register error:", err);
       toast.error(err.response?.data?.message || "Registration failed. Please try again.");
@@ -175,7 +178,7 @@ export default function Register() {
             <p className="text-xs text-gray-300 font-medium">
               Already have an account?{" "}
               <Link
-                to="/login"
+                to={withNext("/login", next)}
                 className="font-black text-yellow-400 hover:text-yellow-300 underline underline-offset-4 ml-1"
               >
                 Sign In

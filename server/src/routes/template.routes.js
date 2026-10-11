@@ -1,55 +1,26 @@
 import { Router } from "express";
 import { protect } from "../middlewares/auth.middleware.js";
-import { requireTier } from "../middlewares/subscription.middleware.js";
+import { requireFeature } from "../middlewares/subscription.middleware.js";
 import { upload } from "../config/multer.js";
 import {
   createTemplateController,
   getMyTemplatesController,
-  getPrebuiltTemplatesController,
-  importPrebuiltTemplateController,
   getTemplateDetailsController,
   updateTemplateController,
   deleteTemplateController,
   useTemplateController,
 } from "../controllers/template.controller.js";
 
+// A sender's own templates: PDFs they uploaded, with fields placed, to send again and again.
+// The ready-made templates that are filled in by answering questions live in catalogue.routes.js.
 const router = Router();
 
-// Viewing prebuilt catalog and my templates is accessible so users can see the library
-router.get("/prebuilt", protect, getPrebuiltTemplatesController);
 router.get("/", protect, getMyTemplatesController);
 router.get("/:id", protect, getTemplateDetailsController);
 
-// Importing, creating, and dispatching templates requires Pro, Lifetime, or Enterprise tier
-router.post(
-  "/prebuilt/:prebuiltId/import",
-  protect,
-  requireTier(["pro_monthly", "pro_annual", "lifetime", "enterprise"]),
-  importPrebuiltTemplateController
-);
-
-router.post(
-  "/",
-  protect,
-  requireTier(["pro_monthly", "pro_annual", "lifetime", "enterprise"]),
-  upload.single("pdf"),
-  createTemplateController
-);
-
-router.put(
-  "/:id",
-  protect,
-  requireTier(["pro_monthly", "pro_annual", "lifetime", "enterprise"]),
-  updateTemplateController
-);
-
+router.post("/", protect, requireFeature("templates.own"), upload.single("pdf"), createTemplateController);
+router.put("/:id", protect, requireFeature("templates.own"), updateTemplateController);
 router.delete("/:id", protect, deleteTemplateController);
-
-router.post(
-  "/:id/use",
-  protect,
-  requireTier(["pro_monthly", "pro_annual", "lifetime", "enterprise"]),
-  useTemplateController
-);
+router.post("/:id/use", protect, requireFeature("templates.own"), useTemplateController);
 
 export default router;

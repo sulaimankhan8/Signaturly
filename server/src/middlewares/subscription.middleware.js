@@ -1,28 +1,29 @@
 import { getOrCreateSubscription } from "../services/subscription.service.js";
+import { can, upgradeMessage } from "../services/entitlements.service.js";
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
-export const requireTier = (allowedTiers = []) => {
-  return asyncHandler(async (req, res, next) => {
+/**
+ * Lets the request through only if the plan includes the feature.
+ * Which plans include what is decided in services/entitlements.service.js, never here or in a route.
+ *
+ * The plan looked at is the one that pays for the workspace the request is working in: a member
+ * of a team works under the team owner's plan. `own: true` looks at the person's own plan
+ * instead, for things they would own themselves, such as a new team workspace.
+ */
+export const requireFeature = (feature, { own = false } = {}) =>
+  asyncHandler(async (req, res, next) => {
     const userId = req.user?._id;
     if (!userId) {
       throw new ApiError(401, "Authentication required");
     }
 
-    const sub = await getOrCreateSubscription(userId);
+    const sub = await getOrCreateSubscription(own ? userId : req.billingUserId || userId);
     req.subscription = sub;
 
-    // Normalize check - if subscription is expired or canceled, treat as free
-    const isExpired = sub.status === "expired" || sub.status === "canceled" || (sub.currentPeriodEnd && new Date() > new Date(sub.currentPeriodEnd) && sub.status !== "past_due" && sub.status !== "active");
-    const currentPlan = isExpired ? "free" : (sub.plan || "free");
-    
-    if (!allowedTiers.includes(currentPlan)) {
-      throw new ApiError(
-        403,
-        `UPGRADE_REQUIRED: This feature is restricted to ${allowedTiers.map(t => t.toUpperCase()).join(" / ")} subscribers. Your current plan is ${currentPlan.toUpperCase()}${isExpired ? " (EXPIRED)" : ""}.`
-      );
+    if (!can(sub, feature)) {
+      throw new ApiError(403, upgradeMessage(feature));
     }
 
     next();
   });
-};

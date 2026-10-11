@@ -7,6 +7,7 @@ on:
     paths:
       - 'server/**'
       - '.github/workflows/deploy-backend.yml'
+      - '.github/scripts/cloud_run_settings.py'
   workflow_dispatch:
 
 env:
@@ -33,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: server/package-lock.json
       - run: npm ci
@@ -78,6 +79,37 @@ jobs:
           docker push "${IMAGE_TAG}:${{ github.sha }}"
           docker push "${IMAGE_TAG}:latest"
 
+      # The plain settings go into a file and the secrets into a list. Optional ones, such as the
+      # Razorpay keys, are included only when the repository has them: see the script.
+      - name: 🧾 Collect the service's settings
+        id: settings
+        env:
+          GCP_PROJECT_ID: ${{ env.PROJECT_ID }}
+          GCS_BUCKET_NAME: ${{ vars.GCS_BUCKET_NAME }}
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
+          SMTP_FROM: ${{ vars.SMTP_FROM }}
+          CORS_ORIGIN: ${{ vars.CORS_ORIGIN }}
+          APP_URL: ${{ vars.APP_URL }}
+          API_URL: ${{ vars.API_URL }}
+          BILLING_ENABLED: ${{ vars.BILLING_ENABLED }}
+          RAZORPAY_KEY_ID: ${{ vars.RAZORPAY_KEY_ID }}
+          SELLER_LEGAL_NAME: ${{ vars.SELLER_LEGAL_NAME }}
+          SELLER_ADDRESS: ${{ vars.SELLER_ADDRESS }}
+          SELLER_GSTIN: ${{ vars.SELLER_GSTIN }}
+          SELLER_STATE_CODE: ${{ vars.SELLER_STATE_CODE }}
+          USAGE_CHARGING_ENABLED: ${{ vars.USAGE_CHARGING_ENABLED }}
+          MESSAGING_ENABLED: ${{ vars.MESSAGING_ENABLED }}
+          MESSAGING_PROVIDER: ${{ vars.MESSAGING_PROVIDER }}
+          TEMPLATES_ALLOW_UNREVIEWED: ${{ vars.TEMPLATES_ALLOW_UNREVIEWED }}
+          SIGNING_LINK_TTL_DAYS: ${{ vars.SIGNING_LINK_TTL_DAYS }}
+          FILE_URL_TTL_SECONDS: ${{ vars.FILE_URL_TTL_SECONDS }}
+          TRUST_PROXY: ${{ vars.TRUST_PROXY }}
+          OPTIONAL_SECRETS: ${{ vars.OPTIONAL_SECRETS }}
+        run: |
+          SECRETS="$(python3 .github/scripts/cloud_run_settings.py "$RUNNER_TEMP/settings.yaml")"
+          echo "secrets=$SECRETS" >> "$GITHUB_OUTPUT"
+
       - name: 🌐 Deploy to Google Cloud Run
         run: |
           IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
@@ -89,5 +121,5 @@ jobs:
             --min-instances 0 \
             --max-instances 1 \
             --memory 512Mi \
-            --set-env-vars="^@^NODE_ENV=production@STORAGE_PROVIDER=gcs@GCP_PROJECT_ID=${{ env.PROJECT_ID }}@GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}@GCS_SIGNED_URL_EXPIRES=900@SMTP_HOST=${{ vars.SMTP_HOST }}@SMTP_PORT=${{ vars.SMTP_PORT }}@SMTP_FROM=${{ vars.SMTP_FROM }}@CORS_ORIGIN=${{ vars.CORS_ORIGIN }}@APP_URL=${{ vars.APP_URL }}" \
-            --set-secrets="MONGO_URI=MONGO_URI:latest,JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest,JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest,ADMIN_SECRET_KEY=ADMIN_SECRET_KEY:latest,ADMIN_JWT_SECRET=ADMIN_JWT_SECRET:latest,AUDIT_HMAC_KEY=AUDIT_HMAC_KEY:latest,SEAL_P12_BASE64=SEAL_P12_BASE64:latest,SEAL_P12_PASSWORD=SEAL_P12_PASSWORD:latest,INTERNAL_JOB_SECRET=INTERNAL_JOB_SECRET:latest,SMTP_USER=SMTP_USER:latest,SMTP_PASS=SMTP_PASS:latest"
+            --env-vars-file "$RUNNER_TEMP/settings.yaml" \
+            --set-secrets="${{ steps.settings.outputs.secrets }}"

@@ -8,8 +8,11 @@ import mongoose from "mongoose";
 import { getFileUrl } from "../services/storage.service.js";
 import { currentKeyOf, downloadKeyOf } from "../services/documentFiles.service.js";
 import { withDocumentLock } from "../services/documentLock.service.js";
+import { assertRecordAccess } from "../services/authorize.service.js";
 
-const loadOwnedPdf = async (pdfId, userId) => {
+// Without `action`, only the person who made the document passes. With one, the workspace's
+// roles decide, as everywhere else.
+const loadOwnedPdf = async (pdfId, userId, action = null) => {
   if (typeof pdfId !== "string" || !mongoose.isValidObjectId(pdfId)) {
     throw new ApiError(400, "Invalid document identifier");
   }
@@ -17,6 +20,10 @@ const loadOwnedPdf = async (pdfId, userId) => {
   const pdf = await Pdf.findOne({ _id: pdfId, deletedAt: null });
   if (!pdf) {
     throw new ApiError(404, "PDF not found");
+  }
+  if (action) {
+    await assertRecordAccess(pdf, userId, action, { notFound: "PDF not found" });
+    return pdf;
   }
   if (pdf.userId.toString() !== userId) {
     throw new ApiError(403, "Unauthorized");
@@ -62,7 +69,7 @@ export const signPdfController = asyncHandler(async (req, res) => {
 });
 
 export const getPdfController = asyncHandler(async (req, res) => {
-  const pdf = await loadOwnedPdf(req.params.id, req.user.id);
+  const pdf = await loadOwnedPdf(req.params.id, req.user.id, "document.read");
 
   // The editor works on the latest signed version, so earlier signatures stay visible while adding more.
   // (The sealed copy is for download: it carries the signing record and must not be edited.)

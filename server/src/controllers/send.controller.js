@@ -7,13 +7,24 @@ import { Pdf } from "../models/Pdf.model.js";
 import { Recipient } from "../models/Recipient.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { reserveQuota, releaseQuota } from "../services/subscription.service.js";
+import { assertRecordAccess } from "../services/authorize.service.js";
+import { assertTwoFactorPolicy } from "../services/workspace.service.js";
+import { billingUserIdOf } from "../services/branding.service.js";
+import mongoose from "mongoose";
 
 export const sendDocumentController = asyncHandler(async (req, res) => {
   const { pdfId } = req.params;
   const { recipients, fields, message, expiresAt, signingOrder } = req.body;
 
-  // Count the document against the plan before sending; give it back if the send fails
-  await reserveQuota(req.user.id, 1);
+  assertTwoFactorPolicy(req);
+
+  // Count the document against the plan that pays for the workspace the document is in, whichever
+  // workspace the sender happens to be looking at; give it back if the send fails.
+  // Documents made with a test key are never counted.
+  const document = mongoose.isValidObjectId(String(pdfId)) ? await Pdf.findOne({ _id: String(pdfId), deletedAt: null }).select("userId workspaceId testMode") : null;
+  const payer = document ? await billingUserIdOf(document) : req.user.id;
+  const billed = !document?.testMode;
+  if (billed) await reserveQuota(payer, 1);
 
   let result;
   try {
@@ -29,7 +40,7 @@ export const sendDocumentController = asyncHandler(async (req, res) => {
       userAgent: req.headers["user-agent"],
     });
   } catch (err) {
-    await releaseQuota(req.user.id, 1);
+    if (billed) await releaseQuota(payer, 1);
     throw err;
   }
 
@@ -44,9 +55,7 @@ export const getDocumentDetailsController = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Document not found");
   }
 
-  if (pdf.userId.toString() !== req.user.id) {
-    throw new ApiError(403, "Unauthorized");
-  }
+  await assertRecordAccess(pdf, req.user.id, "document.read");
 
   res.status(200).json(new ApiResponse(pdf, "Document retrieved"));
 });

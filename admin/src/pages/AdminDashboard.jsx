@@ -326,7 +326,7 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <span className="text-base font-black text-white tracking-tight block">
-                  Signatur<span className="text-red-500">ly</span> PRO
+                  Pact<span className="text-red-500">Doc</span>
                 </span>
                 <span className="text-[9px] font-mono font-black uppercase text-red-400 bg-red-950/60 px-2 py-0.5 rounded border border-red-800 inline-block mt-0.5">
                   SUPERADMIN CONSOLE
@@ -440,6 +440,13 @@ export default function AdminDashboard() {
                 <span className="text-gray-300">{Math.floor((systemHealth.uptimeSeconds || 0) / 60)} min</span>
               </div>
             </div>
+
+            <button
+              onClick={() => navigate("/templates")}
+              className="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-[11px] font-bold text-gray-200 cursor-pointer"
+            >
+              Manage templates
+            </button>
 
             <div className="pt-2 flex items-center justify-between border-t border-white/5">
               <div className="text-[11px] font-bold text-gray-300 truncate max-w-[120px]">

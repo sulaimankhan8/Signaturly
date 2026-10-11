@@ -8,6 +8,13 @@ const templateSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    // The workspace whose members share this template. `userId` above is who saved it.
+    workspaceId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Workspace",
+      default: null,
+      index: true,
+    },
     name: {
       type: String,
       required: true,

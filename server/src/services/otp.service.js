@@ -4,6 +4,8 @@ import { RecipientOtp } from "../models/RecipientOtp.model.js";
 import { Recipient } from "../models/Recipient.model.js";
 import { sendOtpEmail } from "./email.service.js";
 import { sendMessage } from "./messaging/index.js";
+import { chargeForMessage } from "./wallet.service.js";
+import { Pdf } from "../models/Pdf.model.js";
 
 export const OTP_RESEND_WAIT_MS = 60 * 1000;
 export const OTP_MAX_SENDS_PER_HOUR = 5;
@@ -60,6 +62,9 @@ export async function generateAndSendOtp(recipientId, email, pdfTitle = "Documen
   // The code goes wherever the signing link went
   const viaMessage = recipient.channel !== "email" && recipient.phone;
   if (viaMessage) {
+    // The sender's wallet pays for the code, like any other message
+    const pdf = await Pdf.findById(recipient.pdfId).select("userId").lean();
+    if (pdf) await chargeForMessage({ userId: pdf.userId, channel: recipient.channel, reference: `otp:${recipient._id}:${now}` });
     await sendMessage({
       channel: recipient.channel,
       to: recipient.phone,

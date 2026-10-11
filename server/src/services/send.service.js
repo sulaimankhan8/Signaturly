@@ -1,3 +1,4 @@
+import { assertRecordAccess } from "./authorize.service.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { Recipient } from "../models/Recipient.model.js";
 import { User } from "../models/User.model.js";
@@ -6,6 +7,7 @@ import { createRecipientsForDoc } from "./recipient.service.js";
 import { eventBus, EventTypes } from "../events/index.js";
 import { notifyUserDocumentUpdate } from "./sse.service.js";
 import { normalizePhone } from "./messaging/index.js";
+import { prepareAadhaarSigners } from "./esign/esign.service.js";
 
 export const sendDocumentToRecipients = async ({
   pdfId,
@@ -23,9 +25,7 @@ export const sendDocumentToRecipients = async ({
     throw new ApiError(404, "Document not found");
   }
 
-  if (pdf.userId.toString() !== userId) {
-    throw new ApiError(403, "You are not authorized to send this document");
-  }
+  await assertRecordAccess(pdf, userId, "document.send");
 
   // A document already out for signature must be voided, not silently re-sent with new signers
   const alreadySent = (pdf.recipients || []).length > 0 || !["draft", "uploaded", "signed"].includes(pdf.status);
@@ -38,6 +38,12 @@ export const sendDocumentToRecipients = async ({
   }
 
   const sender = await User.findById(userId);
+
+  // Where anyone signs with Aadhaar eSign, those signers go last and the document is signed
+  // in order. This also checks that Aadhaar eSign is available and can be paid for.
+  const aadhaar = await prepareAadhaarSigners({ pdf, recipientsData });
+  recipientsData = aadhaar.recipientsData;
+  if (aadhaar.count > 0) signingOrder = true;
 
   // 1. Create recipient records
   const recipients = await createRecipientsForDoc({
@@ -168,9 +174,7 @@ export const sendDocumentToRecipients = async ({
 export const voidDocument = async ({ pdfId, userId, ipAddress, userAgent }) => {
   const pdf = await Pdf.findOne({ _id: String(pdfId), deletedAt: null });
   if (!pdf) throw new ApiError(404, "Document not found");
-  if (pdf.userId.toString() !== userId) {
-    throw new ApiError(403, "Unauthorized");
-  }
+  await assertRecordAccess(pdf, userId, "document.void");
 
   if (!["pending", "partially_signed"].includes(pdf.status)) {
     throw new ApiError(409, `A document that is ${pdf.status} cannot be voided`);

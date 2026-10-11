@@ -1,11 +1,38 @@
-import { uploadPdfApi } from "../api/pdf.api";
+import { uploadPdfApi, uploadJoinedPdfsApi } from "../api/pdf.api";
+
+// Up to this many PDFs can be joined into one document
+const MAX_FILES = 10;
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 import Navbar from "../components/Navbar";
 
 export default function UploadPdf() {
-  const [file, setFile] = useState(null);
+  // One PDF, or several that will be joined in this order and signed as one document
+  const [files, setFiles] = useState([]);
+  const file = files[0] || null;
+
+  const addFiles = (chosen) => {
+    const pdfs = Array.from(chosen || []).filter((f) => f.type === "application/pdf");
+    if (pdfs.length === 0) {
+      toast.error("Please select a valid PDF file");
+      return;
+    }
+    setFiles((current) => {
+      const next = [...current, ...pdfs].slice(0, MAX_FILES);
+      if (current.length + pdfs.length > MAX_FILES) toast.error(`At most ${MAX_FILES} files can be joined`);
+      return next;
+    });
+    toast.success(pdfs.length === 1 ? "PDF file selected" : `${pdfs.length} PDF files selected`);
+  };
+
+  const moveUp = (index) =>
+    setFiles((current) => {
+      if (index === 0) return current;
+      const next = [...current];
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      return next;
+    });
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -26,21 +53,13 @@ export default function UploadPdf() {
     e.preventDefault();
     setIsDragging(false);
 
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && droppedFile.type === "application/pdf") {
-      setFile(droppedFile);
-      toast.success("PDF file selected");
-    } else {
-      toast.error("Please select a valid PDF file");
-    }
+    addFiles(e.dataTransfer.files);
   };
 
   const handleFileSelect = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      toast.success("PDF file selected");
-    }
+    addFiles(e.target.files);
+    // So the same file can be chosen again after being removed
+    e.target.value = "";
   };
 
   const formatFileSize = (bytes) => {
@@ -51,8 +70,8 @@ export default function UploadPdf() {
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
   };
 
-  const removeFile = () => {
-    setFile(null);
+  const removeFile = (index) => {
+    setFiles((current) => current.filter((_, i) => i !== index));
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -78,7 +97,7 @@ export default function UploadPdf() {
         });
       }, 150);
 
-      const data = await uploadPdfApi(file);
+      const data = files.length > 1 ? await uploadJoinedPdfsApi(files) : await uploadPdfApi(file);
 
       clearInterval(progressInterval);
       setUploadProgress(100);
@@ -134,12 +153,13 @@ export default function UploadPdf() {
               <h3 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight mb-2">
                 {isDragging ? "Drop your PDF here" : "Drag & Drop your PDF document"}
               </h3>
-              <p className="text-gray-400 text-xs mb-6 font-medium">Support for single or multi-page PDF documents</p>
+              <p className="text-gray-400 text-xs mb-6 font-medium">One PDF, or several to be joined into one document and signed together</p>
 
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="application/pdf"
+                multiple
                 onChange={handleFileSelect}
                 className="hidden"
                 id="file-input"
@@ -151,32 +171,53 @@ export default function UploadPdf() {
                 Browse PDF File
               </label>
 
-              <p className="text-gray-400 text-[11px] font-mono mt-4">Maximum file size: 50MB</p>
+              <p className="text-gray-400 text-[11px] font-mono mt-4">Maximum size: 25 MB, up to {MAX_FILES} files</p>
             </div>
           </div>
 
           {file && (
             <div className="bg-[#090a0f] rounded-2xl p-6 border-2 border-white/20 shadow-[3px_3px_0px_0px_#000]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-red-600 border-2 border-black text-white font-black text-xs rounded-xl flex items-center justify-center shadow-[2px_2px_0px_0px_#000]">
-                    PDF
-                  </div>
-                  <div>
-                    <h4 className="text-white font-black text-xs truncate max-w-xs">{file.name}</h4>
-                    <p className="text-gray-400 text-[11px] font-mono mt-0.5">{formatFileSize(file.size)}</p>
-                  </div>
-                </div>
+              {files.length > 1 && (
+                <p className="text-[11px] text-gray-400 mb-4" data-testid="join-note">
+                  These {files.length} files will be joined in this order into one document. Signers sign it once.
+                </p>
+              )}
+              <ul className="space-y-3" data-testid="chosen-files">
+                {files.map((chosen, index) => (
+                  <li key={`${chosen.name}-${index}`} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4 min-w-0">
+                      <div className="w-12 h-12 shrink-0 bg-red-600 border-2 border-black text-white font-black text-xs rounded-xl flex items-center justify-center shadow-[2px_2px_0px_0px_#000]">
+                        {files.length > 1 ? index + 1 : "PDF"}
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="text-white font-black text-xs truncate max-w-xs">{chosen.name}</h4>
+                        <p className="text-gray-400 text-[11px] font-mono mt-0.5">{formatFileSize(chosen.size)}</p>
+                      </div>
+                    </div>
 
-                <button
-                  onClick={removeFile}
-                  className="text-gray-400 hover:text-red-400 p-2 rounded-xl hover:bg-white/5 transition-colors font-black"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+                    <div className="flex items-center shrink-0">
+                      {index > 0 && !isUploading && (
+                        <button onClick={() => moveUp(index)} title="Move up" className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/5 transition-colors font-black">
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
+                          </svg>
+                        </button>
+                      )}
+                      {!isUploading && (
+                        <button
+                          onClick={() => removeFile(index)}
+                          title="Remove"
+                          className="text-gray-400 hover:text-red-400 p-2 rounded-xl hover:bg-white/5 transition-colors font-black"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
 
               {isUploading && (
                 <div className="mt-6 space-y-2">
@@ -201,7 +242,7 @@ export default function UploadPdf() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
-                  <span>Upload & Open in Editor →</span>
+                  <span>{files.length > 1 ? "Join, Upload & Open in Editor →" : "Upload & Open in Editor →"}</span>
                 </button>
               )}
             </div>

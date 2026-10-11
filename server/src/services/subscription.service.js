@@ -2,29 +2,38 @@ import { Subscription } from "../models/Subscription.model.js";
 import { Workspace } from "../models/Workspace.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { env } from "../config/env.js";
+import { PLANS, isPlan, quotaOf, periodMsOf } from "../config/plans.js";
 
-const PLAN_QUOTAS = {
-  free: 15,
-  pro_monthly: 999999,
-  pro_annual: 999999,
-  lifetime: 999999,
-  enterprise: 999999,
-};
+// Document allowances come from the plan catalogue
+const PLAN_QUOTAS = Object.fromEntries(Object.keys(PLANS).map((plan) => [plan, quotaOf(plan)]));
 
 export const getOrCreateSubscription = async (userId) => {
   let sub = await Subscription.findOne({ userId });
 
   if (!sub) {
-    sub = await Subscription.create({
-      userId,
-      plan: "free",
-      status: "free",
-      monthlyQuota: PLAN_QUOTAS.free,
-      usedThisMonth: 0,
-    });
+    // A new account's first pages ask for the subscription several times at once.
+    // Only one of those requests may create it; the others read what that one made.
+    try {
+      sub = await Subscription.create({
+        userId,
+        plan: "free",
+        status: "free",
+        monthlyQuota: PLAN_QUOTAS.free,
+        usedThisMonth: 0,
+      });
+    } catch (err) {
+      if (err?.code !== 11000) throw err;
+      sub = await Subscription.findOne({ userId });
+    }
   }
 
   const now = new Date();
+
+  // An account that paid for an unlimited period under the old plans has reached the end of it
+  if (sub.quotaGrandfatheredUntil && now >= sub.quotaGrandfatheredUntil) {
+    sub.quotaGrandfatheredUntil = null;
+    sub.monthlyQuota = quotaOf(sub.plan) * (PLANS[sub.plan]?.perSeat ? sub.seats || 1 : 1);
+  }
 
   // 1. Lazy reset monthly quota if current time is past quotaResetDate
   if (sub.quotaResetDate && now >= sub.quotaResetDate) {
@@ -67,7 +76,7 @@ export const getOrCreateSubscription = async (userId) => {
       // Soft-lock owned workspaces to read-only mode
       try {
         await Workspace.updateMany(
-          { ownerId: userId },
+          { ownerId: userId, personal: { $ne: true } },
           { status: "read_only" }
         );
       } catch (wsErr) {
@@ -85,70 +94,95 @@ export const getOrCreateSubscription = async (userId) => {
   return sub;
 };
 
+// Whether an account could send `count` more documents, without counting them.
+// Sending itself uses reserveQuota, which checks and counts in one step.
 export const checkQuota = async (userId, count = 1) => {
   const sub = await getOrCreateSubscription(userId);
-
-  if (sub.plan === "free" && sub.usedThisMonth + count > sub.monthlyQuota) {
-    throw new ApiError(
-      403,
-      `Monthly document quota exceeded (${sub.usedThisMonth}/${sub.monthlyQuota} used). Please upgrade to Pro for unlimited envelopes.`
-    );
+  if (sub.usedThisMonth + count > sub.monthlyQuota + (sub.extraDocuments || 0)) {
+    throw new ApiError(403, `Monthly document quota exceeded (${sub.usedThisMonth} of ${sub.monthlyQuota} used).`);
   }
-
   return sub;
 };
 
-export const incrementUsage = async (userId, count = 1) => {
-  const sub = await getOrCreateSubscription(userId);
-  sub.usedThisMonth += count;
-  await sub.save();
-  return sub;
-};
+// Documents sent this month beyond the plan's allowance. These are the ones paid for by top-ups.
+const overAllowance = (used) => ({ $max: [0, { $subtract: [used, "$monthlyQuota"] }] });
 
 /**
- * Checks the allowance and counts the documents in one database step,
- * so parallel sends can never go past the limit.
+ * Counts documents against the account before they are sent (plan task P4-14).
+ *
+ * The month's allowance is used first, then documents bought as top-ups. The check and the
+ * count are one step in the database, so sends arriving together cannot pass the limit.
  */
 export const reserveQuota = async (userId, count = 1) => {
   const sub = await getOrCreateSubscription(userId); // applies monthly reset and expiry first
 
-  const filter = { _id: sub._id };
-  if (sub.plan === "free") {
-    filter.$expr = { $lte: [{ $add: ["$usedThisMonth", count] }, "$monthlyQuota"] };
-  }
+  const usedAfter = { $add: ["$usedThisMonth", count] };
+  // What this send takes from the top-ups: the growth in documents beyond the allowance
+  const fromTopUps = { $subtract: [overAllowance(usedAfter), overAllowance("$usedThisMonth")] };
 
-  const updated = await Subscription.findOneAndUpdate(filter, { $inc: { usedThisMonth: count } }, { new: true });
+  const updated = await Subscription.findOneAndUpdate(
+    { _id: sub._id, $expr: { $lte: [fromTopUps, "$extraDocuments"] } },
+    [{ $set: { extraDocuments: { $subtract: ["$extraDocuments", fromTopUps] }, usedThisMonth: usedAfter } }],
+    { new: true, updatePipeline: true }
+  );
+
   if (!updated) {
+    const extra = sub.extraDocuments ? ` and ${sub.extraDocuments} extra` : "";
     throw new ApiError(
       403,
-      `Monthly document quota exceeded (${sub.usedThisMonth}/${sub.monthlyQuota} used). Please upgrade for more documents.`
+      `Monthly document quota exceeded (${sub.usedThisMonth} of ${sub.monthlyQuota}${extra} used). Upgrade your plan or buy extra documents to send more.`
     );
   }
   return updated;
 };
 
-// Gives back documents that were counted but not sent
+// Gives back documents that were counted but not sent, to wherever they were taken from
 export const releaseQuota = async (userId, count = 1) => {
   if (count <= 0) return;
-  await Subscription.updateOne({ userId, usedThisMonth: { $gte: count } }, { $inc: { usedThisMonth: -count } });
+  const usedBefore = { $subtract: ["$usedThisMonth", count] };
+  const toTopUps = { $subtract: [overAllowance("$usedThisMonth"), overAllowance(usedBefore)] };
+
+  await Subscription.updateOne(
+    { userId, usedThisMonth: { $gte: count } },
+    [{ $set: { extraDocuments: { $add: ["$extraDocuments", toTopUps] }, usedThisMonth: usedBefore } }],
+    { updatePipeline: true }
+  );
+};
+
+// Adds documents bought as a top-up
+export const addExtraDocuments = async (userId, documents) => {
+  await getOrCreateSubscription(userId);
+  return Subscription.findOneAndUpdate({ userId }, { $inc: { extraDocuments: documents } }, { new: true });
+};
+
+/**
+ * How much of its allowance an account has used, for the billing page.
+ */
+export const usageOf = (sub) => {
+  const unlimited = sub.monthlyQuota >= PLAN_QUOTAS.lifetime;
+  return {
+    usedThisMonth: sub.usedThisMonth,
+    monthlyQuota: unlimited ? null : sub.monthlyQuota,
+    extraDocuments: sub.extraDocuments || 0,
+    remaining: unlimited ? null : Math.max(0, sub.monthlyQuota - sub.usedThisMonth) + (sub.extraDocuments || 0),
+    resetsOn: sub.quotaResetDate,
+  };
 };
 
 export const upgradeUserPlan = async (userId, newPlan, metadata = {}) => {
   const sub = await getOrCreateSubscription(userId);
   const now = Date.now();
 
-  // Calculate current period end based on plan
-  let periodDurationMs = 30 * 24 * 60 * 60 * 1000; // 30 days default
-  if (newPlan === "pro_annual") {
-    periodDurationMs = 365 * 24 * 60 * 60 * 1000; // 1 year
-  } else if (newPlan === "lifetime") {
-    periodDurationMs = 100 * 365 * 24 * 60 * 60 * 1000; // 100 years
-  }
+  if (!isPlan(newPlan)) throw new ApiError(400, "Invalid subscription plan specified");
 
   sub.plan = newPlan;
-  sub.status = "active";
-  sub.monthlyQuota = PLAN_QUOTAS[newPlan] || 999999;
-  sub.currentPeriodEnd = new Date(now + periodDurationMs);
+  if (metadata.seats) sub.seats = Math.max(1, Number(metadata.seats) || 1);
+  if (!PLANS[newPlan].perSeat) sub.seats = 1;
+  sub.status = newPlan === "free" ? "free" : "active";
+  // On a plan sold by the seat, the allowance is pooled: every seat adds to the one total
+  sub.monthlyQuota = quotaOf(newPlan) * (PLANS[newPlan].perSeat ? sub.seats : 1);
+  sub.quotaGrandfatheredUntil = null;
+  sub.currentPeriodEnd = newPlan === "free" ? null : new Date(now + periodMsOf(newPlan));
   sub.gracePeriodEnd = null;
   sub.cancelAtPeriodEnd = false;
 
@@ -156,13 +190,14 @@ export const upgradeUserPlan = async (userId, newPlan, metadata = {}) => {
   if (metadata.stripeSubscriptionId) sub.stripeSubscriptionId = metadata.stripeSubscriptionId;
   if (metadata.razorpaySubscriptionId) sub.razorpaySubscriptionId = metadata.razorpaySubscriptionId;
   if (metadata.amount) sub.lastPaymentAmount = metadata.amount;
+  if (metadata.currency) sub.lastPaymentCurrency = String(metadata.currency).toUpperCase();
 
   // Reactivate user's owned workspaces if upgrading to Enterprise
-  if (newPlan === "enterprise") {
+  if (["business", "enterprise"].includes(PLANS[newPlan].tier)) {
     try {
       await Workspace.updateMany(
-        { ownerId: userId },
-        { status: "active", "members.$[].status": "active" }
+        { ownerId: userId, personal: { $ne: true }, status: "read_only" },
+        { status: "active" }
       );
     } catch (wsErr) {
       console.warn("Could not reactivate workspaces upon upgrade:", wsErr.message);
@@ -179,8 +214,8 @@ export const upgradeUserPlan = async (userId, newPlan, metadata = {}) => {
     await sendNewSubscriptionAlert({
       userEmail: user?.email || "unknown@user.com",
       plan: newPlan,
-      amount: metadata.amount || (newPlan === "lifetime" ? 69 : 5.99),
-      currency: metadata.currency || "USD",
+      amount: metadata.amount || PLANS[newPlan].priceInr || 0,
+      currency: metadata.currency || "INR",
     });
   } catch (alertErr) {
     console.warn("Could not dispatch subscription alert:", alertErr.message);
@@ -221,7 +256,7 @@ export const processSubscriptionLifecycle = async () => {
 
       try {
         await Workspace.updateMany(
-          { ownerId: sub.userId },
+          { ownerId: sub.userId, personal: { $ne: true } },
           { status: "read_only" }
         );
       } catch (e) {}
@@ -239,14 +274,11 @@ export const devMockUpgrade = async (userId, plan) => {
     throw new ApiError(404, "Not found");
   }
 
-  if (!["free", "pro_monthly", "pro_annual", "lifetime", "enterprise"].includes(plan)) {
+  if (!isPlan(plan)) {
     throw new ApiError(400, "Invalid subscription plan specified");
   }
 
-  return await upgradeUserPlan(userId, plan, {
-    amount: plan === "lifetime" ? 69 : plan === "pro_monthly" ? 5.99 : 49,
-    currency: "USD",
-  });
+  return await upgradeUserPlan(userId, plan, { amount: PLANS[plan].priceInr || 0, currency: "INR" });
 };
 
 // Simulation / Webhook Handler: Payment Failure (Enter 3-day Grace Period)
@@ -269,7 +301,7 @@ export const downgradeExpiredSubscription = async (userId) => {
 
   try {
     await Workspace.updateMany(
-      { ownerId: userId },
+      { ownerId: userId, personal: { $ne: true } },
       { status: "read_only" }
     );
   } catch (wsErr) {

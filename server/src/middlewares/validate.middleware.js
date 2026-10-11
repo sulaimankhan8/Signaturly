@@ -57,6 +57,8 @@ export const schemas = {
   login: z.object({
     email,
     password: z.string().min(1, "Password is required").max(200),
+    // The code from an authenticator app, or a recovery code, when two-step sign-in is on
+    code: z.string().trim().max(40).optional(),
   }),
   forgotPassword: z.object({ email }),
   resetPassword: z.object({

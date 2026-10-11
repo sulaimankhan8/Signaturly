@@ -1,6 +1,7 @@
 import axios from "axios";
 import { store } from "../store/store";
 import { setCredentials, logout } from "../store/authSlice";
+import { getActiveWorkspaceId } from "../utils/workspace";
 
 const API = axios.create({
   baseURL: `${import.meta.env.VITE_API_BASE_URL}/api`,
@@ -12,6 +13,11 @@ API.interceptors.request.use((config) => {
   const token = store.getState().auth.accessToken;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  // The workspace the person is working in; the server checks they belong to it
+  const workspaceId = getActiveWorkspaceId();
+  if (workspaceId) {
+    config.headers["X-Workspace-Id"] = workspaceId;
   }
   return config;
 });

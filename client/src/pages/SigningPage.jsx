@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import PdfViewer from "../components/PdfViewer";
 import DraggableField from "../components/DraggableField";
@@ -7,6 +7,8 @@ import {
   fetchSigningSessionApi,
   submitPublicSignatureApi,
   declinePublicSigningApi,
+  startEsignApi,
+  completeEsignApi,
 } from "../api/signing.api";
 import toast, { Toaster } from "react-hot-toast";
 import { OtpVerificationModal } from "../components/OtpVerificationModal";
@@ -16,6 +18,27 @@ import { formatFieldDate } from "../utils/fieldDate";
 
 // The widest a page is drawn. On a phone the page takes the width of the screen instead.
 const MAX_PAGE_WIDTH = 820;
+
+// Read once, when the page opens:
+//   embed  the session a customer's website opened this page with, to show it inside its own page
+//   esign  set when the signer comes back from the Aadhaar eSign provider
+const QUERY = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
+const EMBED_SESSION = QUERY.get("embed") || "";
+const RETURNING_ESIGN = QUERY.get("esign") || "";
+const IS_FRAMED = typeof window !== "undefined" && window.self !== window.top;
+
+// The website showing this page in a frame, where the browser tells us
+const framingOrigin = () => {
+  try {
+    if (window.location.ancestorOrigins?.length) return window.location.ancestorOrigins[0];
+    return document.referrer ? new URL(document.referrer).origin : "";
+  } catch {
+    return "";
+  }
+};
+
+// Server messages may start with a code for the page to act on; the signer is shown the words
+const wordsOf = (message) => String(message || "").replace(/^[A-Z_]+:\s*/, "");
 
 export default function SigningPage() {
   const { token } = useParams();
@@ -51,6 +74,8 @@ export default function SigningPage() {
 
   const [activeSignatureUrl, setActiveSignatureUrl] = useState("");
   const [activeInitialsUrl, setActiveInitialsUrl] = useState("");
+  // The return from the eSign provider is handled once, however often the page re-renders
+  const esignReturnHandled = useRef(false);
 
   const isFieldMine = useCallback((f) => {
     if (!session?.recipient) return false;
@@ -69,7 +94,7 @@ export default function SigningPage() {
     const loadSession = async () => {
       try {
         setIsLoading(true);
-        const data = await fetchSigningSessionApi(token);
+        const data = await fetchSigningSessionApi(token, EMBED_SESSION);
         setSession(data);
         setTotalPages(data.document.pageCount || 1);
 
@@ -124,6 +149,31 @@ export default function SigningPage() {
     loadSession();
     // Reloaded after identity verification and after signing, so the page shows what the server now allows
   }, [token, sessionVersion]);
+
+  // Back from the Aadhaar eSign provider: ask the server what happened and show the result
+  useEffect(() => {
+    if (!RETURNING_ESIGN || !session || esignReturnHandled.current) return;
+    esignReturnHandled.current = true;
+    if (session.recipient?.status === "signed") return;
+
+    (async () => {
+      const toastId = toast.loading(t("esign.confirming"));
+      try {
+        setIsSubmitting(true);
+        await completeEsignApi(token, RETURNING_ESIGN);
+        toast.dismiss(toastId);
+        toast.success(t("toast.signed"));
+        setIsCompleted(true);
+        setSessionVersion((v) => v + 1);
+      } catch (err) {
+        toast.dismiss(toastId);
+        toast.error(wordsOf(err.response?.data?.message) || t("esign.failed"), { duration: 8000 });
+        setSessionVersion((v) => v + 1);
+      } finally {
+        setIsSubmitting(false);
+      }
+    })();
+  }, [session, token, t]);
 
   // Screen readers and the browser's own text shaping follow the page language
   useEffect(() => {
@@ -272,6 +322,13 @@ export default function SigningPage() {
       setIsSubmitting(true);
       toastId = toast.loading(t("toast.working"));
 
+      // With Aadhaar eSign the signer goes to the provider now; the signature is applied when they return
+      if (session?.esign?.required) {
+        const started = await startEsignApi(token, { fields: filledFields, consent: hasElectronicConsent, consentVersion: session?.consentVersion });
+        window.location.assign(started.redirectUrl);
+        return;
+      }
+
       await submitPublicSignatureApi(token, filledFields, hasElectronicConsent, session?.consentVersion);
 
       if (toastId) toast.dismiss(toastId);
@@ -282,7 +339,7 @@ export default function SigningPage() {
     } catch (err) {
       if (toastId) toast.dismiss(toastId);
       console.error("Error submitting signature:", err);
-      toast.error(err.response?.data?.message || t("toast.signFailed"));
+      toast.error(wordsOf(err.response?.data?.message) || t("toast.signFailed"));
     } finally {
       setIsSubmitting(false);
     }
@@ -348,6 +405,23 @@ export default function SigningPage() {
     );
   }
 
+  // A signing page appears inside another website only when that website opened it with a
+  // session made for it through the API. Anything else may be a page trying to trick the
+  // signer into clicking, so nothing of the document is shown.
+  if (IS_FRAMED && (!session?.embed?.origin || (framingOrigin() && framingOrigin() !== session.embed.origin))) {
+    return (
+      <div className="min-h-screen bg-[#08090d] flex items-center justify-center p-4" data-testid="frame-refused">
+        <div className="bg-[#12141c] border border-white/10 rounded-3xl p-8 max-w-md w-full text-center space-y-4">
+          <h2 className="text-xl font-display font-bold text-white">{t("embed.refusedTitle")}</h2>
+          <p className="text-sm text-gray-400 leading-relaxed">{t("embed.refusedBody")}</p>
+          <a href={window.location.pathname} target="_blank" rel="noopener noreferrer" className="inline-block px-5 py-3 bg-red-600 hover:bg-red-500 text-white font-bold text-sm rounded-xl">
+            {t("embed.open")}
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   if (isCompleted) {
     const executedDownloadUrl = `${import.meta.env.VITE_API_BASE_URL}${session?.document.pdfUrl}`;
     const signedAt = new Date(session?.recipient.signedAt || Date.now());
@@ -390,6 +464,19 @@ export default function SigningPage() {
               <span>{t("completed.download")}</span>
             </a>
           </div>
+
+          {/* Documents sent from a Free account carry this line and an invitation */}
+          {session?.branding?.badge && (
+            <div className="pt-4 border-t border-white/10 text-xs text-gray-400 space-y-1" data-testid="signed-with-badge">
+              <p>{t("completed.badge")}</p>
+              <p>
+                {t("completed.invite")}{" "}
+                <a href="/register" className="text-red-400 underline">
+                  {t("completed.inviteLink")}
+                </a>
+              </p>
+            </div>
+          )}
 
         </div>
       </div>
@@ -436,12 +523,25 @@ export default function SigningPage() {
       <header className="bg-[#08090d]/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-9 h-9 shrink-0 bg-gradient-to-br from-red-600 to-red-950 rounded-xl flex items-center justify-center border border-red-500/30 shadow">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
+            {/* A team's own logo, where it has one, in place of the document icon */}
+            {session?.branding?.logoUrl ? (
+              <img src={session.branding.logoUrl} alt={session.branding.companyName || ""} className="h-9 max-w-[7rem] shrink-0 object-contain bg-white rounded-lg p-0.5" data-testid="brand-logo" />
+            ) : (
+              <div
+                className="w-9 h-9 shrink-0 bg-gradient-to-br from-red-600 to-red-950 rounded-xl flex items-center justify-center border border-red-500/30 shadow"
+                style={session?.branding?.primaryColor ? { background: session.branding.primaryColor } : undefined}
+              >
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+            )}
             <div className="min-w-0">
+              {session?.branding?.companyName && (
+                <p className="text-[11px] sm:text-[10px] font-bold text-gray-300 truncate" data-testid="brand-name">
+                  {t("header.sentBy", { name: session.branding.companyName })}
+                </p>
+              )}
               <h1 className="text-sm font-bold text-white truncate">
                 {session?.document.originalFileName}
               </h1>
@@ -484,6 +584,28 @@ export default function SigningPage() {
           </div>
         </div>
       </header>
+
+      {/* A document made with a test API key: it can be tried out but it is not a real agreement */}
+      {session?.test && (
+        <div className="bg-amber-500/15 border-b border-amber-500/30 px-3 sm:px-6 py-2 text-xs text-amber-200 text-center" data-testid="test-banner">
+          {t("test.banner")}
+        </div>
+      )}
+
+      {/* What signing with Aadhaar eSign involves, before the signer agrees to anything */}
+      {session?.esign?.required && (
+        <div className="bg-blue-500/10 border-b border-blue-500/30 px-3 sm:px-6 py-3 text-xs text-blue-100" data-testid="esign-notice">
+          <div className="max-w-7xl mx-auto space-y-1">
+            <p className="font-bold text-white">{t("esign.title")}</p>
+            <p>{t("esign.steps")}</p>
+            <p>{t("esign.privacy")}</p>
+            <p className="text-blue-200/80">{t("esign.noPhone")}</p>
+            {session.esign.standIn && <p className="font-bold text-amber-300">{t("esign.standIn")}</p>}
+            {!session.esign.available && <p className="font-bold text-red-300">{t("esign.unavailable")}</p>}
+            {session.esign.status === "failed" && <p className="font-bold text-amber-300">{t("esign.failed")}</p>}
+          </div>
+        </div>
+      )}
 
       {/* Consent to sign electronically, and the language of this page */}
       <div className="bg-[#12141c] border-b border-white/10 px-3 sm:px-6 py-2.5 sm:py-2">

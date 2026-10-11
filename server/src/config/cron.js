@@ -4,6 +4,7 @@ import { processAutomatedReminders } from "../services/reminder.service.js";
 import { processAutomatedExpirations } from "../services/expiration.service.js";
 import { processSubscriptionLifecycle } from "../services/subscription.service.js";
 import { runDueJobs } from "../jobs/queue.js";
+import { processRetention } from "../services/retention.service.js";
 
 /**
  * Timers inside the process, for local development only.
@@ -25,4 +26,5 @@ export const initBackgroundJobs = () => {
   cron.schedule("0 */4 * * *", safely("reminders", processAutomatedReminders));
   cron.schedule("30 * * * *", safely("expirations", processAutomatedExpirations));
   cron.schedule("15 * * * *", safely("subscriptions", processSubscriptionLifecycle));
+  cron.schedule("45 2 * * *", safely("retention", () => processRetention()));
 };

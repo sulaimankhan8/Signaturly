@@ -1,118 +1,81 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import { ApiError } from "../utils/ApiError.js";
-import { Workspace } from "../models/Workspace.model.js";
-import { User } from "../models/User.model.js";
+import {
+  listWorkspaces,
+  createTeamWorkspace,
+  getWorkspaceDetails,
+  inviteToWorkspace,
+  revokeInvitation,
+  describeInvitation,
+  acceptInvitation,
+  changeMemberRole,
+  removeMember,
+  updateWorkspaceSettings,
+  workspaceActivity,
+} from "../services/workspace.service.js";
+
+// Permission for each of these is checked in the service, by role, through services/authorize.service.js
 
 export const getMyWorkspacesController = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
-
-  const workspaces = await Workspace.find({
-    $or: [{ ownerId: userId }, { "members.userId": userId }],
-  }).populate("ownerId", "name email");
-
-  res.status(200).json(
-    new ApiResponse(workspaces, "User workspaces retrieved")
-  );
+  res.status(200).json(new ApiResponse(await listWorkspaces(req.user), "User workspaces retrieved"));
 });
 
 export const createWorkspaceController = asyncHandler(async (req, res) => {
-  const userId = req.user._id;
-  const { name, primaryColor, companyName } = req.body;
+  const workspace = await createTeamWorkspace(req.user, req.body || {});
+  res.status(201).json(new ApiResponse(workspace, "Team workspace created successfully"));
+});
 
-  if (!name?.trim()) {
-    throw new ApiError(400, "Workspace name is required");
-  }
-
-  const workspace = await Workspace.create({
-    name: name.trim(),
-    ownerId: userId,
-    members: [{ userId, role: "admin" }],
-    branding: {
-      primaryColor: primaryColor || "#4f46e5",
-      companyName: companyName || name,
-    },
-  });
-
-  res.status(201).json(
-    new ApiResponse(workspace, "Team workspace created successfully")
-  );
+export const getWorkspaceController = asyncHandler(async (req, res) => {
+  res.status(200).json(new ApiResponse(await getWorkspaceDetails(req.params.id, req.user), "Workspace"));
 });
 
 export const inviteMemberController = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { email, role = "member" } = req.body;
-
-  const workspace = await Workspace.findById(id);
-  if (!workspace) throw new ApiError(404, "Workspace not found");
-
-  if (workspace.ownerId.toString() !== req.user._id.toString()) {
-    throw new ApiError(403, "Only the workspace owner can invite members");
-  }
-
-  const targetUser = await User.findOne({ email: email.toLowerCase().trim() });
-  if (!targetUser) {
-    throw new ApiError(404, `User with email ${email} is not registered on PactDoc`);
-  }
-
-  // Check if already member
-  const alreadyMember = workspace.members.some(
-    (m) => m.userId.toString() === targetUser._id.toString()
-  );
-
-  if (alreadyMember) {
-    throw new ApiError(400, "User is already a member of this workspace");
-  }
-
-  workspace.members.push({ userId: targetUser._id, role });
-  await workspace.save();
-
-  res.status(200).json(
-    new ApiResponse(workspace, `Successfully added ${email} to workspace`)
-  );
+  const invitation = await inviteToWorkspace({ workspaceId: req.params.id, user: req.user, email: req.body?.email, role: req.body?.role });
+  res.status(201).json(new ApiResponse(invitation, `Invitation sent to ${invitation.email}`));
 });
 
-export const updateBrandingController = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const { logo, logoUrl, primaryColor, companyName, emailFooterText } = req.body;
+export const revokeInvitationController = asyncHandler(async (req, res) => {
+  await revokeInvitation({ workspaceId: req.params.id, invitationId: req.params.invitationId, user: req.user });
+  res.status(200).json(new ApiResponse({}, "Invitation withdrawn"));
+});
 
-  const workspace = await Workspace.findById(id);
-  if (!workspace) throw new ApiError(404, "Workspace not found");
+// Open to anyone holding the link: it shows only the workspace's name and the invited address
+export const describeInvitationController = asyncHandler(async (req, res) => {
+  res.status(200).json(new ApiResponse(await describeInvitation(req.params.token), "Invitation"));
+});
 
-  if (workspace.ownerId.toString() !== req.user._id.toString()) {
-    throw new ApiError(403, "Only the owner can update branding");
-  }
+export const acceptInvitationController = asyncHandler(async (req, res) => {
+  const workspace = await acceptInvitation(req.params.token, req.user);
+  res.status(200).json(new ApiResponse(workspace, `You have joined ${workspace.name}`));
+});
 
-  if (!workspace.branding) workspace.branding = {};
-  if (logo !== undefined) workspace.branding.logo = logo;
-  if (logoUrl !== undefined) workspace.branding.logoUrl = logoUrl;
-  if (primaryColor) workspace.branding.primaryColor = primaryColor;
-  if (companyName) workspace.branding.companyName = companyName;
-  if (emailFooterText !== undefined) workspace.branding.emailFooterText = emailFooterText;
-
-  await workspace.save();
-
-  res.status(200).json(
-    new ApiResponse(workspace, "Branding preferences saved")
-  );
+export const changeMemberRoleController = asyncHandler(async (req, res) => {
+  await changeMemberRole({ workspaceId: req.params.id, memberId: req.params.memberId, role: req.body?.role, user: req.user });
+  res.status(200).json(new ApiResponse({}, "Role updated"));
 });
 
 export const removeMemberController = asyncHandler(async (req, res) => {
-  const { id, memberId } = req.params;
+  const result = await removeMember({ workspaceId: req.params.id, memberId: req.params.memberId, user: req.user });
+  res.status(200).json(new ApiResponse(result, "Member removed from workspace"));
+});
 
-  const workspace = await Workspace.findById(id);
-  if (!workspace) throw new ApiError(404, "Workspace not found");
+export const updateWorkspaceController = asyncHandler(async (req, res) => {
+  const workspace = await updateWorkspaceSettings({ workspaceId: req.params.id, user: req.user, changes: req.body || {} });
+  res.status(200).json(new ApiResponse(workspace, "Workspace updated"));
+});
 
-  if (workspace.ownerId.toString() !== req.user._id.toString()) {
-    throw new ApiError(403, "Only the workspace owner can remove members");
-  }
+// Kept for the older settings screen, which sends branding fields at the top level
+export const updateBrandingController = asyncHandler(async (req, res) => {
+  const { logo, logoUrl, primaryColor, companyName, emailFooterText } = req.body || {};
+  const branding = {};
+  if (logoUrl !== undefined || logo !== undefined) branding.logoUrl = logoUrl ?? logo;
+  if (primaryColor !== undefined) branding.primaryColor = primaryColor;
+  if (companyName !== undefined) branding.companyName = companyName;
+  if (emailFooterText !== undefined) branding.emailFooterText = emailFooterText;
+  const workspace = await updateWorkspaceSettings({ workspaceId: req.params.id, user: req.user, changes: { branding } });
+  res.status(200).json(new ApiResponse(workspace, "Branding preferences saved"));
+});
 
-  workspace.members = workspace.members.filter(
-    (m) => m.userId.toString() !== memberId.toString() && m._id.toString() !== memberId.toString()
-  );
-  await workspace.save();
-
-  res.status(200).json(
-    new ApiResponse(workspace, "Member removed from workspace")
-  );
+export const getWorkspaceActivityController = asyncHandler(async (req, res) => {
+  res.status(200).json(new ApiResponse(await workspaceActivity(req.params.id, req.user), "Activity"));
 });

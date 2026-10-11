@@ -30,7 +30,8 @@ const linesMatching = (pattern, isAllowed = () => false) => {
     fs.readFileSync(file, "utf8")
       .split(/\r?\n/)
       .forEach((line, i) => {
-        if (pattern.test(line)) hits.push(`${path.relative(process.cwd(), file)}:${i + 1}: ${line.trim().slice(0, 120)}`);
+        // A name split by markup ("Pact<span>Doc</span>") is still one word on screen
+        if (pattern.test(line) || pattern.test(line.replace(/<[^>]+>/g, ""))) hits.push(`${path.relative(process.cwd(), file)}:${i + 1}: ${line.trim().slice(0, 120)}`);
       });
   }
   return hits;

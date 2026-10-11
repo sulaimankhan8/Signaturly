@@ -1,9 +1,9 @@
 # ==============================================================================
-# SIGNATURLY PRO BACKEND - PRODUCTION DOCKERFILE
+# PACTDOC BACKEND - PRODUCTION DOCKERFILE
 # ==============================================================================
 
-# Use official Node.js 20 LTS Slim (Debian-based for optimal native package compatibility like bcrypt)
-FROM node:20-slim AS base
+# Use official Node.js 22 LTS Slim (Debian-based for optimal native package compatibility like bcrypt)
+FROM node:22-slim AS base
 
 # Install OpenSSL, curl, and CA certificates for secure cryptographic operations
 RUN apt-get update && apt-get install -y --no-install-recommends \

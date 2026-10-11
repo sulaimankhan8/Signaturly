@@ -39,17 +39,21 @@ Phase 0 before anything. Phase 1 before any real user. The test setup in the nex
 
 ## Progress as of 11 October 2026
 
-52 of 132 tasks are done and 16 are partly done: phase 1 is nearly complete, the core of phase 2 is built and the code side of phase 3 is finished, with 223 server tests and 28 browser tests passing. Phases 1 and 2 are committed, and phase 3 is uncommitted, on branch `fix/phase1-security` and nothing is deployed. `PENDING_TASKS_AND_PRODUCTION_ROADMAP.md` in the repo root carries the same status with the owner's to-do list and the production configuration.
+78 of 132 tasks are done and 32 are partly done. Phase 1 is nearly complete, the core of phase 2 is built, and the code side of phases 3, 4 and 5 is finished and tested. Of phase 6, the public API, webhooks, test mode and embedded signing are built and tested, and **Aadhaar eSign is postponed to the next version** by the owner's decision of 11 October 2026: its scaffolding is in the code, switched off. 525 server tests and 56 browser tests pass. Phases 1 to 3 are committed and pushed, and phases 4 to 6 are uncommitted, on branch `fix/phase1-security`; nothing is merged to `main` or deployed. `PENDING_TASKS_AND_PRODUCTION_ROADMAP.md` in the repo root carries the same status with the owner's to-do list and the production configuration; its section 5a lists each phase 5 and 6 task with what is still open.
 
 | Phase | Tasks | Done | Partly | Not started |
 | --- | --- | --- | --- | --- |
-| Setup | 13 | 5 | 2 | 6 |
+| Setup | 13 | 5 | 3 | 5 |
 | 0. Emergency | 8 | 0 | 1 | 7 |
 | 1. Secure | 32 | 29 | 3 | 0 |
 | 2. Trust | 22 | 9 | 7 | 6 |
-| 3. India fit: 9 done, 3 partly, 2 not started. Phases 4 to 6: not started | 57 | 9 | 3 | 45 |
+| 3. India fit | 14 | 9 | 3 | 2 |
+| 4. Templates and plans | 17 | 13 | 3 | 1 |
+| 5. Teams | 11 | 9 | 2 | 0 |
+| 6. Strong signatures and API | 15 | 4 | 10 | 1 |
+| **Total** | **132** | **78** | **32** | **22** |
 
-Not yet checked: a real phone in the hand, the seal in Adobe Acrobat, the Hindi wording by a native speaker, and the client's new routing on the live host.
+Not yet checked: the workspace migration on real data, single sign-on against a real identity provider, a real phone in the hand, the seal in Adobe Acrobat, the Hindi wording by a native speaker, and the client's new routing on the live host.
 
 ### Phase 3 so far
 
@@ -77,6 +81,66 @@ Found and fixed during phase 3: about 1 genuine sealed file in 256 was reported 
 Setup task S-07 (browser tests) is done as part of this: `e2e/` runs the built client against the real server on a throwaway database, in the Chrome already installed, and is a CI job.
 
 Further tasks added: native review of the Hindi wording and legal approval of the consent sentence per language (A-13); charging messages to the wallet before messaging is switched on in production (A-14); trimming the font packages (A-15); Arabic and Japanese fonts and mixed-direction text for later markets (A-16); an optional invisible text layer because shaped text cannot be selected (A-17); translating the signing record (A-18, now done); translating the server's error replies on signer screens (A-19); speeding up the signing page on a weak signal, measured at 22 seconds to first page at 400 kbit/s (A-20); checking the client's new routing on the live host (A-21); browser tests for the remaining screens (A-22); the language of the stamp wording (A-23); and an unneeded sign-in call on signer pages (A-24).
+
+### Phase 4 so far
+
+Guided templates work from the first question to the sealed copy. The renderer question is settled in `docs/decisions/0002-template-renderer.md`: own layout on the PDF library, in the API process.
+
+| Task | Status | Note |
+| --- | --- | --- |
+| P4-01 | Done | Definition model; 13 of the 14 old templates converted, the promissory note dropped; start-up sync that never overwrites a stored version |
+| P4-02 | Done | Own layout on pdf-lib. Only this option was built and measured: two pages of Hindi in about 0.6 s |
+| P4-03 | Done | A4 output, fields placed from the signature block, amounts in words, conditional clauses, identical bytes for identical input |
+| P4-04 | Done | Fill-in screen with checks, live preview and saved draft; browser test from answers to two signatures |
+| P4-05 | Done | Admin Templates page: draft the next version, edit, preview, publish, retire, record a review; history per version. Structure is edited as JSON |
+| P4-06 | Done | One entitlements table; no route names a plan; packs open by tier; bulk-send limit per plan |
+| P4-07 | Done | Signature hint, stamp-duty note, state note and review status shown before sending |
+| P4-08 | Done | Public library at /t and a page per template, written out at build time from the API's public list; "use this template" leads through sign-up to the questions |
+| P4-09 | Partly | Eight Starter templates written and working; lawyer review outstanding, so hidden in production |
+| P4-10, P4-11 | Partly | Rentals (9) and housing society (12) drafted and rendering; lawyer review outstanding |
+| P4-12 | Not started | Hindi versions |
+| P4-13 | Done | One price list; Free 5, Pro Rs. 299 for 50; lifetime closed; migration of existing accounts |
+| P4-14 | Done | Every plan metered; packs of extra documents that carry over; safe under simultaneous sends |
+| P4-15 | Done | Wallet with ledger; never below zero; messages charged to it |
+| P4-16 | Done | Gapless invoice numbers; tax invoice or receipt; GST number capture; PDF download |
+| P4-17 | Done | Pricing and billing pages in rupees; Free-plan line on emails and the finished signing page |
+
+Found and fixed during phase 4: a new account's first screen failed with server errors because its subscription was created several times at once; the old templates printed a "legally compliant" banner and an admissibility clause on every document; the old product name was still on screen in three places.
+
+Further tasks added: phone and WhatsApp signers in the fill-in screen (A-25); the owner's decision on guided templates for Free accounts (A-26); a plan for the Business tier (A-27); file size of long documents in Indian scripts (A-28); rebuilding the public pages when a template is published or reviewed (A-29); translating the public template pages and the fill-in screen (A-30); the owner's decision on proposed prices (A-31); a first real Razorpay payment in test mode (A-32); automatic renewal (A-33); an accountant's check of the GST treatment (A-34); running migrations on deploy (A-35); translating the billing page (A-36).
+
+### Phases 5 and 6 so far
+
+Built and tested on 11 October 2026. "Done" means the test this plan names for the task passes.
+
+| Task | Status | Note |
+| --- | --- | --- |
+| P5-01 | Done | Workspace on documents and saved templates; personal workspace per user; migration 002 tested forwards, twice and backwards on seeded data. Not yet run on real data. Audit entries do not carry the workspace |
+| P5-02 | Done | `services/authorize.service.js`: one role-to-action table, used by every route that touches a team's things |
+| P5-03 | Done | `tests/security/access-matrix.test.js`, generated from the route files: 152 routes classified, 53 called as outsider, viewer, member, admin and owner |
+| P5-04 | Done | Invitations by hashed link, for people with or without an account; seats counted, pending invitations included |
+| P5-05 | Partly | Rs. 499 a seat, pooled documents, seats added mid-period for the share of time left, fewer seats from the next purchase. Never tried in the gateway's test mode; no mid-period removal, by design |
+| P5-06 | Done | Team name, colour, footer and logo on emails, the signing page and the head of the signing record |
+| P5-07 | Done | Contact lists with CSV import; bulk send as one job per row; a 500-row send completes; a failed row is reported and retried |
+| P5-08 | Done | Workspace switcher and a team page with activity; browser test of a member working in a team |
+| P5-09 | Done | Authenticator-app codes with recovery codes; a team can require it |
+| P5-10 | Partly | HR (10) and professional firms (8) packs drafted and rendering; several PDFs joined into one document and signed in one sitting. Lawyer review outstanding |
+| P5-11 | Done | A removed member's documents pass to the owner; a lapsed plan makes team workspaces read-only |
+| P6-01 | Not started | Postponed with Aadhaar eSign |
+| P6-02 to P6-06 | Partly, postponed | Provider interface, signer flow, wallet charge and refund, ordering and fallback, tested against a stand-in provider. Off unless `ESIGN_PROVIDER` is set; the stand-in is refused in production. No licensed provider, and the provider's signature is not placed in the PDF |
+| P6-07 | Partly | Lending (8) and real estate (5) drafted and rendering. Promissory note, agreement for sale and sale deed left out on purpose. Lawyer review outstanding |
+| P6-08 | Partly | Decision note `docs/decisions/0003-e-stamping.md`: not built now. Needs the owner's confirmation |
+| P6-09 | Done | Live and test prefixes, scopes, per-key rate limit; a key is confined to its workspace |
+| P6-10 | Partly | `/api/v1` built and tested, with `docs/api/openapi.yaml`. Tests are hand-written, not generated from the OpenAPI file. Routes are in `routes/v1.routes.js`, not a `routes/v1/` folder |
+| P6-11 | Done | A receiver that fails twice then succeeds gets one delivery; private and local addresses refused; delivery log and replay |
+| P6-12 | Done | Session tokens and a per-team list of sites; the signing page refuses any other frame, checked in a browser |
+| P6-13 | Done | Watermark, no billing, no email, separate from live data |
+| P6-14 | Partly | `docs/api/README.md`. Examples not run in CI; no request collection |
+| P6-15 | Partly | Single sign-on with DNS-proved domains (tested against a simulated provider) and a retention job (tested). Own domain not built |
+
+Where this departed from the plan: Aadhaar eSign (P6-01 to P6-06) is postponed to the next version; P5-01 leaves audit entries without a workspace reference so the hash-chained log is untouched; P5-10's packet of documents is one joined PDF, not separate files in one envelope; P5-05 never takes seats away part-way through a paid period.
+
+Found and fixed while writing the tests: a viewer could send from a ready-made template and save a team template; a send could be charged to the wrong team; an API key could read another workspace's documents; a webhook address written as IPv4 inside IPv6 passed the private-address check; an Enterprise account could not invite anyone; a teammate could not open a team document in the editor.
 
 ### Status of every task in the phases already begun
 

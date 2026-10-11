@@ -1,3 +1,4 @@
+import { assertRecordAccess } from "./authorize.service.js";
 import { Pdf } from "../models/Pdf.model.js";
 import { Recipient } from "../models/Recipient.model.js";
 import { User } from "../models/User.model.js";
@@ -22,9 +23,7 @@ export const sendManualRecipientReminder = async ({
   const pdf = await Pdf.findById(recipient.pdfId);
   if (!pdf) throw new ApiError(404, "Associated document not found");
 
-  if (pdf.userId.toString() !== userId?.toString()) {
-    throw new ApiError(403, "You do not have permission to send reminders for this document");
-  }
+await assertRecordAccess(pdf, userId, "document.remind");
 
   const sender = await User.findById(userId);
 

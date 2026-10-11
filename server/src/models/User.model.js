@@ -63,6 +63,25 @@ const userSchema = new mongoose.Schema({
         default: null,
     },
 
+    // Two-step sign-in with an authenticator app. Secrets are stored encrypted and never returned.
+    twoFactor: {
+        enabled: { type: Boolean, default: false },
+        enabledAt: { type: Date },
+        secret: { type: String, select: false },
+        pendingSecret: { type: String, select: false },
+        // The 30-second step of the last code used, so a code cannot be used twice
+        lastStep: { type: Number, select: false },
+        recoveryHashes: { type: [String], select: false, default: undefined },
+    },
+
+    // What the customer wants printed on their invoices
+    billing: {
+        legalName: { type: String, default: "" },
+        address: { type: String, default: "" },
+        gstin: { type: String, default: "" },
+        stateCode: { type: String, default: "" },
+    },
+
     termsAccepted:{
         type: Boolean,
         default: false,

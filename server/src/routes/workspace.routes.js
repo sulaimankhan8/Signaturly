@@ -1,26 +1,45 @@
 import { Router } from "express";
 import { protect } from "../middlewares/auth.middleware.js";
-import { requireTier } from "../middlewares/subscription.middleware.js";
+import { requireFeature } from "../middlewares/subscription.middleware.js";
 import {
   getMyWorkspacesController,
   createWorkspaceController,
+  getWorkspaceController,
   inviteMemberController,
-  updateBrandingController,
+  revokeInvitationController,
+  describeInvitationController,
+  acceptInvitationController,
+  changeMemberRoleController,
   removeMemberController,
+  updateWorkspaceController,
+  updateBrandingController,
+  getWorkspaceActivityController,
 } from "../controllers/workspace.controller.js";
 
 const router = Router();
 
+// What an invitation is for, shown before the person signs in or signs up
+router.get("/invitations/:token", describeInvitationController);
+
 router.use(protect);
 
-// 1. Reading workspaces and deleting members is permitted for workspace owners regardless of tier
+router.post("/invitations/:token/accept", acceptInvitationController);
+
+// Belonging to a workspace needs no plan of one's own: the workspace's owner pays.
 router.get("/", getMyWorkspacesController);
+router.get("/:id", getWorkspaceController);
+router.get("/:id/activity", getWorkspaceActivityController);
 router.delete("/:id/members/:memberId", removeMemberController);
 
-// 2. Creating workspaces, inviting new members, and changing white-label branding requires active Enterprise tier
-router.post("/", requireTier(["enterprise"]), createWorkspaceController);
-router.post("/:id/members", requireTier(["enterprise"]), inviteMemberController);
-router.patch("/:id/branding", requireTier(["enterprise"]), updateBrandingController);
-router.put("/:id/branding", requireTier(["enterprise"]), updateBrandingController);
+// Starting a team workspace needs a plan that includes them. Everything after that is decided
+// by the person's role in the workspace, and by its seats.
+router.post("/", requireFeature("workspaces", { own: true }), createWorkspaceController);
+router.patch("/:id", updateWorkspaceController);
+router.post("/:id/members", inviteMemberController);
+router.post("/:id/invitations", inviteMemberController);
+router.delete("/:id/invitations/:invitationId", revokeInvitationController);
+router.patch("/:id/members/:memberId", changeMemberRoleController);
+router.patch("/:id/branding", updateBrandingController);
+router.put("/:id/branding", updateBrandingController);
 
 export default router;

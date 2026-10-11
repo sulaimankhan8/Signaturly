@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { RECIPIENT_PALETTE } from "../utils/constants";
 import API from "../api/axios";
 import { fetchUserSubscription } from "../api/billing.api";
+import { fetchEsignAvailabilityForSenderApi } from "../api/send.api";
 import { UpgradeModal } from "../components/UpgradeModal";
 import Navbar from "../components/Navbar";
 import toast, { Toaster } from "react-hot-toast";
@@ -51,6 +52,9 @@ export default function SendDocument() {
       }
     } catch (e) {}
 
+    // Aadhaar eSign is offered as a way to sign only where a provider is connected
+    fetchEsignAvailabilityForSenderApi().then(setEsign).catch(() => {});
+
     const fetchDoc = async () => {
       try {
         const [docRes, sub] = await Promise.all([
@@ -68,6 +72,9 @@ export default function SendDocument() {
     };
     fetchDoc();
   }, [pdfId]);
+
+  // Whether Aadhaar eSign can be chosen, and what one signature costs in paise
+  const [esign, setEsign] = useState({ available: false, pricePaise: 0 });
 
   const addRecipient = () => {
     const nextColorIdx = recipients.length % RECIPIENT_PALETTE.length;
@@ -396,6 +403,22 @@ export default function SendDocument() {
                   </select>
                 </div>
 
+                {/* How this person signs, where Aadhaar eSign is available */}
+                {esign.available && recipient.role === "signer" && (
+                  <div className="w-full sm:w-44">
+                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Signs with</label>
+                    <select
+                      value={recipient.signatureType || "electronic"}
+                      onChange={(e) => updateRecipient(recipient.id, { signatureType: e.target.value })}
+                      className="w-full px-3 py-2 bg-[#12141c] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-red-500"
+                      title="Aadhaar eSign signers sign last, one at a time, and each signature is paid for from the wallet"
+                    >
+                      <option value="electronic">Drawn or typed signature</option>
+                      <option value="aadhaar">Aadhaar eSign (₹{(esign.pricePaise / 100).toFixed(0)} from wallet)</option>
+                    </select>
+                  </div>
+                )}
+
                 {/* Conditional Passcode Input */}
                 {recipient.authType === "passcode" && (
                   <div className="w-full sm:w-36">
@@ -470,7 +493,7 @@ export default function SendDocument() {
                 value={emailSubject}
                 onChange={(e) => {
                   if (!isProOrAbove && e.target.value.length > 0) {
-                    setUpgradeReason("Custom branded email subject lines require a Pro Creator ($5.99/mo) or Lifetime Pass ($69) plan.");
+                    setUpgradeReason("Custom branded email subject lines require a the Pro plan.");
                     setUpgradeModalOpen(true);
                     return;
                   }
@@ -510,7 +533,7 @@ export default function SendDocument() {
                 value={reminderCadence}
                 onChange={(e) => {
                   if (!isProOrAbove && e.target.value !== "none") {
-                    setUpgradeReason("Automated recurring email reminders to signers require a Pro Creator ($5.99/mo) or Lifetime Pass ($69) plan.");
+                    setUpgradeReason("Automated recurring email reminders to signers require a the Pro plan.");
                     setUpgradeModalOpen(true);
                     return;
                   }

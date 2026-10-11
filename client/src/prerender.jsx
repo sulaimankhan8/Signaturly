@@ -7,6 +7,8 @@ import Landing from "./pages/Landing";
 import Pricing from "./pages/Pricing";
 import PublicVerify from "./pages/PublicVerify";
 import UserGuide from "./pages/UserGuide";
+import TemplatePublic, { TemplateIndex } from "./pages/TemplatePublic";
+import { Routes, Route } from "react-router-dom";
 
 /**
  * The pages that are written out as ready-made HTML when the site is built, so that a search
@@ -29,8 +31,10 @@ export const PAGES = [
     path: "/pricing",
     component: Pricing,
     title: "Pricing — PactDoc",
-    description: "PactDoc plans and prices for individuals, small businesses and teams.",
-    contains: "Choose the Perfect Plan",
+    description: "PactDoc plans and prices in rupees: start free, move to Pro when you send more.",
+    contains: "Plans and pricing",
+    // The price list fetched from the API during the build, when it could be reached
+    usesPlans: true,
     priority: "0.9",
   },
   {
@@ -52,13 +56,45 @@ export const PAGES = [
   },
 ];
 
+/**
+ * The pages for the ready-made templates, one per template plus the list. `templates` is what
+ * the API's public list returned when the site was built. Each page carries its data as JSON
+ * (`data`), which the build embeds so the app can take the page over without fetching it again.
+ */
+export const templatePages = (templates) => {
+  if (!templates || templates.length === 0) return [];
+  return [
+    {
+      path: "/t",
+      element: <TemplateIndex initial={templates} />,
+      title: "Agreement templates for India — PactDoc",
+      description: "Rent agreements, NDAs, offer letters and more: answer a few questions and the document is written and ready to send for e-signature.",
+      contains: templates[0].title,
+      priority: "0.9",
+      data: { list: templates },
+    },
+    ...templates.map((template) => ({
+      path: `/t/${template.key}`,
+      element: (
+        <Routes>
+          <Route path="/t/:key" element={<TemplatePublic initial={template} />} />
+        </Routes>
+      ),
+      title: `${template.title} template — PactDoc`,
+      description: `${template.summary} Answer a few questions and send it for e-signature.`,
+      contains: template.title,
+      priority: "0.7",
+      data: { template },
+    })),
+  ];
+};
+
 export const render = (page) => {
   const Component = page.component;
+  if (page.usesPlans && page.plans) page.element = <Component initial={page.plans} />;
   return renderToString(
     <Provider store={store}>
-      <StaticRouter location={page.path}>
-        <Component />
-      </StaticRouter>
+      <StaticRouter location={page.path}>{page.element || <Component />}</StaticRouter>
     </Provider>
   );
 };

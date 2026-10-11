@@ -10,6 +10,9 @@ import {
 import { getFileUrl } from "../services/storage.service.js";
 import { currentKeyOf, downloadKeyOf } from "../services/documentFiles.service.js";
 import { maskPhone } from "../services/messaging/index.js";
+import { brandingFor } from "../services/branding.service.js";
+import { readEmbedSession } from "../services/embed.service.js";
+import { esignStateFor } from "../services/esign/esign.service.js";
 
 const maskEmail = (email = "") => {
   const [local, domain] = String(email).split("@");
@@ -92,6 +95,18 @@ export const getPublicSigningSessionController = asyncHandler(async (req, res) =
         monetization: {
           showAds: false,
         },
+        // Documents from a Free account show "Signed with PactDoc" and an invitation after signing;
+        // a team's documents show the team's own name, colour and logo
+        branding: await (async () => {
+          const { badge, brand } = await brandingFor(pdf);
+          return { badge, ...(brand || {}) };
+        })(),
+        // Set only when the page was opened with a valid embedded-signing session: the one
+        // website allowed to show this page inside its own
+        embed: await readEmbedSession(req.query?.embed, recipient, pdf),
+        test: Boolean(pdf.testMode),
+        // How this signer signs: by drawing or typing, or with Aadhaar eSign
+        esign: await esignStateFor(recipient),
       },
       "Signing session loaded"
     )

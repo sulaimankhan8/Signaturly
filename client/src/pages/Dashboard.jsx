@@ -418,7 +418,7 @@ export default function Dashboard() {
           const plan = subscription?.plan || "free";
           const status = subscription?.status || "active";
           const envelopesUsed = subData?.quota?.envelopesUsedThisMonth || 0;
-          const monthlyLimit = subData?.quota?.monthlyLimit || 15;
+          const monthlyLimit = subData?.quota?.monthlyLimit || 5;
           const percentage = Math.min(100, Math.round((envelopesUsed / monthlyLimit) * 100));
 
           const userId = user?._id || user?.id || "guest";
@@ -474,7 +474,7 @@ export default function Dashboard() {
                       <svg className="w-3 h-3 text-yellow-400 fill-current" viewBox="0 0 20 20">
                         <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.381z" />
                       </svg>
-                      Free Starter Plan
+                      Free Plan
                     </span>
                     <span className="text-xs text-gray-400">
                       {envelopesUsed} of {monthlyLimit} envelopes used this month
@@ -489,7 +489,7 @@ export default function Dashboard() {
                     />
                   </div>
                   <p className="text-[11px] text-gray-400">
-                    Need more than 15 documents/month or ad-free signing for your recipients?
+                    Need more documents each month? Move to Pro, or buy a pack of extra documents.
                   </p>
                 </div>
 
@@ -502,17 +502,14 @@ export default function Dashboard() {
                     <svg className="w-3.5 h-3.5 text-black fill-current" viewBox="0 0 20 20">
                       <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.381z" />
                     </svg>
-                    Upgrade to Pro ($5.99)
+                    Upgrade to Pro
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigate("/pricing")}
-                    className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_#000] transition-all whitespace-nowrap cursor-pointer"
+                    onClick={() => navigate("/billing")}
+                    className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black transition-all whitespace-nowrap cursor-pointer"
                   >
-                    <svg className="w-3.5 h-3.5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                    </svg>
-                    Lifetime ($69)
+                    Extra documents
                   </button>
                 </div>
               </div>
@@ -538,11 +535,11 @@ export default function Dashboard() {
                       {plan.toUpperCase()} Plan Active
                     </span>
                     <span className="text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/40">
-                      Unlimited
+                      Active
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-400">
-                    Unlimited document signing, 100% ad-free signer experience, and verified SHA-256 seals.
+                    Your usage, extra documents, wallet and invoices are on the billing page.
                   </p>
                 </div>
               </div>
@@ -1091,7 +1088,7 @@ export default function Dashboard() {
       <UpgradeModal
         isOpen={upgradeModalOpen}
         onClose={() => setUpgradeModalOpen(false)}
-        reason="Upgrade your workspace for unlimited envelopes, ad-free signing, and team tools."
+        reason="Upgrade your workspace for more documents each month, more template packs and bulk send."
         onUpgraded={() => loadDocuments(false)}
       />
 

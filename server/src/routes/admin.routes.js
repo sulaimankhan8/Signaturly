@@ -12,6 +12,7 @@ import { Webhook } from "../models/Webhook.model.js";
 import { env } from "../config/env.js";
 import { generateBsaEvidenceCertificate } from "../services/bsaCertificate.service.js";
 import { upgradeUserPlan, getOrCreateSubscription } from "../services/subscription.service.js";
+import { PLANS, isPlan } from "../config/plans.js";
 
 import { validate, schemas } from "../middlewares/validate.middleware.js";
 import { adminLoginLimiter } from "../middlewares/rateLimit.middleware.js";
@@ -105,9 +106,10 @@ router.get("/analytics", async (req, res) => {
     const conversionRate = totalUsers > 0 ? ((totalPaidSubscribers / totalUsers) * 100).toFixed(1) : 0;
 
     // 2. Financial Metrics (Real customer revenue only)
-    const mrr = (proMonthlyCount * 5.99) + (proAnnualCount * 4.08) + (enterpriseCount * 14.99);
-    const ltdRevenue = lifetimeCount * 69;
-    const grossRevenue = (proMonthlyCount * 5.99) + (proAnnualCount * 49) + ltdRevenue + (enterpriseCount * 14.99);
+    // Estimates in rupees from list prices; the payments ledger holds what was really received
+    const mrr = Math.round(proMonthlyCount * PLANS.pro_monthly.priceInr + (proAnnualCount * PLANS.pro_annual.priceInr) / 12 + enterpriseCount * PLANS.enterprise.priceInr);
+    const ltdRevenue = 0;
+    const grossRevenue = proMonthlyCount * PLANS.pro_monthly.priceInr + proAnnualCount * PLANS.pro_annual.priceInr + enterpriseCount * PLANS.enterprise.priceInr;
     const arpu = totalPaidSubscribers > 0 ? (grossRevenue / totalPaidSubscribers).toFixed(2) : 0;
 
     // Subscriptions created/updated in last 24h
@@ -262,7 +264,7 @@ router.get("/users", async (req, res) => {
           status: sub.status,
           monthlyQuota: sub.monthlyQuota,
           usedThisMonth: sub.usedThisMonth,
-          isUnlimited: sub.plan !== "free",
+          isUnlimited: sub.monthlyQuota >= 999999,
           totalDocuments: docCount,
           signedDocuments: signedCount,
           quotaResetDate: sub.quotaResetDate,
@@ -309,13 +311,12 @@ router.patch("/users/:id/plan", async (req, res) => {
     const { id } = req.params;
     const { plan, durationDays, customQuota } = req.body;
 
-    if (!["free", "pro_monthly", "pro_annual", "lifetime", "enterprise"].includes(plan)) {
+    if (!isPlan(plan)) {
       return res.status(400).json({ error: "Invalid plan specified" });
     }
 
-    const sub = await upgradeUserPlan(id, plan, {
-      amount: plan === "lifetime" ? 69 : plan === "pro_monthly" ? 5.99 : plan === "enterprise" ? 14.99 : 0,
-    });
+    // A plan granted by an admin is not a payment
+    const sub = await upgradeUserPlan(id, plan, {});
 
     sub.adminGrants.push({ adminId: req.user.id, plan });
 

@@ -38,6 +38,7 @@ const publicUser = (user) => ({
   emailVerified: user.emailVerified !== false,
   termsAccepted: user.termsAccepted || false,
   termsAcceptedAt: user.termsAcceptedAt || null,
+  twoFactorEnabled: Boolean(user.twoFactor?.enabled),
 });
 
 export const register = asyncHandler(async (req, res) => {
@@ -106,6 +107,7 @@ export const getMe = asyncHandler(async (req, res) => {
     new ApiResponse({
       user: req.user,
       id: req.user._id || req.user.id,
+      workspace: req.workspace,
     })
   );
 });
