@@ -419,6 +419,8 @@ export default function Dashboard() {
           const status = subscription?.status || "active";
           const envelopesUsed = subData?.quota?.envelopesUsedThisMonth || 0;
           const monthlyLimit = subData?.quota?.monthlyLimit || 5;
+          // Bought as top-ups, and used after the month's allowance
+          const extraDocuments = subData?.usage?.extraDocuments || 0;
           const percentage = Math.min(100, Math.round((envelopesUsed / monthlyLimit) * 100));
 
           const userId = user?._id || user?.id || "guest";
@@ -456,10 +458,10 @@ export default function Dashboard() {
 
                 <button
                   type="button"
-                  onClick={() => navigate("/pricing")}
+                  onClick={() => navigate("/billing")}
                   className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider rounded-xl shadow transition-all whitespace-nowrap cursor-pointer shrink-0"
                 >
-                  Update Billing &amp; Renew →
+                  Update billing &amp; renew →
                 </button>
               </div>
             );
@@ -477,7 +479,8 @@ export default function Dashboard() {
                       Free Plan
                     </span>
                     <span className="text-xs text-gray-400">
-                      {envelopesUsed} of {monthlyLimit} envelopes used this month
+                      {envelopesUsed} of {monthlyLimit} documents used this month
+                      {extraDocuments > 0 ? ` · ${extraDocuments} extra documents in hand` : ""}
                     </span>
                   </div>
                   <div className="w-full max-w-md bg-black/50 h-2.5 rounded-full overflow-hidden border border-white/10">
@@ -496,7 +499,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => navigate("/pricing")}
+                    onClick={() => navigate("/billing#plans")}
                     className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_#ef4444] hover:shadow-[4px_4px_0px_0px_#ef4444] transition-all whitespace-nowrap cursor-pointer"
                   >
                     <svg className="w-3.5 h-3.5 text-black fill-current" viewBox="0 0 20 20">
@@ -506,7 +509,7 @@ export default function Dashboard() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigate("/billing")}
+                    onClick={() => navigate("/billing#topups")}
                     className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black transition-all whitespace-nowrap cursor-pointer"
                   >
                     Extra documents
@@ -539,16 +542,16 @@ export default function Dashboard() {
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-400">
-                    Your usage, extra documents, wallet and invoices are on the billing page.
+                    Your usage, extra documents, wallet and invoices are on the plans and billing page.
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <button
-                  onClick={() => navigate("/pricing")}
+                  onClick={() => navigate("/billing")}
                   className="text-xs text-emerald-400 hover:text-emerald-300 font-bold underline px-2 py-1 transition-colors"
                 >
-                  View Plan Details
+                  Plans &amp; billing
                 </button>
                 <button
                   onClick={() => handleDismissPlanBanner(plan)}

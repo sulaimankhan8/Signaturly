@@ -4,6 +4,7 @@ import { env, assertValidEnv } from "./config/env.js";
 import { initBackgroundJobs } from "./config/cron.js";
 import { initEventSystem } from "./events/index.js";
 import { syncCatalogue } from "./services/templateCatalogue.service.js";
+import { loadPlans } from "./services/planCatalogue.service.js";
 
 // Global Process Safety Guards
 process.on("unhandledRejection", (reason, promise) => {
@@ -20,6 +21,13 @@ assertValidEnv();
 connectDB().then(async () => {
   // Initialize Event-Driven Architecture subsystems
   initEventSystem();
+
+  // Plans and prices as the admins last set them. Without them the shipped list is used.
+  try {
+    await loadPlans();
+  } catch (err) {
+    console.error("Plan settings could not be read; using the shipped plans:", err.message);
+  }
 
   // Copy any template that ships with this release and is not in the database yet
   try {

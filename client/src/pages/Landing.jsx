@@ -435,8 +435,8 @@ const Landing = () => {
             </p>
           </div>
 
-          {/* The same four cards as the pricing page */}
-          <PricingCards user={user} />
+          {/* The same cards as the plans and billing page */}
+          <PricingCards user={user} large />
 
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link

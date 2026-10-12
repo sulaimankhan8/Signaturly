@@ -4,7 +4,7 @@ import { Provider } from "react-redux";
 import { store } from "./store/store";
 import "./i18n";
 import Landing from "./pages/Landing";
-import Pricing from "./pages/Pricing";
+import PlansBilling from "./pages/PlansBilling";
 import PublicVerify from "./pages/PublicVerify";
 import UserGuide from "./pages/UserGuide";
 import TemplatePublic, { TemplateIndex } from "./pages/TemplatePublic";
@@ -29,10 +29,10 @@ export const PAGES = [
   },
   {
     path: "/pricing",
-    component: Pricing,
+    component: PlansBilling,
     title: "Pricing — PactDoc",
     description: "PactDoc plans and prices in rupees: start free, move to Pro when you send more.",
-    contains: "Choose the Perfect Plan",
+    contains: "Plans and prices",
     // The price list fetched from the API during the build, when it could be reached
     usesPlans: true,
     priority: "0.9",

@@ -3,8 +3,10 @@ import { registerEmailConsumer } from "./consumers/email.consumer.js";
 import { registerJobHandlers } from "../jobs/handlers.js";
 import { registerBulkJobHandlers } from "../services/contactList.service.js";
 import { registerWebhookDelivery } from "../services/webhookDelivery.service.js";
+import { registerDeployHook } from "../services/deployHook.service.js";
 
 export const initEventSystem = () => {
+  registerDeployHook();
   registerAuditConsumer();
   registerEmailConsumer();
   registerJobHandlers();

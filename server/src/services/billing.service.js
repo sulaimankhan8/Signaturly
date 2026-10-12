@@ -1,30 +1,22 @@
 import crypto from "crypto";
 import { Subscription } from "../models/Subscription.model.js";
+import { Payment } from "../models/Payment.model.js";
+import { Invoice } from "../models/Invoice.model.js";
 import { User } from "../models/User.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { env } from "../config/env.js";
-import { PLANS, priceOf, seatAdditionPrice } from "../config/plans.js";
-import { applyOrderPaid } from "./billingEvents.service.js";
-import { Workspace } from "../models/Workspace.model.js";
-import { seatsUsed } from "./workspace.service.js";
+import { PLANS, WALLET_CUSTOM, WALLET_MIN_INR, WALLET_MAX_INR, isPlan, priceOf, seatAdditionPrice, sellsAs, packsOf } from "../config/plans.js";
+import { applyOrderPaid, applyPurchase, applyAutoRenewApproved, handleRazorpayEvent, planRenewedBy } from "./billingEvents.service.js";
+import { startAutoRenew, completeSimulatedAutoRenew, renewalOf } from "./autoRenew.service.js";
+import { getOrCreateSubscription, usageOf } from "./subscription.service.js";
+import { assertSeatsCoverTeams } from "./workspace.service.js";
+import { razorpayConfigured, createOrder, readOrder, readPayment, readSubscription, signedByRazorpay } from "./razorpay.client.js";
 
 const CLIENT_URL = process.env.CLIENT_URL || env.appUrl;
 
 // Kept for callers that list plans; the catalogue itself is config/plans.js
 export const PLAN_CONFIG = PLANS;
 
-const razorpayConfigured = () => Boolean(env.razorpayKeyId && env.razorpayKeySecret);
-
-/**
- * Starts the payment for something on the price list: a plan period, a pack of extra documents,
- * or wallet credit.
- *
- * With Razorpay configured, an order is created there and the app opens Razorpay's checkout;
- * what was bought is granted only when Razorpay reports the payment to the webhook.
- * Outside production, with no provider configured, a simulated order is returned instead.
- *
- * Plans bought this way are prepaid for one period and do not renew by themselves.
- */
 /**
  * The price of adding seats now, for the rest of the period the account has already paid for.
  */
@@ -32,6 +24,10 @@ const priceOfMoreSeats = async (userId, add) => {
   const sub = await Subscription.findOne({ userId });
   const price = sub && sub.status === "active" ? seatAdditionPrice(sub.plan, add, sub.currentPeriodEnd) : null;
   if (!price) throw new ApiError(400, "Seats can be added only to an active plan that is sold by the seat");
+  // The customer approved automatic renewal for a set number of seats, and that approval cannot be widened from here
+  if (sub.autoRenew) {
+    throw new ApiError(409, `Your plan renews automatically for ${sub.seats} seat${sub.seats === 1 ? "" : "s"}. To change that number, turn off auto-renew, add the seats, then turn auto-renew on again.`);
+  }
   return {
     amountInr: price.amountInr,
     seats: price.seats,
@@ -39,63 +35,90 @@ const priceOfMoreSeats = async (userId, add) => {
   };
 };
 
-export const createCheckoutSession = async ({ userId, plan, kind = "plan", item, seats }) => {
+/**
+ * Starts the payment for something on the price list. There are three things to buy:
+ *
+ *   a plan as a subscription  `kind: "plan", renew: "auto"`. It renews by itself
+ *                             (services/autoRenew.service.js).
+ *   a plan, prepaid           `kind: "plan", renew: "once"`. One period through an order here:
+ *                             it does not renew, and bought again early it adds to the time left.
+ *   a top-up                  `kind: "topup"`, a pack of extra documents; or `kind: "wallet"`,
+ *                             credit for messages. One payment, at any time, on any plan.
+ *
+ * A plan bought either way can take a pack of extra documents with it (`addOn`), paid for in
+ * the same payment. A pack bought by itself can be bought several at a time (`quantity`).
+ * Wallet credit is bought in a set amount, or as the item "custom" with any whole number of
+ * rupees the price list allows (`amountInr`).
+ *
+ * With Razorpay configured, the order or subscription is created there and the app opens
+ * Razorpay's checkout; what was bought is granted when Razorpay's payment is confirmed, never
+ * on the browser's word. Outside production, with no provider configured, a simulated order
+ * is returned instead.
+ */
+export const createCheckoutSession = async ({ userId, plan, kind = "plan", item, seats, renew = "once", addOn, quantity, amountInr: customInr }) => {
   const what = kind === "plan" ? plan || item : item;
+  if (kind === "plan" && renew === "auto") return startAutoRenew({ userId, plan: what, seats, addOn });
+
   // Adding seats is priced from the account's own plan and the time left on it
-  const price = kind === "seats" ? await priceOfMoreSeats(userId, what) : priceOf(kind, what, { seats });
+  const price = kind === "seats" ? await priceOfMoreSeats(userId, what) : priceOf(kind, what, { seats, amountInr: customInr });
   if (!price) {
+    if (kind === "wallet" && what === WALLET_CUSTOM) throw new ApiError(400, `Wallet credit can be added in whole rupees, from Rs. ${WALLET_MIN_INR} to Rs. ${WALLET_MAX_INR}`);
     throw new ApiError(400, kind === "plan" ? "That plan is not available to buy" : "That item is not available to buy");
   }
+  if (kind === "plan" && !sellsAs(PLANS[what]).prepaid) {
+    throw new ApiError(400, "That plan is sold as a subscription only");
+  }
+
+  // Extra documents bought with the plan, in the same payment
+  const extra = kind === "plan" && addOn ? priceOf("topup", addOn) : null;
+  if (kind === "plan" && addOn && !extra) throw new ApiError(400, "That pack of extra documents is not available to buy");
 
   if (!env.billingEnabled) {
     throw new ApiError(503, "BILLING_UNAVAILABLE: Paid plans are not available yet.");
   }
 
-  // A period can be bought with fewer seats than the last one, but not with fewer than the
-  // people already in the account's teams. Seats are never taken away part-way through a period.
-  if (kind === "plan" && price.seats) {
-    for (const team of await Workspace.find({ ownerId: userId, personal: { $ne: true }, status: { $ne: "archived" } })) {
-      const inUse = await seatsUsed(team);
-      if (inUse > price.seats) {
-        throw new ApiError(400, `"${team.name}" has ${inUse} people, counting invitations not yet answered. Remove some or buy at least ${inUse} seats.`);
-      }
+  // A plan that renews by itself is already being paid for; a single period on top would be paid twice
+  if (kind === "plan") {
+    const current = await Subscription.findOne({ userId }).select("autoRenew plan status").lean();
+    if (current?.autoRenew && current.plan !== "free" && ["active", "past_due"].includes(current.status)) {
+      throw new ApiError(409, "Your plan already renews automatically. Turn off auto-renew first if you want to change how you pay.");
     }
   }
+
+  if (kind === "plan" && price.seats) await assertSeatsCoverTeams(userId, price.seats);
 
   const user = await User.findById(userId);
   if (!user) {
     throw new ApiError(404, "User not found");
   }
 
-  if (razorpayConfigured()) {
-    const response = await fetch("https://api.razorpay.com/v1/orders", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Basic ${Buffer.from(`${env.razorpayKeyId}:${env.razorpayKeySecret}`).toString("base64")}`,
-      },
-      body: JSON.stringify({
-        amount: price.amountInr * 100,
-        currency: "INR",
-        receipt: `${kind}-${crypto.randomBytes(8).toString("hex")}`,
-        // Read back by the webhook to decide what to grant; the customer cannot change these
-        notes: {
-          userId: user._id.toString(),
-          kind,
-          item: String(what),
-          ...(kind === "plan" ? { plan: what } : {}),
-          ...(price.seats ? { seats: String(price.seats) } : {}),
-        },
-      }),
-    }).catch(() => null);
+  // How many of a pack: one, unless more were asked for
+  const packs = kind === "topup" ? packsOf(quantity) : 1;
+  const amountInr = price.amountInr * packs + (extra?.amountInr || 0);
+  const description = extra ? `${price.description}, with ${extra.description}` : packs > 1 ? `${packs} packs of ${price.description}` : price.description;
 
-    if (!response || !response.ok) {
-      console.error("[Billing] Razorpay order could not be created:", response ? response.status : "no response");
+  if (razorpayConfigured()) {
+    const order = await createOrder({
+      amount: amountInr * 100,
+      currency: "INR",
+      receipt: `${kind}-${crypto.randomBytes(8).toString("hex")}`,
+      // Read back when the payment is confirmed, to decide what to grant; the customer cannot change these
+      notes: {
+        userId: user._id.toString(),
+        kind,
+        item: String(what),
+        ...(kind === "plan" ? { plan: what } : {}),
+        ...(price.seats ? { seats: String(price.seats) } : {}),
+        ...(extra ? { topup: addOn } : {}),
+        ...(packs > 1 ? { quantity: String(packs) } : {}),
+        ...(kind === "wallet" && what === WALLET_CUSTOM ? { amount: String(price.amountInr) } : {}),
+      },
+    }).catch((err) => {
+      console.error("[Billing] Razorpay order could not be created:", err.providerMessage || err.message);
       // A gateway failure is an error. It never turns into a free upgrade.
       throw new ApiError(502, "The payment provider could not start checkout. Please try again.");
-    }
+    });
 
-    const order = await response.json();
     return {
       isMock: false,
       gateway: "razorpay",
@@ -103,7 +126,7 @@ export const createCheckoutSession = async ({ userId, plan, kind = "plan", item,
       orderId: order.id,
       amountPaise: order.amount,
       currency: "INR",
-      description: price.description,
+      description,
       customer: { name: user.name, email: user.email },
     };
   }
@@ -121,9 +144,11 @@ export const createCheckoutSession = async ({ userId, plan, kind = "plan", item,
     seats: price.seats,
     plan: kind === "plan" ? what : undefined,
     planName: kind === "plan" ? PLANS[what].name : undefined,
-    amount: price.amountInr,
+    addOn: extra ? addOn : undefined,
+    quantity: packs,
+    amount: amountInr,
     currency: "INR",
-    description: price.description,
+    description,
     checkoutUrl: kind === "plan" ? `${CLIENT_URL}/settings?tab=billing&mock_plan=${what}` : undefined,
     message: "Development mode: no payment provider is configured, so the purchase can be simulated.",
   };
@@ -133,21 +158,113 @@ export const createCheckoutSession = async ({ userId, plan, kind = "plan", item,
  * Development only: completes a simulated order as if the provider had reported the payment.
  * It goes through the same code as a real payment, so invoices and ledgers behave the same.
  */
-export const completeSimulatedOrder = async ({ userId, kind, item, seats }) => {
+export const completeSimulatedOrder = async ({ userId, kind, item, seats, renew = "once", addOn, quantity, amountInr: customInr }) => {
   if (!env.devBillingSimulation) throw new ApiError(404, "Not found");
-  const price = kind === "seats" ? await priceOfMoreSeats(userId, item) : priceOf(kind, item, { seats });
-  if (!price) throw new ApiError(400, "That item is not available to buy");
+  if (kind === "plan" && renew === "auto") return completeSimulatedAutoRenew({ userId, plan: item, seats, addOn });
 
+  const price = kind === "seats" ? await priceOfMoreSeats(userId, item) : priceOf(kind, item, { seats, amountInr: customInr });
+  if (!price) throw new ApiError(400, "That item is not available to buy");
+  const extra = kind === "plan" && addOn ? priceOf("topup", addOn) : null;
+  if (kind === "plan" && addOn && !extra) throw new ApiError(400, "That pack of extra documents is not available to buy");
+
+  const paymentId = `sim_${crypto.randomBytes(10).toString("hex")}`;
+  const packs = kind === "topup" ? packsOf(quantity) : 1;
   const result = await applyOrderPaid({
     provider: "razorpay",
     userId,
     kind,
     item,
     seats: price.seats,
-    payment: { providerPaymentId: `sim_${crypto.randomBytes(10).toString("hex")}`, amount: price.amountInr, currency: "INR" },
+    addOn: extra ? addOn : undefined,
+    quantity: packs,
+    amountInr: kind === "wallet" ? price.amountInr : undefined,
+    payment: { providerPaymentId: paymentId, amount: price.amountInr * packs + (extra?.amountInr || 0), currency: "INR" },
   });
   if (!result.granted) throw new ApiError(400, `The simulated payment was not applied: ${result.reason}`);
-  return result;
+  return { ...result, paymentId };
+};
+
+const knownPlan = (plan) => (isPlan(plan) ? plan : null);
+
+/**
+ * Confirms a payment the moment the customer comes back from Razorpay's checkout, so they
+ * do not wait for Razorpay's own notice to arrive.
+ *
+ * The browser brings back the ids and a signature Razorpay made with the secret key. The
+ * signature is checked here, then the payment itself is read from Razorpay, and only that
+ * decides what is granted: to whom, what, and for how much are read from the order or
+ * subscription this server created. It is applied by the same code as Razorpay's notice, and
+ * whichever of the two comes second finds it already done.
+ *
+ * Returns `{ confirmed: true }`, or `{ confirmed: false }` for a payment Razorpay has not
+ * finished taking yet, which its notice will complete.
+ */
+export const confirmCheckout = async (userId, { paymentId, orderId, subscriptionId, signature }) => {
+  if (!razorpayConfigured()) throw new ApiError(400, "No payment provider is configured");
+  if (!signedByRazorpay({ paymentId, orderId, subscriptionId, signature })) throw new ApiError(400, "That payment could not be confirmed");
+
+  const payment = await readPayment(paymentId);
+  const mine = (notes) => String(notes?.userId || "") === String(userId);
+
+  if (orderId) {
+    if (payment.order_id !== orderId) throw new ApiError(400, "That payment could not be confirmed");
+    const order = await readOrder(orderId);
+    if (!mine(order.notes)) throw new ApiError(403, "That payment belongs to another account");
+    if (payment.status !== "captured") return { confirmed: false };
+    await handleRazorpayEvent({ event: "payment.captured", payload: { payment: { entity: payment }, order: { entity: order } } }, knownPlan);
+    return { confirmed: true };
+  }
+
+  const subscription = await readSubscription(subscriptionId);
+  if (!mine(subscription.notes)) throw new ApiError(403, "That payment belongs to another account");
+  const { plan, seats, addOn, renewalAmountInr, replaces } = await planRenewedBy(subscription, knownPlan);
+  if (!plan) throw new ApiError(400, "That payment could not be confirmed");
+
+  // Approved, with the first charge still to come when the time already paid for ends
+  if (subscription.status === "authenticated") {
+    await applyAutoRenewApproved({ userId, plan, providerSubscriptionId: subscription.id, renewalAmountInr, replaces });
+    return { confirmed: true };
+  }
+  if (subscription.status !== "active" || payment.status !== "captured") return { confirmed: false };
+
+  await applyPurchase({
+    provider: "razorpay",
+    userId,
+    plan,
+    seats,
+    addOn,
+    providerSubscriptionId: subscription.id,
+    periodEnd: subscription.current_end,
+    renewalAmountInr,
+    replaces,
+    payment: { providerPaymentId: payment.id, amount: payment.amount ? payment.amount / 100 : 0, currency: payment.currency || "INR" },
+  });
+  return { confirmed: true };
+};
+
+/**
+ * Whether a payment has reached the account, for the page a customer lands on after paying.
+ *
+ * It answers from the record, not from the browser: `recorded` is true once the payment is
+ * in the ledger (which is when what it bought was granted), and `approved` once a
+ * subscription that charges nothing today is marked as renewing. Until one of them is true
+ * the page keeps asking; Razorpay's own notice may still be on its way.
+ */
+export const checkoutStatus = async (userId, { paymentId, subscriptionId }) => {
+  const payment = paymentId ? await Payment.findOne({ userId, providerPaymentId: paymentId, kind: { $ne: "failed" } }).lean() : null;
+  const invoice = payment ? await Invoice.findOne({ paymentId: payment._id }).select("number description totalPaise kind").lean() : null;
+  const sub = await getOrCreateSubscription(userId);
+  const plan = isPlan(sub.plan) ? PLANS[sub.plan] : null;
+
+  return {
+    recorded: Boolean(payment),
+    approved: Boolean(subscriptionId && sub.autoRenew && sub.razorpaySubscriptionId === subscriptionId),
+    payment: payment ? { kind: payment.kind, amount: payment.amount, currency: payment.currency, plan: payment.plan, item: payment.item, occurredAt: payment.occurredAt } : null,
+    invoice: invoice ? { id: invoice._id, number: invoice.number, description: invoice.description, totalPaise: invoice.totalPaise, kind: invoice.kind } : null,
+    plan: { id: sub.plan, name: plan?.name || sub.plan, perSeat: Boolean(plan?.perSeat), interval: plan?.interval || null },
+    renewal: renewalOf(sub),
+    usage: usageOf(sub),
+  };
 };
 
 /**

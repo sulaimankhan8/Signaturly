@@ -4,6 +4,8 @@ import { lazy, Suspense, useEffect } from "react";
 import { useDispatch } from "react-redux";
 
 import TermsConsentModal from "./components/TermsConsentModal";
+import OutOfDocumentsPrompt from "./components/OutOfDocumentsPrompt";
+import PaymentFlow from "./components/PaymentFlow";
 
 /**
  * Each page is fetched when it is first opened. A signer on a phone downloads the signing page
@@ -25,6 +27,7 @@ const page = (loader) => {
 };
 
 const Login = page(() => import("./pages/Login"));
+const PaymentReturn = page(() => import("./pages/PaymentReturn"));
 const Register = page(() => import("./pages/Register"));
 const UploadPdf = page(() => import("./pages/UploadPdf"));
 const HomeRedirect = page(() => import("./pages/HomeRedirect"));
@@ -49,8 +52,8 @@ const Landing = page(() => import("./pages/Landing"));
 const FontTestLab = page(() => import("./pages/FontTestLab"));
 const UserGuide = page(() => import("./pages/UserGuide"));
 const PublicVerify = page(() => import("./pages/PublicVerify"));
-const Pricing = page(() => import("./pages/Pricing"));
-const Billing = page(() => import("./pages/Billing"));
+// Plans and billing: one page, at the public address and at the app's own
+const PlansBilling = page(() => import("./pages/PlansBilling"));
 const TeamWorkspaces = page(() => import("./pages/TeamWorkspaces"));
 const ApiSettings = page(() => import("./pages/ApiSettings"));
 const InviteAccept = page(() => import("./pages/InviteAccept"));
@@ -59,7 +62,7 @@ const SsoDone = page(() => import("./pages/SsoDone"));
 const EsignStandIn = page(() => import("./pages/EsignStandIn"));
 
 // The pages that are served as ready-made HTML
-const PRERENDERED = { "/": HomeRedirect, "/pricing": Pricing, "/verify": PublicVerify, "/userguide": UserGuide };
+const PRERENDERED = { "/": HomeRedirect, "/pricing": PlansBilling, "/verify": PublicVerify, "/userguide": UserGuide };
 
 /**
  * Fetches the code of a pre-rendered page before the app starts, so the app can take over the
@@ -89,12 +92,15 @@ export default function App() {
   return (
     <BrowserRouter>
       <TermsConsentModal />
+      <OutOfDocumentsPrompt />
+      <PaymentFlow preload={PaymentReturn.preload} />
       <Suspense fallback={<PageLoading />}>
         <Routes>
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/landing" element={<Landing />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="/billing" element={<Billing />} />
+          <Route path="/pricing" element={<PlansBilling />} />
+          <Route path="/billing" element={<PlansBilling />} />
+          <Route path="/billing/return" element={<PaymentReturn />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/workspaces" element={<TeamWorkspaces />} />
           <Route path="/developer" element={<ApiSettings />} />

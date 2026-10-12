@@ -18,6 +18,14 @@ test.describe("teams, two-step sign-in and developer settings", () => {
     // A Free account is told what teams need, and can buy it here
     await expect(page.getByTestId("team-list")).toContainText("You are not in a team yet.");
     await page.getByRole("button", { name: /Get Business/ }).click();
+    // How to pay for the three seats. Prepaid here, so a seat can be added part-way through below.
+    const checkout = page.getByTestId("plan-checkout");
+    await expect(checkout).toContainText("3 seats");
+    await checkout.getByLabel(/Prepaid: one month only/).check();
+    await checkout.getByRole("button", { name: "Pay ₹1,497", exact: true }).click();
+    await expect(page.getByTestId("payment-return")).toContainText("Payment confirmed");
+    await page.getByRole("link", { name: "Back to what you were doing" }).click();
+    await page.waitForURL("**/workspaces");
 
     await page.getByPlaceholder("Team name").fill("Lakeview Society");
     await page.getByRole("button", { name: "Create team" }).click();

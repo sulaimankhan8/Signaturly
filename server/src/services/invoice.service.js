@@ -4,7 +4,7 @@ import { Payment } from "../models/Payment.model.js";
 import { User } from "../models/User.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { env } from "../config/env.js";
-import { GST_RATE_PERCENT, SAC_CODE, priceOf } from "../config/plans.js";
+import { GST_RATE_PERCENT, SAC_CODE, PLANS, TOPUP_PACKS, isPlan, isTopUpPack, priceOf } from "../config/plans.js";
 import { drawShapedText, isPlainLatin } from "./textShaping.service.js";
 import { formatDate } from "../utils/format.js";
 
@@ -62,9 +62,24 @@ const describe = (payment) => {
   if (payment.kind === "seats") {
     return `${payment.seats} more seat${payment.seats === 1 ? "" : "s"} on the PactDoc ${payment.plan || "Business"} plan, for the rest of the current period`;
   }
-  const known = priceOf(payment.kind === "purchase" || payment.kind === "renewal" ? "plan" : payment.kind, payment.item || payment.plan, { seats: payment.seats });
+  if (payment.kind === "purchase" || payment.kind === "renewal") {
+    const plan = isPlan(payment.plan) ? PLANS[payment.plan] : null;
+    const seats = plan?.perSeat ? `, ${payment.seats || 1} seat${(payment.seats || 1) === 1 ? "" : "s"}` : "";
+    const period = plan?.interval ? `, one ${plan.interval}` : "";
+    // A pack of extra documents bought in the same payment as the plan
+    const pack = isTopUpPack(payment.item) ? `, with ${TOPUP_PACKS[payment.item].documents} extra documents` : "";
+    return `PactDoc ${plan?.name || payment.plan || ""} plan${seats}${period}${pack}`.replace("  ", " ");
+  }
+  if (payment.kind === "topup" && isTopUpPack(payment.item)) {
+    const each = TOPUP_PACKS[payment.item].documents;
+    const packs = payment.quantity > 1 ? payment.quantity : 1;
+    // Several packs in one payment: the total first, then how it is made up
+    return packs > 1 ? `${each * packs} extra documents (${packs} packs of ${each})` : `${each} extra documents`;
+  }
+  // Wallet credit is for exactly what was paid, whether a set amount or one the customer chose
+  if (payment.kind === "wallet") return `Wallet credit of Rs. ${payment.amount}`;
+  const known = priceOf(payment.kind, payment.item);
   if (known) return known.description;
-  if (payment.plan) return `PactDoc ${payment.plan} plan`;
   return "PactDoc services";
 };
 

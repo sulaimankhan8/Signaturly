@@ -590,17 +590,16 @@ export default function Navbar() {
 
         {/* User Profile & Right Action Area */}
         <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
-          {/* Persistent Upgrade to Pro Button */}
+          {/* Upgrade: on a phone it is in the menu, where there is room for it */}
           <button
-            onClick={() => navigate("/pricing")}
-            className="px-3.5 py-2 text-xs font-black uppercase tracking-wider text-black bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-300 border-2 border-black shadow-[2px_2px_0px_0px_#ef4444] hover:shadow-[3px_3px_0px_0px_#ef4444] rounded-xl transition-all flex items-center gap-1.5 cursor-pointer transform hover:-translate-y-0.5 shrink-0"
-            title="Upgrade to Pro"
+            onClick={() => navigate("/billing#plans")}
+            className="hidden sm:flex px-3.5 py-2 text-xs font-black uppercase tracking-wider text-black bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-300 border-2 border-black shadow-[2px_2px_0px_0px_#ef4444] hover:shadow-[3px_3px_0px_0px_#ef4444] rounded-xl transition-all items-center gap-1.5 cursor-pointer transform hover:-translate-y-0.5 shrink-0"
+            title="See plans and upgrade"
           >
             <svg className="w-3.5 h-3.5 text-black shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
-            <span className="hidden sm:inline">Upgrade</span>
-            <span className="sm:hidden">Pro</span>
+            <span>Upgrade</span>
           </button>
 
           {/* User Profile Menu */}
@@ -649,12 +648,12 @@ export default function Navbar() {
                     </span>
                     <button
                       onClick={() => {
-                        navigate("/pricing");
+                        navigate("/billing");
                         setActiveDropdown(null);
                       }}
                       className="text-[10px] text-yellow-400 hover:underline font-bold"
                     >
-                      View Plans →
+                      Plans &amp; billing →
                     </button>
                   </div>
                 </div>
@@ -671,12 +670,12 @@ export default function Navbar() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <span>Account &amp; Billing</span>
+                    <span>Account settings</span>
                   </button>
 
                   <button
                     onClick={() => {
-                      navigate("/pricing");
+                      navigate("/billing");
                       setActiveDropdown(null);
                     }}
                     className="w-full text-left px-3 py-2 text-xs font-bold text-yellow-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors flex items-center gap-2"
@@ -684,7 +683,7 @@ export default function Navbar() {
                     <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                     </svg>
-                    <span>Pricing &amp; Subscriptions</span>
+                    <span>Plans &amp; billing</span>
                   </button>
 
                   <button
@@ -834,7 +833,7 @@ export default function Navbar() {
           {/* Mobile Upgrade CTA */}
           <button
             onClick={() => {
-              navigate("/pricing");
+              navigate("/billing#plans");
               setMobileMenuOpen(false);
             }}
             className="w-full py-2.5 px-4 text-xs font-black uppercase tracking-wider text-black bg-gradient-to-r from-yellow-400 to-amber-400 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#ef4444] flex items-center justify-center gap-2"
@@ -864,10 +863,10 @@ export default function Navbar() {
               <span>Dashboard</span>
             </button>
 
-            {/* Pricing */}
+            {/* Plans and billing */}
             <button
               onClick={() => {
-                navigate("/pricing");
+                navigate("/billing");
                 setMobileMenuOpen(false);
               }}
               className="w-full text-left px-4 py-2.5 text-xs font-black uppercase text-yellow-300 hover:bg-white/5 rounded-xl transition-all flex items-center gap-2.5"
@@ -875,7 +874,7 @@ export default function Navbar() {
               <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
-              <span>Plans &amp; Pricing</span>
+              <span>Plans &amp; billing</span>
             </button>
 
             {/* Workspaces */}
@@ -1069,7 +1068,7 @@ export default function Navbar() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <span>Account &amp; Billing</span>
+              <span>Account settings</span>
             </button>
           </div>
 

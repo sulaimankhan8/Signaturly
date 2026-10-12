@@ -56,7 +56,7 @@ export const apiKeyAuth = asyncHandler(async (req, res, next) => {
   if (!apiKey || apiKey.status !== "active") throw refuse();
 
   const user = await User.findById(apiKey.userId);
-  if (!user || user.deletedAt) throw refuse();
+  if (!user || user.deletedAt || user.suspendedAt) throw refuse();
 
   // The key works in its workspace only while the person who made it still belongs there
   let workspace = apiKey.workspaceId ? await Workspace.findById(apiKey.workspaceId) : null;

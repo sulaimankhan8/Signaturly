@@ -111,7 +111,7 @@ describe("admin plan grants", () => {
     const res = await api()
       .patch(`/api/admin/users/${user.id}/plan`)
       .set("Authorization", `Bearer ${login.body.adminToken}`)
-      .send({ plan: "pro_annual" });
+      .send({ plan: "pro_annual", reason: "Agreed with the customer" });
     expect(res.status).toBe(200);
 
     const sub = await Subscription.findOne({ userId: user.id });

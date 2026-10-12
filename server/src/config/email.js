@@ -30,9 +30,10 @@ if (env.smtpUser && env.smtpPass) {
 // In tests every message lands here so codes and links can be read back
 export const emailOutbox = [];
 
-export const sendEmail = async ({ to, subject, html, text }) => {
+// `replyTo` is who an answer should go to, when that is not the sender
+export const sendEmail = async ({ to, subject, html, text, replyTo }) => {
   if (env.isTest) {
-    emailOutbox.push({ to, subject, html, text });
+    emailOutbox.push({ to, subject, html, text, ...(replyTo ? { replyTo } : {}) });
     return { test: true, to, subject };
   }
 
@@ -44,6 +45,7 @@ export const sendEmail = async ({ to, subject, html, text }) => {
         subject,
         html,
         text: text || subject,
+        ...(replyTo ? { replyTo } : {}),
       });
       console.log("📧 [Email Sent]:", { messageId: info.messageId });
       return info;

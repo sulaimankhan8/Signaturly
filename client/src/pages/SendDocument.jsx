@@ -24,12 +24,9 @@ export default function SendDocument() {
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState("");
 
-  const isProOrAbove = [
-    "pro_monthly",
-    "pro_annual",
-    "lifetime",
-    "enterprise",
-  ].includes(subData?.subscription?.plan);
+  // On a paid plan, whichever one. The server says what level the account's plan is, so a
+  // plan added or renamed in the admin app counts without being listed here.
+  const isProOrAbove = Boolean(subData?.entitlements?.tier && subData.entitlements.tier !== "free");
 
   const [recipients, setRecipients] = useState([
     {

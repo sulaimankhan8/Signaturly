@@ -12,6 +12,8 @@ const OLD_NAME_ALLOWED = ["config/env.js"];
 
 const ROOTS = ["../../src", "../../../client/src", "../../../admin/src"].map((p) => path.resolve(import.meta.dirname, p));
 const SKIP = new Set(["scripts", "node_modules", "dist"]);
+// Text that ships with the admin app but is not source code
+const EXTRA_FILES = ["../../../admin/README.md", "../../../admin/index.html", "../../../admin/.env.example"].map((p) => path.resolve(import.meta.dirname, p));
 
 const sourceFiles = (dir) =>
   fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -23,7 +25,7 @@ const sourceFiles = (dir) =>
 
 const linesMatching = (pattern, isAllowed = () => false) => {
   const hits = [];
-  for (const file of ROOTS.flatMap(sourceFiles)) {
+  for (const file of [...ROOTS.flatMap(sourceFiles), ...EXTRA_FILES]) {
     const normalized = file.split(path.sep).join("/");
     if (isAllowed(normalized)) continue;
 

@@ -15,6 +15,7 @@ import { creditWallet, debitWallet, getWallet, auditWallet } from "../../src/ser
 import { issueInvoiceForPayment, splitTax, financialYearOf, isGstin } from "../../src/services/invoice.service.js";
 import { up as migratePlans } from "../../src/migrations/001-plans-2026-10.js";
 import { runMigrations, AppliedMigration } from "../../src/migrations/index.js";
+import { describeCatalogue } from "../../src/services/entitlements.service.js";
 import { messageOutbox } from "../../src/services/messaging/index.js";
 
 const subOf = (userId) => Subscription.findOne({ userId });
@@ -103,8 +104,8 @@ describe("P4-13 the plan catalogue", () => {
     // The landing page shows prices in its ready-made HTML, from a copy kept with the client.
     // If a price or an allowance changes on the server, this fails until the copy is changed too.
     const { PRICING_FALLBACK } = await import("../../../client/src/config/pricingFallback.js");
-    const pick = ({ id, name, tier, documentsPerMonth, priceInr, interval, perSeat, purchasable }) => ({ id, name, tier, documentsPerMonth, priceInr, interval, perSeat, purchasable });
-    expect(PRICING_FALLBACK.plans.map(pick)).toEqual(publicCatalogue().plans.map(pick));
+    const pick = ({ id, name, tier, documentsPerMonth, priceInr, interval, perSeat, purchasable, features, limits }) => ({ id, name, tier, documentsPerMonth, priceInr, interval, perSeat, purchasable, features, limits });
+    expect(PRICING_FALLBACK.plans.map(pick)).toEqual(describeCatalogue().plans.map(pick));
     expect(PRICING_FALLBACK.pricesIncludeGst).toBe(publicCatalogue().pricesIncludeGst);
   });
 
@@ -113,7 +114,7 @@ describe("P4-13 the plan catalogue", () => {
     expect(res.status).toBe(200);
     const { plans, topups, pricesIncludeGst } = res.body.data;
     expect(pricesIncludeGst).toBe(true);
-    expect(plans.map((p) => p.id).sort()).toEqual(["business_monthly", "enterprise", "free", "pro_annual", "pro_monthly"]);
+    expect(plans.map((p) => p.id).sort()).toEqual(["business_annual", "business_monthly", "enterprise", "free", "pro_annual", "pro_monthly"]);
     expect(plans.find((p) => p.id === "business_monthly")).toMatchObject({ priceInr: 499, perSeat: true, purchasable: true });
     expect(plans.find((p) => p.id === "pro_monthly")).toMatchObject({ priceInr: 299, documentsPerMonth: 50, purchasable: true });
     expect(plans.find((p) => p.id === "enterprise")).toMatchObject({ documentsPerMonth: null, purchasable: false });

@@ -20,12 +20,9 @@ export default function UseTemplate() {
   const [message, setMessage] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
 
-  const isProOrAbove = [
-    "pro_monthly",
-    "pro_annual",
-    "lifetime",
-    "enterprise",
-  ].includes(subData?.subscription?.plan);
+  // On a paid plan, whichever one. The server says what level the account's plan is, so a
+  // plan added or renamed in the admin app counts without being listed here.
+  const isProOrAbove = Boolean(subData?.entitlements?.tier && subData.entitlements.tier !== "free");
 
   useEffect(() => {
     const loadTemplate = async () => {
@@ -86,7 +83,7 @@ export default function UseTemplate() {
 
     if (!isProOrAbove) {
       toast.error("Dispatching template contracts requires the Pro plan.");
-      navigate("/pricing");
+      navigate("/billing#plans");
       return;
     }
 
@@ -164,7 +161,7 @@ export default function UseTemplate() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <button
                 type="button"
-                onClick={() => navigate("/pricing")}
+                onClick={() => navigate("/billing#plans")}
                 className="px-8 py-3.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_#ef4444] transition-all cursor-pointer"
               >
                 Upgrade to Pro →

@@ -90,5 +90,8 @@ export const signingLimiter = createLimiter({ name: "signing", windowMs: MINUTE,
 export const verifyLimiter = createLimiter({ name: "verify", windowMs: 15 * MINUTE, limit: 30 });
 export const adminLoginLimiter = createLimiter({ name: "adminlogin", windowMs: 15 * MINUTE, limit: 5 });
 
+// The "Contact sales" form, open to anyone: a few an hour from one address is plenty
+export const salesEnquiryLimiter = createLimiter({ name: "salesenquiry", windowMs: 60 * MINUTE, limit: 5, message: "You have sent several enquiries already. We will be in touch; please try again later if you need to add something." });
+
 // Everything else under /api
 export const apiLimiter = createLimiter({ name: "api", windowMs: MINUTE, limit: 300 });

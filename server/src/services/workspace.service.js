@@ -123,6 +123,20 @@ export const seatsUsed = async (workspace) => {
   return memberIds.size + pending;
 };
 
+/**
+ * Refuses a number of seats smaller than one of the owner's teams. A period can be bought with
+ * fewer seats than the last one, but not with fewer than the people already in a team; seats
+ * are never taken away part-way through a period.
+ */
+export const assertSeatsCoverTeams = async (ownerId, seats) => {
+  for (const team of await Workspace.find({ ownerId, personal: { $ne: true }, status: { $ne: "archived" } })) {
+    const inUse = await seatsUsed(team);
+    if (inUse > seats) {
+      throw new ApiError(400, `"${team.name}" has ${inUse} people, counting invitations not yet answered. Remove some or buy at least ${inUse} seats.`);
+    }
+  }
+};
+
 // Seats the owner's plan pays for. Plans sold by the seat record it; others get the owner alone.
 export const seatsAllowed = async (ownerId) => {
   const subscription = await getOrCreateSubscription(ownerId);

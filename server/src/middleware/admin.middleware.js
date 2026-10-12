@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { User } from "../models/User.model.js";
 
-const ADMIN_ROLES = ["superadmin", "admin"];
+export const ADMIN_ROLES = ["superadmin", "admin"];
 
 /**
  * Middleware enforcing isolated admin authentication.
@@ -26,7 +26,7 @@ export const requireSuperadmin = async (req, res, next) => {
 
     // The role is read from the database on every request, never trusted from the token alone
     const user = await User.findById(decoded.id);
-    if (!user || !decoded.isAdmin || !ADMIN_ROLES.includes(user.role)) {
+    if (!user || !decoded.isAdmin || !ADMIN_ROLES.includes(user.role) || user.deletedAt || user.suspendedAt) {
       return res.status(403).json({ error: "ACCESS_DENIED: Superadmin privileges required" });
     }
 

@@ -39,19 +39,19 @@ Phase 0 before anything. Phase 1 before any real user. The test setup in the nex
 
 ## Progress as of 11 October 2026
 
-78 of 132 tasks are done and 32 are partly done. Phase 1 is nearly complete, the core of phase 2 is built, and the code side of phases 3, 4 and 5 is finished and tested. Of phase 6, the public API, webhooks, test mode and embedded signing are built and tested, and **Aadhaar eSign is postponed to the next version** by the owner's decision of 11 October 2026: its scaffolding is in the code, switched off. 525 server tests and 56 browser tests pass. Phases 1 to 3 are committed and pushed, and phases 4 to 6 are uncommitted, on branch `fix/phase1-security`; nothing is merged to `main` or deployed. `PENDING_TASKS_AND_PRODUCTION_ROADMAP.md` in the repo root carries the same status with the owner's to-do list and the production configuration; its section 5a lists each phase 5 and 6 task with what is still open.
+79 of 132 tasks are done and 32 are partly done. Phase 1 is nearly complete, the core of phase 2 is built, and the code side of phases 3, 4 and 5 is finished and tested. Of phase 6, the public API, webhooks, test mode and embedded signing are built and tested, and **Aadhaar eSign is postponed to the next version** by the owner's decision of 11 October 2026: its scaffolding is in the code, switched off. 525 server tests and 56 browser tests pass. Phases 1 to 3 are committed and pushed, and phases 4 to 6 are uncommitted, on branch `fix/phase1-security`; nothing is merged to `main` or deployed. `PENDING_TASKS_AND_PRODUCTION_ROADMAP.md` in the repo root carries the same status with the owner's to-do list and the production configuration; its section 5a lists each phase 5 and 6 task with what is still open.
 
 | Phase | Tasks | Done | Partly | Not started |
 | --- | --- | --- | --- | --- |
-| Setup | 13 | 5 | 3 | 5 |
+| Setup | 13 | 5 | 4 | 4 |
 | 0. Emergency | 8 | 0 | 1 | 7 |
-| 1. Secure | 32 | 29 | 3 | 0 |
+| 1. Secure | 32 | 30 | 2 | 0 |
 | 2. Trust | 22 | 9 | 7 | 6 |
 | 3. India fit | 14 | 9 | 3 | 2 |
 | 4. Templates and plans | 17 | 13 | 3 | 1 |
 | 5. Teams | 11 | 9 | 2 | 0 |
 | 6. Strong signatures and API | 15 | 4 | 10 | 1 |
-| **Total** | **132** | **78** | **32** | **22** |
+| **Total** | **132** | **79** | **32** | **21** |
 
 Not yet checked: the workspace migration on real data, single sign-on against a real identity provider, a real phone in the hand, the seal in Adobe Acrobat, the Hindi wording by a native speaker, and the client's new routing on the live host.
 
@@ -142,6 +142,26 @@ Where this departed from the plan: Aadhaar eSign (P6-01 to P6-06) is postponed t
 
 Found and fixed while writing the tests: a viewer could send from a ready-made template and save a team template; a send could be charged to the wrong team; an API key could read another workspace's documents; a webhook address written as IPv4 inside IPv6 passed the private-address check; an Enterprise account could not invite anyone; a teammate could not open a team document in the editor.
 
+### The admin app, rebuilt
+
+Built and tested on 12 October 2026, after a review of the admin app found that much of what it showed was not true: dollar prices where the server holds rupees, no Business plan, an audit table that named no event and marked every row verified, fixed text shown as live status, and a plan dialog that kept the old allowance and did not set when a plan ended.
+
+| Tasks | Status | Note |
+| --- | --- | --- |
+| AD-01 to AD-10 | Done | `services/admin.service.js`: every list is paged and searched in the database; every input is checked; figures come from the payments ledger, the subscriptions and the audit log, by the day in India; no reply says where a file is kept or carries a signing link |
+| AD-05 | Done | A granted plan gets the plan's own allowance unless a custom one is given, ends after the days given, takes seats, and needs a reason. A plan given this way is marked and left out of the revenue estimate |
+| AD-11 | Done | `AdminAction`: an add-only record of sign-ins, refused sign-ins, plan changes, accounts and documents opened, files downloaded, jobs run again and template changes |
+| AD-12 | Done | Closes P1-25 |
+| AD-13 to AD-18 | Done | One layout with real addresses, one guard, one API client, shared colours and fonts with the client app, and one set of components. Works from 390 px wide. The host's security headers are written but have not met the host |
+| AD-19 to AD-27 | Done | Sign in, Overview, Users, an account's page, Documents, a document's page with its audit chain checked, Audit log, Admin activity. The old dashboard file and its Governance tab are deleted |
+| AD-28, AD-29 | Done | Payments with invoices to download; Operations with the state of the service, background jobs (a failed one can be run again) and webhook deliveries |
+| AD-30 | Done | An account can be suspended and restored. Its sessions and API keys stop at once; documents it has sent can still be signed |
+| AD-31 | Done | Closes A-29 in code. The deploy hook itself is the owner's to create |
+| AD-32 to AD-36 | Done | Templates page: in the shared layout, the open template in the address, search and filters, a guard on unsaved changes, confirmation before publishing, retiring and deleting, JSON mistakes shown with their line, the preview beside the editor |
+| AD-37 to AD-41 | Done | 36 server tests, 39 component tests, 5 browser journeys; the admin app is linted and tested in CI |
+
+Where this departed from its plan: completed documents are counted from the audit log's "completed" event, not from the sealing time, because a seal can be retried later than the signing it follows. A plan given by an admin is now flagged on the subscription (`complimentary`), which the plan did not ask for, so that it is not counted as revenue. The P2-17 test now sends a reason, since a reason is required.
+
 ### Status of every task in the phases already begun
 
 | Task | Status | Note |
@@ -149,7 +169,7 @@ Found and fixed while writing the tests: a viewer could send from a ready-made t
 | S-01 | Not started | Yours: staging and production projects |
 | S-02 | Not started | Local compose file |
 | S-03, S-04, S-05 | Done | In-memory database harness, helpers, email outbox |
-| S-06 | Not started | Component tests |
+| S-06 | Partly | The admin app has component tests (39). The client has none |
 | S-07 | Done | Playwright in `e2e/`: 28 tests on a phone profile and a desktop one, against the real server on a throwaway database |
 | S-08 | Done | CI on every pull request. Lint is not gated: 543 existing errors |
 | S-09 | Partly | Tests gate the deploy; no separate staging deploy |
@@ -164,7 +184,7 @@ Found and fixed while writing the tests: a viewer could send from a ready-made t
 | P1-13 to P1-17 | Done |  |
 | P1-18 | Partly | Expiry and random tokens done; a new token per reminder was dropped by design |
 | P1-19 to P1-24 | Done |  |
-| P1-25 | Partly | Admin 2FA still to do |
+| P1-25 | Done | Admin sign-in asks for the authenticator code; required in production (`ADMIN_REQUIRE_2FA`) |
 | P1-26 to P1-32 | Done |  |
 | P2-01 | Partly | `@signpdf` chosen and in use; no written note; no timestamp support |
 | P2-02 | Partly | Certificate from a secret; key-management service not used |

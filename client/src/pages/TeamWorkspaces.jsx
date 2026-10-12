@@ -20,6 +20,7 @@ import {
 } from "../api/workspace.api";
 import { fetchUserSubscription } from "../api/billing.api";
 import { payFor, rupees } from "../utils/checkout";
+import PlanCheckout from "../components/PlanCheckout";
 import { getActiveWorkspaceId, setActiveWorkspaceId, ROLE_LABELS, ROLE_HELP } from "../utils/workspace";
 
 /**
@@ -71,6 +72,8 @@ export default function TeamWorkspaces() {
   const [selectedId, setSelectedId] = useState("");
   const [details, setDetails] = useState(null);
   const [subscription, setSubscription] = useState(null);
+  // How many seats the checkout step for the Business plan opens with, while it is open
+  const [buyingSeats, setBuyingSeats] = useState(0);
   const [tab, setTab] = useState("members");
   const [busy, setBusy] = useState("");
   const [newName, setNewName] = useState("");
@@ -185,9 +188,9 @@ export default function TeamWorkspaces() {
   const buySeats = async (count) => {
     setBusy("seats");
     try {
-      const result = await payFor("seats", String(count));
+      const result = await payFor("seats", String(count), { stay: true });
       if (result !== "cancelled") {
-        toast.success(result === "paid" ? "Payment received. The seat appears in a moment." : "Seat added");
+        toast.success(result === "processing" ? "Payment received. The seat appears in a moment." : "Seat added");
         await loadDetails(selectedId);
       }
     } catch (err) {
@@ -197,23 +200,8 @@ export default function TeamWorkspaces() {
     }
   };
 
-  const buyBusiness = async () => {
-    const answer = window.prompt("How many people will use it, including you?", "3");
-    const seats = Math.floor(Number(answer));
-    if (!answer || !(seats >= 1)) return;
-    setBusy("plan");
-    try {
-      const result = await payFor("plan", businessPlan.id, { seats });
-      if (result !== "cancelled") {
-        toast.success("Thank you. Your plan is being updated.");
-        await loadAll();
-      }
-    } catch (err) {
-      toast.error(messageOf(err, "The plan could not be bought"));
-    } finally {
-      setBusy("");
-    }
-  };
+  // How many seats, and how to pay for them (renewing or once), are both asked in the checkout step
+  const buyBusiness = () => setBuyingSeats(3);
 
   const pickLogo = (event) => {
     const file = event.target.files?.[0];
@@ -329,7 +317,7 @@ export default function TeamWorkspaces() {
                         Get Business · {rupees(businessPlan.priceInr)} per person a month
                       </button>
                     ) : (
-                      <Link to="/pricing" className={quiet}>
+                      <Link to="/billing#plans" className={quiet}>
                         See plans
                       </Link>
                     )}
@@ -648,6 +636,25 @@ export default function TeamWorkspaces() {
           }
         }}
       />
+
+      {buyingSeats > 0 && businessPlan && (
+        <PlanCheckout
+          open
+          plans={[businessPlan]}
+          planId={businessPlan.id}
+          seats={buyingSeats}
+          chooseSeats
+          maxSeats={subscription?.catalogue?.maxSeats}
+          addOns={subscription?.catalogue?.topups || []}
+          onClose={() => setBuyingSeats(0)}
+          onDone={async (outcome) => {
+            setBuyingSeats(0);
+            // Not confirmed yet: the provider's own notice reaches the server a moment later
+            if (outcome === "processing") await new Promise((resolve) => setTimeout(resolve, 2500));
+            await loadAll();
+          }}
+        />
+      )}
     </div>
   );
 }

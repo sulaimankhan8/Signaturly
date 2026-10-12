@@ -145,7 +145,7 @@ export default function ApiSettings() {
           <div className={`${card} border-amber-500/30`} data-testid="api-upgrade">
             <p className="text-sm text-amber-200 font-bold">The API is not part of your current plan.</p>
             <p className="text-xs text-gray-400 mt-1">Keys you already have can still be seen and revoked here. New keys and webhooks need a plan that includes the API.</p>
-            <Link to="/pricing" className={`${primary} inline-block mt-3`}>
+            <Link to="/billing#plans" className={`${primary} inline-block mt-3`}>
               See plans
             </Link>
           </div>

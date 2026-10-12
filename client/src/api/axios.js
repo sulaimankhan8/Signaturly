@@ -2,6 +2,7 @@ import axios from "axios";
 import { store } from "../store/store";
 import { setCredentials, logout } from "../store/authSlice";
 import { getActiveWorkspaceId } from "../utils/workspace";
+import { OUT_OF_DOCUMENTS, isOutOfDocuments } from "../utils/outOfDocuments";
 
 const API = axios.create({
   baseURL: `${import.meta.env.VITE_API_BASE_URL}/api`,
@@ -87,6 +88,10 @@ API.interceptors.response.use(
         isRefreshing = false;
       }
     }
+
+    // Out of documents: said once here, so every screen that sends offers the same way forward.
+    // The screen still gets the error and shows it as it always has.
+    if (isOutOfDocuments(err)) window.dispatchEvent(new CustomEvent(OUT_OF_DOCUMENTS));
 
     return Promise.reject(err);
   }

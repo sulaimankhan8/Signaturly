@@ -2,10 +2,8 @@ import { Subscription } from "../models/Subscription.model.js";
 import { Workspace } from "../models/Workspace.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { env } from "../config/env.js";
-import { PLANS, isPlan, quotaOf, periodMsOf } from "../config/plans.js";
-
-// Document allowances come from the plan catalogue
-const PLAN_QUOTAS = Object.fromEntries(Object.keys(PLANS).map((plan) => [plan, quotaOf(plan)]));
+import { PLANS, UNLIMITED, isPlan, quotaOf, periodMsOf, sameOffer } from "../config/plans.js";
+import { includesOf } from "./entitlements.service.js";
 
 export const getOrCreateSubscription = async (userId) => {
   let sub = await Subscription.findOne({ userId });
@@ -18,7 +16,7 @@ export const getOrCreateSubscription = async (userId) => {
         userId,
         plan: "free",
         status: "free",
-        monthlyQuota: PLAN_QUOTAS.free,
+        monthlyQuota: quotaOf("free"),
         usedThisMonth: 0,
       });
     } catch (err) {
@@ -54,7 +52,7 @@ export const getOrCreateSubscription = async (userId) => {
       sub.previousPlan = sub.plan;
       sub.plan = "free";
       sub.status = "canceled";
-      sub.monthlyQuota = PLAN_QUOTAS.free;
+      sub.monthlyQuota = quotaOf("free");
       sub.cancelAtPeriodEnd = false;
       await sub.save();
     }
@@ -71,7 +69,7 @@ export const getOrCreateSubscription = async (userId) => {
       sub.previousPlan = sub.plan;
       sub.plan = "free";
       sub.status = "expired";
-      sub.monthlyQuota = PLAN_QUOTAS.free;
+      sub.monthlyQuota = quotaOf("free");
 
       // Soft-lock owned workspaces to read-only mode
       try {
@@ -159,7 +157,7 @@ export const addExtraDocuments = async (userId, documents) => {
  * How much of its allowance an account has used, for the billing page.
  */
 export const usageOf = (sub) => {
-  const unlimited = sub.monthlyQuota >= PLAN_QUOTAS.lifetime;
+  const unlimited = sub.monthlyQuota >= UNLIMITED;
   return {
     usedThisMonth: sub.usedThisMonth,
     monthlyQuota: unlimited ? null : sub.monthlyQuota,
@@ -175,6 +173,15 @@ export const upgradeUserPlan = async (userId, newPlan, metadata = {}) => {
 
   if (!isPlan(newPlan)) throw new ApiError(400, "Invalid subscription plan specified");
 
+  // More time bought on the plan the account is already on is added to the end of what it
+  // has, so paying early never loses the days left. That holds whichever of the plan's two
+  // prices is paid: a year bought with days of a month left starts when those days end.
+  // On a plan sold by the seat it holds while the number of seats stays as it is; a purchase
+  // for a different number starts afresh.
+  const sameSeats = !PLANS[newPlan].perSeat || !metadata.seats || Math.max(1, Number(metadata.seats) || 1) === Math.max(1, sub.seats || 1);
+  const addsTime = metadata.addToPeriod && sameSeats && sameOffer(sub.plan, newPlan) && sub.status === "active" && sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() > now;
+  const periodStart = addsTime ? sub.currentPeriodEnd.getTime() : now;
+
   sub.plan = newPlan;
   if (metadata.seats) sub.seats = Math.max(1, Number(metadata.seats) || 1);
   if (!PLANS[newPlan].perSeat) sub.seats = 1;
@@ -182,9 +189,11 @@ export const upgradeUserPlan = async (userId, newPlan, metadata = {}) => {
   // On a plan sold by the seat, the allowance is pooled: every seat adds to the one total
   sub.monthlyQuota = quotaOf(newPlan) * (PLANS[newPlan].perSeat ? sub.seats : 1);
   sub.quotaGrandfatheredUntil = null;
-  sub.currentPeriodEnd = newPlan === "free" ? null : new Date(now + periodMsOf(newPlan));
+  sub.currentPeriodEnd = newPlan === "free" ? null : new Date(periodStart + periodMsOf(newPlan));
   sub.gracePeriodEnd = null;
   sub.cancelAtPeriodEnd = false;
+  // A plan given by an administrator brings in no money; the next payment clears this
+  sub.complimentary = Boolean(metadata.grantedByAdmin) && newPlan !== "free";
 
   if (metadata.stripeCustomerId) sub.stripeCustomerId = metadata.stripeCustomerId;
   if (metadata.stripeSubscriptionId) sub.stripeSubscriptionId = metadata.stripeSubscriptionId;
@@ -192,8 +201,8 @@ export const upgradeUserPlan = async (userId, newPlan, metadata = {}) => {
   if (metadata.amount) sub.lastPaymentAmount = metadata.amount;
   if (metadata.currency) sub.lastPaymentCurrency = String(metadata.currency).toUpperCase();
 
-  // Reactivate user's owned workspaces if upgrading to Enterprise
-  if (["business", "enterprise"].includes(PLANS[newPlan].tier)) {
+  // Reactivate the account's team workspaces when the new plan has them
+  if (includesOf(PLANS[newPlan]).features.workspaces) {
     try {
       await Workspace.updateMany(
         { ownerId: userId, personal: { $ne: true }, status: "read_only" },
@@ -206,7 +215,10 @@ export const upgradeUserPlan = async (userId, newPlan, metadata = {}) => {
 
   await sub.save();
 
-  // Dispatch instant webhook alert (Telegram/Discord/Slack)
+  // Dispatch instant webhook alert (Telegram/Discord/Slack). A plan given by an administrator
+  // is not a sale; it is written to the record of admin actions instead.
+  if (metadata.grantedByAdmin) return sub;
+
   try {
     const { User } = await import("../models/User.model.js");
     const { sendNewSubscriptionAlert } = await import("./alert.service.js");
@@ -226,6 +238,15 @@ export const upgradeUserPlan = async (userId, newPlan, metadata = {}) => {
 
 // Batch background runner for scheduled lifecycle checks
 export const processSubscriptionLifecycle = async () => {
+  // A renewal that was due and unheard is looked up at the payment provider first, so that
+  // nobody who has paid is moved into grace, or back to Free, over a lost notice
+  try {
+    const { reconcileAutoRenewals } = await import("./autoRenew.service.js");
+    await reconcileAutoRenewals();
+  } catch (err) {
+    console.error("Subscription reconciliation error:", err.message);
+  }
+
   try {
     const now = new Date();
 
@@ -252,7 +273,7 @@ export const processSubscriptionLifecycle = async () => {
       sub.previousPlan = sub.plan;
       sub.plan = "free";
       sub.status = "expired";
-      sub.monthlyQuota = PLAN_QUOTAS.free;
+      sub.monthlyQuota = quotaOf("free");
 
       try {
         await Workspace.updateMany(
@@ -296,7 +317,7 @@ export const downgradeExpiredSubscription = async (userId) => {
   sub.previousPlan = sub.plan;
   sub.plan = "free";
   sub.status = "expired";
-  sub.monthlyQuota = PLAN_QUOTAS.free;
+  sub.monthlyQuota = quotaOf("free");
   sub.gracePeriodEnd = null;
 
   try {

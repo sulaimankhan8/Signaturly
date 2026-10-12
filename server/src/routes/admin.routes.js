@@ -1,409 +1,460 @@
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { requireSuperadmin } from "../middleware/admin.middleware.js";
-import { Pdf } from "../models/Pdf.model.js";
-import { PdfAudit } from "../models/PdfAudit.model.js";
+import { requireSuperadmin, ADMIN_ROLES } from "../middleware/admin.middleware.js";
 import { User } from "../models/User.model.js";
-import { Subscription } from "../models/Subscription.model.js";
-import { Workspace } from "../models/Workspace.model.js";
-import { ApiKey } from "../models/ApiKey.model.js";
-import { Webhook } from "../models/Webhook.model.js";
 import { env } from "../config/env.js";
+import { PLANS } from "../config/plans.js";
 import { generateBsaEvidenceCertificate } from "../services/bsaCertificate.service.js";
-import { upgradeUserPlan, getOrCreateSubscription } from "../services/subscription.service.js";
-import { PLANS, isPlan } from "../config/plans.js";
-
+import { renderInvoicePdf } from "../services/invoice.service.js";
+import { verifySecondStep } from "../services/twoFactor.service.js";
+import { recordAdminAction } from "../services/adminLog.service.js";
+import {
+  indiaDay,
+  getMeta,
+  getOverview,
+  getSystem,
+  listUsers,
+  getUser,
+  grantPlan,
+  resetUsage,
+  suspendUser,
+  restoreUser,
+  listDocuments,
+  getDocument,
+  documentExists,
+  listAudit,
+  listPayments,
+  getInvoiceForAdmin,
+  listJobs,
+  retryJob,
+  listDeliveries,
+  listActivity,
+  listSubscriptions,
+  stopUserAutoRenew,
+} from "../services/admin.service.js";
+import { listPlans, updatePlan, createPlan, pushPlanToRazorpay, createAddOn, updateAddOn } from "../services/planCatalogue.service.js";
+import { listEnquiries, updateEnquiry } from "../services/salesEnquiry.service.js";
 import { validate, schemas } from "../middlewares/validate.middleware.js";
 import { adminLoginLimiter } from "../middlewares/rateLimit.middleware.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { ApiError } from "../utils/ApiError.js";
 import { safeEqual } from "../utils/tokens.js";
 
+// The operator's side of the service. What each route reads is in services/admin.service.js.
 const router = express.Router();
 
-// POST /api/admin/login - Dedicated Isolated Admin Portal Authentication
-router.post("/login", adminLoginLimiter, validate({ body: schemas.adminLogin }), async (req, res) => {
-  try {
-    const { email, password, adminSecret } = req.body;
-    const invalid = () => res.status(401).json({ error: "Invalid admin credentials." });
+const byId = validate({ params: schemas.adminId });
+// Looking at the same account or document again within this time is one line in the record, not many
+const QUIET_MS = 10 * 60 * 1000;
 
-    // 1. Verify Admin Security Key
-    if (!env.adminSecret || !safeEqual(adminSecret.trim(), env.adminSecret)) {
-      return invalid();
-    }
+// POST /api/admin/login - the admin app's own sign-in
+router.post(
+  "/login",
+  adminLoginLimiter,
+  validate({ body: schemas.adminLogin }),
+  asyncHandler(async (req, res) => {
+    const { email, password, adminSecret, code } = req.body;
 
-    // 2. Find User and verify password
+    // The caller is told the same thing whatever was wrong; the record says which it was
+    const refuse = async (why, status = 401, message = "Invalid admin credentials.") => {
+      await recordAdminAction(req, { action: "admin.sign_in_refused", summary: `Sign-in refused for ${email}: ${why}`, meta: { email } });
+      throw new ApiError(status, message);
+    };
+
+    // 1. The admin key
+    if (!env.adminSecret || !safeEqual(adminSecret.trim(), env.adminSecret)) await refuse("wrong admin key");
+
+    // 2. The account and its password
     const user = await User.findOne({ email }).select("+password");
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return invalid();
-    }
+    if (!user || !(await bcrypt.compare(password, user.password))) await refuse("wrong email or password");
 
     // 3. The account must already be an admin. Nobody is promoted by logging in;
     //    admins are created only with the seed script.
-    if (user.role !== "superadmin" && user.role !== "admin") {
-      return invalid();
+    if (!ADMIN_ROLES.includes(user.role) || user.deletedAt || user.suspendedAt) await refuse("not an admin account");
+
+    // 4. The second step (plan task P1-25). It is set up in the main app's Settings.
+    if (user.twoFactor?.enabled) {
+      if (!code) throw new ApiError(401, "TWO_FACTOR_CODE_NEEDED: Enter the code from your authenticator app.");
+      if (!(await verifySecondStep(user._id, code))) await refuse("wrong two-step code", 401, "TWO_FACTOR_CODE_WRONG: That code is not right.");
+    } else if (env.adminRequire2fa) {
+      await refuse(
+        "two-step sign-in is not switched on",
+        403,
+        "TWO_FACTOR_SETUP_NEEDED: Switch on two-step sign-in for this account in the main app's Settings, then sign in here."
+      );
     }
 
-    // 4. Issue Dedicated Admin Access Token, signed with a secret user tokens never use
-    const adminToken = jwt.sign(
-      { id: user._id, role: user.role, isAdmin: true },
-      env.adminJwtSecret,
-      { expiresIn: "8h" }
-    );
+    // 5. A token signed with a secret user tokens never use
+    const adminToken = jwt.sign({ id: user._id, role: user.role, isAdmin: true }, env.adminJwtSecret, { expiresIn: "8h" });
+
+    const admin = { id: user._id.toString(), email: user.email };
+    await recordAdminAction(req, { action: "admin.signed_in", summary: `${user.email} signed in`, admin });
 
     return res.json({
       adminToken,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
+      user: { id: user._id, email: user.email, name: user.name, role: user.role },
     });
-  } catch (error) {
-    console.error("Admin login error:", error.message);
-    return res.status(500).json({ error: "Admin authentication process failed." });
-  }
-});
+  })
+);
 
-// Apply superadmin authorization middleware to all protected admin routes below
+// Everything below needs an admin session
 router.use(requireSuperadmin);
 
-// GET /api/admin/analytics - Comprehensive platform analytics, MRR, 24h counters & time series (Customer accounts only)
-router.get("/analytics", async (req, res) => {
-  try {
-    const now = new Date();
-    const past24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const past7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const past30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+router.get(
+  "/meta",
+  asyncHandler(async (req, res) => res.json(new ApiResponse(getMeta(req.user), "Admin app details")))
+);
 
-    // 0. Find all Admin / Superadmin user IDs to exclude from customer business metrics
-    const adminUsers = await User.find({
-      $or: [
-        { role: { $in: ["admin", "superadmin"] } },
-        { email: "admin@pactdoc.com" },
-      ],
-    }).select("_id");
-    const adminUserIds = adminUsers.map((u) => u._id);
+router.get(
+  "/overview",
+  validate({ query: schemas.adminOverview }),
+  asyncHandler(async (req, res) => res.json(new ApiResponse(await getOverview(req.valid.query), "Overview")))
+);
 
-    const customerUserQuery = { _id: { $nin: adminUserIds }, role: { $nin: ["admin", "superadmin"] } };
-    const customerSubQuery = { userId: { $nin: adminUserIds }, status: "active" };
+router.get(
+  "/system",
+  asyncHandler(async (req, res) => res.json(new ApiResponse(await getSystem(), "System state")))
+);
 
-    // 1. User & Subscriber Counts (Customer Only)
-    const totalUsers = await User.countDocuments(customerUserQuery);
-    const newUsers24h = await User.countDocuments({ ...customerUserQuery, createdAt: { $gte: past24h } });
-    const newUsers7d = await User.countDocuments({ ...customerUserQuery, createdAt: { $gte: past7d } });
+// ----- users -----
 
-    // Plan distributions for customer accounts
-    const [freeCount, proMonthlyCount, proAnnualCount, lifetimeCount, enterpriseCount] = await Promise.all([
-      Subscription.countDocuments({ userId: { $nin: adminUserIds }, plan: "free" }),
-      Subscription.countDocuments({ ...customerSubQuery, plan: "pro_monthly" }),
-      Subscription.countDocuments({ ...customerSubQuery, plan: "pro_annual" }),
-      Subscription.countDocuments({ ...customerSubQuery, plan: "lifetime" }),
-      Subscription.countDocuments({ ...customerSubQuery, plan: "enterprise" }),
-    ]);
+router.get(
+  "/users",
+  validate({ query: schemas.adminUsers }),
+  asyncHandler(async (req, res) => res.json(new ApiResponse(await listUsers(req.valid.query), "Users")))
+);
 
-    const totalPaidSubscribers = proMonthlyCount + proAnnualCount + lifetimeCount + enterpriseCount;
-    const conversionRate = totalUsers > 0 ? ((totalPaidSubscribers / totalUsers) * 100).toFixed(1) : 0;
+router.get(
+  "/users/:id",
+  byId,
+  asyncHandler(async (req, res) => {
+    const details = await getUser(req.params.id);
+    await recordAdminAction(req, {
+      action: "user.opened",
+      targetType: "user",
+      targetId: req.params.id,
+      summary: `Opened the account of ${details.user.email}, with its payments and documents`,
+      quietMs: QUIET_MS,
+    });
+    res.json(new ApiResponse(details, "User"));
+  })
+);
 
-    // 2. Financial Metrics (Real customer revenue only)
-    // Estimates in rupees from list prices; the payments ledger holds what was really received
-    const mrr = Math.round(proMonthlyCount * PLANS.pro_monthly.priceInr + (proAnnualCount * PLANS.pro_annual.priceInr) / 12 + enterpriseCount * PLANS.enterprise.priceInr);
-    const ltdRevenue = 0;
-    const grossRevenue = proMonthlyCount * PLANS.pro_monthly.priceInr + proAnnualCount * PLANS.pro_annual.priceInr + enterpriseCount * PLANS.enterprise.priceInr;
-    const arpu = totalPaidSubscribers > 0 ? (grossRevenue / totalPaidSubscribers).toFixed(2) : 0;
+// Puts an account on a plan without a payment (plan task P2-17)
+router.patch(
+  "/users/:id/plan",
+  validate({ params: schemas.adminId, body: schemas.adminPlanGrant }),
+  asyncHandler(async (req, res) => {
+    const { user, before, subscription } = await grantPlan(req.params.id, req.body, req.user);
 
-    // Subscriptions created/updated in last 24h
-    const newPaid24h = await Subscription.countDocuments({
-      userId: { $nin: adminUserIds },
-      updatedAt: { $gte: past24h },
-      plan: { $ne: "free" },
+    const allowance = subscription.unlimited ? "no monthly limit" : `${subscription.monthlyQuota} documents a month`;
+    const until = subscription.currentPeriodEnd ? `, until ${indiaDay(new Date(subscription.currentPeriodEnd))}` : "";
+    await recordAdminAction(req, {
+      action: "user.plan_granted",
+      targetType: "user",
+      targetId: req.params.id,
+      summary: `Plan of ${user.email} changed from ${PLANS[before.plan]?.name || before.plan} to ${PLANS[subscription.plan].name} (${allowance}${until}). Reason: ${req.body.reason}`,
+      meta: { before: { plan: before.plan, monthlyQuota: before.monthlyQuota }, after: { plan: subscription.plan, monthlyQuota: subscription.monthlyQuota, currentPeriodEnd: subscription.currentPeriodEnd, seats: subscription.seats } },
     });
 
-    // 3. Document Pipeline Metrics
-    const [totalDocs, executedDocs, pendingDocs, draftDocs, totalAudits, newDocs24h, signedDocs24h] = await Promise.all([
-      Pdf.countDocuments(),
-      Pdf.countDocuments({ status: "signed" }),
-      Pdf.countDocuments({ status: { $in: ["pending", "partially_signed"] } }),
-      Pdf.countDocuments({ status: "draft" }),
-      PdfAudit.countDocuments(),
-      Pdf.countDocuments({ createdAt: { $gte: past24h } }),
-      Pdf.countDocuments({ updatedAt: { $gte: past24h }, status: "signed" }),
-    ]);
+    res.json(new ApiResponse({ subscription }, `Plan changed to ${PLANS[subscription.plan].name}`));
+  })
+);
 
-    // 4. Time Series Graph Data for Past 7, 14, or 30 Days (Customer Only)
-    const range = req.query.range || "7d";
-    const daysCount = range === "30d" ? 30 : range === "14d" ? 14 : 7;
-    const dailyStats = [];
-
-    for (let i = daysCount - 1; i >= 0; i--) {
-      const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 0, 0, 0);
-      const dayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 23, 59, 59);
-
-      const [dayUsers, dayDocs, daySigned, dayPaid] = await Promise.all([
-        User.countDocuments({ ...customerUserQuery, createdAt: { $gte: dayStart, $lte: dayEnd } }),
-        Pdf.countDocuments({ createdAt: { $gte: dayStart, $lte: dayEnd } }),
-        Pdf.countDocuments({ updatedAt: { $gte: dayStart, $lte: dayEnd }, status: "signed" }),
-        Subscription.countDocuments({
-          userId: { $nin: adminUserIds },
-          updatedAt: { $gte: dayStart, $lte: dayEnd },
-          plan: { $ne: "free" },
-        }),
-      ]);
-
-      const dayLabel = dayStart.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-      dailyStats.push({
-        date: dayLabel,
-        signups: dayUsers,
-        envelopesCreated: dayDocs,
-        envelopesSigned: daySigned,
-        paidSubscribers: dayPaid,
-      });
-    }
-
-    // 5. Enterprise Resources
-    const [totalWorkspaces, totalApiKeys, totalWebhooks] = await Promise.all([
-      Workspace.countDocuments(),
-      ApiKey.countDocuments({ status: "active" }),
-      Webhook.countDocuments(),
-    ]);
-
-    return res.json({
-      success: true,
-      data: {
-        financials: {
-          mrr: parseFloat(mrr.toFixed(2)),
-          ltdRevenue: parseFloat(ltdRevenue.toFixed(2)),
-          grossRevenue: parseFloat(grossRevenue.toFixed(2)),
-          arpu: parseFloat(arpu),
-          totalPaidSubscribers,
-          conversionRate: parseFloat(conversionRate),
-        },
-        subscribers: {
-          total: totalUsers,
-          free: freeCount,
-          proMonthly: proMonthlyCount,
-          proAnnual: proAnnualCount,
-          lifetime: lifetimeCount,
-          enterprise: enterpriseCount,
-          newUsers24h,
-          newUsers7d,
-          newPaid24h,
-        },
-        documents: {
-          total: totalDocs,
-          executed: executedDocs,
-          pending: pendingDocs,
-          draft: draftDocs,
-          totalAudits,
-          newDocs24h,
-          signedDocs24h,
-        },
-        enterprise: {
-          totalWorkspaces,
-          totalApiKeys,
-          totalWebhooks,
-        },
-        dailyStats,
-        systemHealth: {
-          status: "HEALTHY",
-          uptimeSeconds: Math.floor(process.uptime()),
-          nodeVersion: process.version,
-          complianceMode: "Section 10A IT Act + Section 63 BSA + eIDAS Standard",
-          auditChain: "APPEND_ONLY_SHA256_VERIFIED",
-        },
-      },
+router.post(
+  "/users/:id/reset-quota",
+  byId,
+  asyncHandler(async (req, res) => {
+    const { user, before, subscription } = await resetUsage(req.params.id);
+    await recordAdminAction(req, {
+      action: "user.usage_reset",
+      targetType: "user",
+      targetId: req.params.id,
+      summary: `This month's count of documents for ${user.email} set from ${before} to 0`,
     });
-  } catch (error) {
-    console.error("Error generating admin analytics:", error);
-    return res.status(500).json({ error: "Failed to load admin analytics" });
-  }
-});
+    res.json(new ApiResponse({ subscription }, "This month's count is back to 0"));
+  })
+);
 
-// GET /api/admin/users - Comprehensive User Directory with Plan & Quota Details
-router.get("/users", async (req, res) => {
-  try {
-    const { search = "", plan = "all", limit = 100 } = req.query;
-
-    const query = {
-      role: { $nin: ["admin", "superadmin"] },
-      email: { $ne: "admin@pactdoc.com" },
-    };
-    if (search.trim()) {
-      query.$and = [
-        {
-          $or: [
-            { name: { $regex: search.trim(), $options: "i" } },
-            { email: { $regex: search.trim(), $options: "i" } },
-          ],
-        },
-      ];
-    }
-
-    const users = await User.find(query)
-      .select("-password")
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit, 10));
-
-    // Attach subscription and document count for each user
-    const usersWithDetails = await Promise.all(
-      users.map(async (u) => {
-        const [sub, docCount, signedCount] = await Promise.all([
-          getOrCreateSubscription(u._id),
-          Pdf.countDocuments({ userId: u._id }),
-          Pdf.countDocuments({ userId: u._id, status: "signed" }),
-        ]);
-
-        return {
-          id: u._id,
-          name: u.name || "Unnamed User",
-          email: u.email,
-          role: u.role,
-          isActive: u.isActive !== false,
-          createdAt: u.createdAt,
-          plan: sub.plan,
-          status: sub.status,
-          monthlyQuota: sub.monthlyQuota,
-          usedThisMonth: sub.usedThisMonth,
-          isUnlimited: sub.monthlyQuota >= 999999,
-          totalDocuments: docCount,
-          signedDocuments: signedCount,
-          quotaResetDate: sub.quotaResetDate,
-        };
-      })
-    );
-
-    // Filter by plan if requested
-    const filteredUsers = plan === "all"
-      ? usersWithDetails
-      : usersWithDetails.filter((u) => u.plan === plan);
-
-    return res.json({ success: true, users: filteredUsers });
-  } catch (error) {
-    console.error("Error fetching admin users:", error);
-    return res.status(500).json({ error: "Failed to fetch users directory" });
-  }
-});
-
-// GET /api/admin/users/:id/documents - View all documents owned by a specific user (Read-only metadata)
-router.get("/users/:id/documents", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const user = await User.findById(id).select("name email");
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    const documents = await Pdf.find({ userId: id })
-      .sort({ createdAt: -1 });
-
-    return res.json({
-      success: true,
-      user,
-      documents,
+// Turns off auto-renew on the customer's behalf. They keep what they have paid for.
+router.post(
+  "/users/:id/auto-renew/stop",
+  validate({ params: schemas.adminId, body: schemas.adminReason }),
+  asyncHandler(async (req, res) => {
+    const { user, before, subscription } = await stopUserAutoRenew(req.params.id);
+    await recordAdminAction(req, {
+      action: "user.auto_renew_stopped",
+      targetType: "user",
+      targetId: req.params.id,
+      summary: `Turned off auto-renew for ${user.email} (${PLANS[before.plan]?.name || before.plan}${before.renewalAmountInr ? `, Rs. ${before.renewalAmountInr} each renewal` : ""}). Reason: ${req.body.reason}`,
     });
-  } catch (error) {
-    console.error("Error fetching user documents:", error);
-    return res.status(500).json({ error: "Failed to fetch user documents" });
-  }
-});
+    res.json(new ApiResponse({ subscription }, "Auto-renew is off. The account keeps the time it has paid for."));
+  })
+);
 
-// PATCH /api/admin/users/:id/plan - Superadmin modifies or grants specific tier & duration
-router.patch("/users/:id/plan", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { plan, durationDays, customQuota } = req.body;
-
-    if (!isPlan(plan)) {
-      return res.status(400).json({ error: "Invalid plan specified" });
-    }
-
-    // A plan granted by an admin is not a payment
-    const sub = await upgradeUserPlan(id, plan, {});
-
-    sub.adminGrants.push({ adminId: req.user.id, plan });
-
-    if (customQuota && !isNaN(customQuota)) {
-      sub.monthlyQuota = parseInt(customQuota, 10);
-    }
-
-    if (durationDays && !isNaN(durationDays) && plan !== "lifetime" && plan !== "free") {
-      const expiry = new Date();
-      expiry.setDate(expiry.getDate() + parseInt(durationDays, 10));
-      sub.quotaResetDate = expiry;
-    }
-
-    await sub.save();
-
-    return res.json({
-      success: true,
-      message: `User plan successfully updated to ${plan.toUpperCase()}`,
-      subscription: sub,
+router.post(
+  "/users/:id/suspend",
+  validate({ params: schemas.adminId, body: schemas.adminReason }),
+  asyncHandler(async (req, res) => {
+    const user = await suspendUser(req.params.id, req.body.reason);
+    await recordAdminAction(req, {
+      action: "user.suspended",
+      targetType: "user",
+      targetId: req.params.id,
+      summary: `Suspended ${user.email}. Reason: ${req.body.reason}`,
     });
-  } catch (error) {
-    console.error("Error updating user plan:", error);
-    return res.status(500).json({ error: "Failed to update user plan" });
-  }
-});
+    res.json(new ApiResponse({ id: req.params.id }, "Account suspended"));
+  })
+);
 
-// POST /api/admin/users/:id/reset-quota - Reset monthly envelope usage counter
-router.post("/users/:id/reset-quota", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const sub = await getOrCreateSubscription(id);
-    sub.usedThisMonth = 0;
-    await sub.save();
+router.post(
+  "/users/:id/restore",
+  byId,
+  asyncHandler(async (req, res) => {
+    const user = await restoreUser(req.params.id);
+    await recordAdminAction(req, { action: "user.restored", targetType: "user", targetId: req.params.id, summary: `Lifted the suspension of ${user.email}` });
+    res.json(new ApiResponse({ id: req.params.id }, "Account restored"));
+  })
+);
 
-    return res.json({
-      success: true,
-      message: "User envelope quota reset to 0 used for this month",
-      subscription: sub,
+// ----- plans: what is sold, and for how much -----
+
+router.get(
+  "/plans",
+  asyncHandler(async (req, res) => res.json(new ApiResponse(await listPlans(), "Plans")))
+);
+
+router.post(
+  "/plans",
+  validate({ body: schemas.adminPlanCreate }),
+  asyncHandler(async (req, res) => {
+    const plan = await createPlan(req.body, req.user);
+    await recordAdminAction(req, {
+      action: "plan.added",
+      targetType: "plan",
+      targetId: plan.id,
+      summary: `Added the plan ${plan.name} (${plan.id})${plan.purchasable ? ", on sale" : ", not on sale"}`,
+      meta: { plan },
     });
-  } catch (error) {
-    console.error("Error resetting user quota:", error);
-    return res.status(500).json({ error: "Failed to reset quota" });
-  }
-});
+    res.status(201).json(new ApiResponse({ plan, razorpay: plan.razorpay, razorpayYearly: plan.razorpayYearly }, `${plan.name} added`));
+  })
+);
 
-// GET /api/admin/documents - System-wide document oversight (Metadata view only)
-router.get("/documents", async (req, res) => {
-  try {
-    const documents = await Pdf.find()
-      .populate("userId", "name email")
-      .sort({ createdAt: -1 })
-      .limit(150);
+router.patch(
+  "/plans/:planId",
+  validate({ params: schemas.adminPlanParam, body: schemas.adminPlanEdit }),
+  asyncHandler(async (req, res) => {
+    const { plan, changed, accountsMoved, razorpay, razorpayYearly } = await updatePlan(req.params.planId, req.body, req.user);
+    await recordAdminAction(req, {
+      action: "plan.changed",
+      targetType: "plan",
+      targetId: plan.id,
+      summary: `Changed the plan ${plan.label} (${plan.id}): ${changed.join("; ")}`,
+      meta: { changes: req.body, plan, accountsMoved },
+    });
+    res.json(new ApiResponse({ plan, accountsMoved, razorpay, razorpayYearly }, `${plan.label} changed`));
+  })
+);
 
-    return res.json({ documents });
-  } catch (error) {
-    console.error("Error fetching admin documents:", error);
-    return res.status(500).json({ error: "Failed to fetch document directory" });
-  }
-});
+// What Razorpay has to say about a plan being created there, as one sentence for the record
+const razorpaySaid = (razorpay) =>
+  ({
+    synced: `It is at Razorpay as ${razorpay.providerPlanId}`,
+    failed: `Razorpay refused it: ${razorpay.reason}`,
+    not_configured: "This server has no Razorpay keys, so it was not created there",
+    not_needed: "It is not sold as a subscription, so there is nothing to create at Razorpay",
+  })[razorpay.state];
 
-// GET /api/admin/audit-logs - System-wide audit trail inspection
-router.get("/audit-logs", async (req, res) => {
-  try {
-    const logs = await PdfAudit.find()
-      .populate("pdfId", "originalFileName status")
-      .sort({ createdAt: -1 })
-      .limit(200);
+// Creates a plan at Razorpay at its present price, where it is sold as a subscription and is not there yet
+router.post(
+  "/plans/:planId/razorpay",
+  validate({ params: schemas.adminPlanParam }),
+  asyncHandler(async (req, res) => {
+    const { plan, razorpay } = await pushPlanToRazorpay(req.params.planId);
+    await recordAdminAction(req, {
+      action: "plan.sent_to_razorpay",
+      targetType: "plan",
+      targetId: plan.id,
+      summary: `Sent the plan ${plan.label} (${plan.id}) to Razorpay. ${razorpaySaid(razorpay)}`,
+      meta: { razorpay },
+    });
+    res.json(new ApiResponse({ razorpay }, razorpaySaid(razorpay)));
+  })
+);
 
-    return res.json({ logs });
-  } catch (error) {
-    console.error("Error fetching admin audit logs:", error);
-    return res.status(500).json({ error: "Failed to fetch audit log trail" });
-  }
-});
+// ----- top-ups: packs of extra documents -----
 
-// GET /api/admin/documents/:id/bsa-certificate - Generate Section 63 BSA evidence certificate
-router.get("/documents/:id/bsa-certificate", async (req, res) => {
-  try {
+router.post(
+  "/add-ons",
+  validate({ body: schemas.adminAddOnCreate }),
+  asyncHandler(async (req, res) => {
+    const addOn = await createAddOn(req.body, req.user);
+    await recordAdminAction(req, {
+      action: "addon.added",
+      targetType: "plan",
+      targetId: addOn.id,
+      summary: `Added the pack ${addOn.id}: ${addOn.documents} extra documents for Rs. ${addOn.priceInr}${addOn.onSale ? "" : ", not on sale"}`,
+      meta: { addOn },
+    });
+    res.status(201).json(new ApiResponse({ addOn }, "Pack added"));
+  })
+);
+
+router.patch(
+  "/add-ons/:addOnId",
+  validate({ params: schemas.adminAddOnParam, body: schemas.adminAddOnEdit }),
+  asyncHandler(async (req, res) => {
+    const { addOn, changed } = await updateAddOn(req.params.addOnId, req.body, req.user);
+    await recordAdminAction(req, {
+      action: "addon.changed",
+      targetType: "plan",
+      targetId: addOn.id,
+      summary: `Changed the pack ${addOn.id}: ${changed.join("; ")}`,
+      meta: { changes: req.body, addOn },
+    });
+    res.json(new ApiResponse({ addOn }, "Pack changed"));
+  })
+);
+
+// ----- subscriptions: plans that renew by themselves -----
+
+router.get(
+  "/subscriptions",
+  validate({ query: schemas.adminSubscriptions }),
+  asyncHandler(async (req, res) => res.json(new ApiResponse(await listSubscriptions(req.valid.query), "Subscriptions")))
+);
+
+// ----- enquiries: people who asked to talk to sales -----
+
+router.get(
+  "/sales-enquiries",
+  validate({ query: schemas.adminEnquiries }),
+  asyncHandler(async (req, res) => res.json(new ApiResponse(await listEnquiries(req.valid.query), "Enquiries")))
+);
+
+router.patch(
+  "/sales-enquiries/:id",
+  byId,
+  validate({ body: schemas.adminEnquiryEdit }),
+  asyncHandler(async (req, res) => {
+    const { enquiry, before } = await updateEnquiry(req.params.id, req.body, req.user);
+    await recordAdminAction(req, {
+      action: "enquiry.changed",
+      targetType: "enquiry",
+      targetId: req.params.id,
+      summary: `Enquiry from ${enquiry.email}${enquiry.status !== before.status ? ` marked ${enquiry.status}` : " noted"}`,
+      meta: { before, after: { status: enquiry.status, note: enquiry.note } },
+    });
+    res.json(new ApiResponse({ enquiry }, "Enquiry saved"));
+  })
+);
+
+// ----- documents: details only, never contents -----
+
+router.get(
+  "/documents",
+  validate({ query: schemas.adminDocuments }),
+  asyncHandler(async (req, res) => res.json(new ApiResponse(await listDocuments(req.valid.query), "Documents")))
+);
+
+router.get(
+  "/documents/:id",
+  byId,
+  asyncHandler(async (req, res) => {
+    const details = await getDocument(req.params.id);
+    await recordAdminAction(req, {
+      action: "document.opened",
+      targetType: "document",
+      targetId: req.params.id,
+      summary: `Opened the details of "${details.document.name}"`,
+      quietMs: QUIET_MS,
+    });
+    res.json(new ApiResponse(details, "Document"));
+  })
+);
+
+// The certificate under Section 63 of the Bharatiya Sakshya Adhiniyam, 2023
+router.get(
+  "/documents/:id/bsa-certificate",
+  byId,
+  asyncHandler(async (req, res) => {
+    if (!(await documentExists(req.params.id))) throw new ApiError(404, "Document not found");
     const pdfBytes = await generateBsaEvidenceCertificate(req.params.id);
+    await recordAdminAction(req, { action: "document.certificate_downloaded", targetType: "document", targetId: req.params.id, summary: "Downloaded the evidence certificate" });
 
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="BSA_Sec63_Evidence_Certificate_${req.params.id}.pdf"`);
-    return res.send(Buffer.from(pdfBytes));
-  } catch (error) {
-    console.error("Error generating BSA certificate:", error);
-    return res.status(500).json({ error: "Failed to generate Section 63 BSA Evidence Certificate" });
-  }
-});
+    res.setHeader("Cache-Control", "private, no-store");
+    res.send(Buffer.from(pdfBytes));
+  })
+);
+
+router.get(
+  "/audit-logs",
+  validate({ query: schemas.adminAudit }),
+  asyncHandler(async (req, res) => res.json(new ApiResponse(await listAudit(req.valid.query), "Audit log")))
+);
+
+// ----- money: read only -----
+
+router.get(
+  "/payments",
+  validate({ query: schemas.adminPayments }),
+  asyncHandler(async (req, res) => res.json(new ApiResponse(await listPayments(req.valid.query), "Payments")))
+);
+
+router.get(
+  "/invoices/:id/pdf",
+  byId,
+  asyncHandler(async (req, res) => {
+    const invoice = await getInvoiceForAdmin(req.params.id);
+    const pdf = await renderInvoicePdf(invoice);
+    await recordAdminAction(req, { action: "invoice.downloaded", targetType: "invoice", targetId: req.params.id, summary: `Downloaded invoice ${invoice.number}` });
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${invoice.number.replace(/\//g, "-")}.pdf"`);
+    res.setHeader("Cache-Control", "private, no-store");
+    res.status(200).end(pdf);
+  })
+);
+
+// ----- background work -----
+
+router.get(
+  "/jobs",
+  validate({ query: schemas.adminJobs }),
+  asyncHandler(async (req, res) => res.json(new ApiResponse(await listJobs(req.valid.query), "Jobs")))
+);
+
+router.post(
+  "/jobs/:id/retry",
+  byId,
+  asyncHandler(async (req, res) => {
+    const result = await retryJob(req.params.id);
+    await recordAdminAction(req, {
+      action: "job.run_again",
+      targetType: "job",
+      targetId: req.params.id,
+      summary: `Ran the failed job ${result.type} again: ${result.status}`,
+    });
+    res.json(new ApiResponse(result, result.status === "done" ? "The job ran and finished" : "The job was tried again"));
+  })
+);
+
+router.get(
+  "/webhook-deliveries",
+  validate({ query: schemas.adminDeliveries }),
+  asyncHandler(async (req, res) => res.json(new ApiResponse(await listDeliveries(req.valid.query), "Webhook deliveries")))
+);
+
+// ----- what admins did -----
+
+router.get(
+  "/activity",
+  validate({ query: schemas.adminActivity }),
+  asyncHandler(async (req, res) => res.json(new ApiResponse(await listActivity(req.valid.query), "Admin activity")))
+);
 
 export default router;

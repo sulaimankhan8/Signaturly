@@ -13,8 +13,11 @@ const paymentSchema = new mongoose.Schema(
     plan: { type: String, default: null },
     // How many seats a per-seat plan was bought with, or how many were added
     seats: { type: Number, default: null },
-    // The top-up or wallet pack bought, for those kinds
+    // The top-up or wallet pack bought, for those kinds. On a purchase, the pack of extra
+    // documents bought in the same payment as the plan, when there was one.
     item: { type: String, default: null },
+    // How many of a top-up pack were bought in this payment
+    quantity: { type: Number, default: 1, min: 1 },
     amount: { type: Number, default: 0 },
     currency: { type: String, default: "" },
     occurredAt: { type: Date, default: Date.now },

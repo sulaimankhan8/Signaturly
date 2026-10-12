@@ -50,7 +50,7 @@ Readiness by area, my judgement from the code:
 | H2 Mock checkout fallback | Fixed |  |
 | H3 No rate limits | Fixed |  |
 | H4 Server fetches signer URLs | Fixed |  |
-| H5 Admin auto-promotion | Mostly fixed | Admin 2FA |
+| H5 Admin auto-promotion | Fixed |  |
 | H6 Verification page leaks data | Fixed |  |
 | H7 Audit trail not immutable | Fixed |  |
 | H8 Signing rules not enforced | Fixed |  |

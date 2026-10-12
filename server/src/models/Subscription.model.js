@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { isPlan } from "../config/plans.js";
 
 const subscriptionSchema = new mongoose.Schema(
   {
@@ -9,9 +10,10 @@ const subscriptionSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    // Any plan in the catalogue (config/plans.js), which admins can add to
     plan: {
       type: String,
-      enum: ["free", "pro_monthly", "pro_annual", "business_monthly", "lifetime", "enterprise"],
+      validate: { validator: (plan) => isPlan(plan), message: "`{VALUE}` is not a plan" },
       default: "free",
     },
     status: {
@@ -83,6 +85,17 @@ const subscriptionSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // The plan renews by itself: the provider holds the customer's approval and charges each period
+    autoRenew: {
+      type: Boolean,
+      default: false,
+    },
+    // What each automatic renewal charges, in rupees. It is the price when the customer
+    // subscribed, which a later change to the plan's price does not alter.
+    renewalAmountInr: {
+      type: Number,
+      default: null,
+    },
     lastPaymentAmount: {
       type: Number,
       default: 0,
@@ -98,8 +111,17 @@ const subscriptionSchema = new mongoose.Schema(
         adminId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         plan: { type: String },
         at: { type: Date, default: Date.now },
+        reason: { type: String, default: "" },
+        // When the granted plan ends, and the allowance it was given with
+        periodEnd: { type: Date, default: null },
+        quota: { type: Number, default: null },
       },
     ],
+    // The current plan was given by an administrator, not paid for. Cleared by the next payment.
+    complimentary: {
+      type: Boolean,
+      default: false,
+    },
     billingCycleAnchor: {
       type: Date,
       default: Date.now,

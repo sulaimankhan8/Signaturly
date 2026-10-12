@@ -52,6 +52,11 @@ export const verifyEmailToken = async (token) => {
 
 // Stores only a hash of the refresh token, replacing any earlier one (rotation)
 export const issueSession = async (user) => {
+  // Covers every way in: password, single sign-on and renewing a session
+  if (user.suspendedAt) {
+    throw new ApiError(403, "ACCOUNT_SUSPENDED: This account has been suspended. Write to support if you think this is a mistake.");
+  }
+
   const accessToken = user.generateAccessToken();
   const refreshToken = user.generateRefreshToken();
 

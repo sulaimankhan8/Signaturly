@@ -7,8 +7,6 @@ import Navbar from "../components/Navbar";
 import SignatureManager from "../components/SignatureManager";
 import toast, { Toaster } from "react-hot-toast";
 
-import { fetchUserSubscription } from "../api/billing.api";
-import { UpgradeModal } from "../components/UpgradeModal";
 import TwoFactorSettings from "../components/TwoFactorSettings";
 
 export default function Settings() {
@@ -22,11 +20,6 @@ export default function Settings() {
   const [name, setName] = useState("");
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
-  // Billing state
-  const [subscription, setSubscription] = useState(null);
-  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const [isLoadingBilling, setIsLoadingBilling] = useState(false);
-
   // Password fields
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -37,25 +30,6 @@ export default function Settings() {
   const [savedSignature, setSavedSignature] = useState(
     localStorage.getItem("pactdoc_default_signature") || ""
   );
-
-  const loadSubscriptionData = async () => {
-    try {
-      setIsLoadingBilling(true);
-      const data = await fetchUserSubscription();
-      if (data?.subscription) {
-        setSubscription({
-          ...data.subscription,
-          usedThisMonth: data.quota?.envelopesUsedThisMonth || 0,
-          monthlyQuota: data.quota?.monthlyLimit || 5,
-          isUnlimited: Boolean(data.quota?.isUnlimited),
-        });
-      }
-    } catch (err) {
-      console.warn("Could not load subscription details:", err.message);
-    } finally {
-      setIsLoadingBilling(false);
-    }
-  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -68,7 +42,6 @@ export default function Settings() {
       }
     };
     loadProfile();
-    loadSubscriptionData();
 
     // Check if redirected with ?tab=
     const searchParams = new URLSearchParams(window.location.search);
@@ -154,7 +127,7 @@ export default function Settings() {
     },
     {
       id: "billing",
-      label: "Billing & Plans",
+      label: "Plans & billing",
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -214,7 +187,7 @@ export default function Settings() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate("/pricing")}
+              onClick={() => navigate("/billing#plans")}
               className="px-4 py-2 bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_#ef4444] transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <svg className="w-3.5 h-3.5 fill-current text-black" viewBox="0 0 20 20">
@@ -252,7 +225,7 @@ export default function Settings() {
             <div className="border-b border-white/10 pb-4">
               <h2 className="text-lg font-black text-white">Personal Identity &amp; Profile</h2>
               <p className="text-xs text-gray-400 mt-0.5">
-                This name will appear on all audit trails, certificates, and signature envelopes you send.
+                This name will appear on all audit trails, certificates, and documents you send.
               </p>
             </div>
 
@@ -298,120 +271,22 @@ export default function Settings() {
           </div>
         )}
 
-        {/* Tab 2: Billing & Plans */}
+        {/* Tab 2: Billing & Plans. The plan, documents, wallet and invoices are on one page of their own. */}
         {activeTab === "billing" && (
-          <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-black text-white">Subscription &amp; Document Quota</h2>
-                  <span className={`text-[10px] px-2.5 py-0.5 rounded-full font-mono font-bold uppercase border ${
-                    subscription?.plan === "free" || !subscription?.plan
-                      ? "bg-neutral-800 text-neutral-300 border-neutral-700"
-                      : "bg-purple-500/20 text-purple-300 border-purple-500/40"
-                  }`}>
-                    {subscription?.plan?.replace("_", " ")?.toUpperCase() || "FREE STARTER"}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-400 mt-1">
-                  Monitor your monthly envelope allowance, billing cycle, and power tool entitlements.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => navigate("/pricing")}
-                  className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all"
-                >
-                  View All Plans
-                </button>
-                <button
-                  type="button"
-                  onClick={() => navigate("/pricing")}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg transition-all cursor-pointer"
-                >
-                  <svg className="w-3.5 h-3.5 fill-current text-white" viewBox="0 0 20 20">
-                    <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.381z" />
-                  </svg>
-                  <span>{subscription?.plan === "free" || !subscription?.plan ? "Upgrade to Pro" : "Change Tier"}</span>
-                </button>
-              </div>
+          <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4">
+            <div>
+              <h2 className="text-lg font-black text-white">Plans &amp; billing</h2>
+              <p className="text-sm text-gray-400 mt-1 max-w-xl leading-relaxed">
+                Your plan, the documents you have used this month, extra documents, the wallet for SMS and WhatsApp, and your invoices are together on one page.
+              </p>
             </div>
-
-            {/* Quota Usage Meter */}
-            <div className="bg-[#08090d] p-6 rounded-2xl border border-white/10 space-y-4">
-              <div className="flex items-center justify-between text-xs font-bold">
-                <span className="text-gray-300">Monthly Envelopes Sent:</span>
-                <span className="font-mono text-white">
-                  {subscription?.isUnlimited
-                    ? "Unlimited Envelopes (Active)"
-                    : `${subscription?.usedThisMonth || 0} / ${subscription?.monthlyQuota || 15} Used`}
-                </span>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="w-full bg-neutral-900 h-2.5 rounded-full overflow-hidden border border-white/10">
-                <div
-                  className={`h-full transition-all duration-500 ${
-                    subscription?.isUnlimited
-                      ? "bg-emerald-500"
-                      : (subscription?.usedThisMonth || 0) >= 15
-                      ? "bg-red-500"
-                      : "bg-gradient-to-r from-yellow-400 to-amber-500"
-                  }`}
-                  style={{
-                    width: subscription?.isUnlimited
-                      ? "100%"
-                      : `${Math.min(100, (((subscription?.usedThisMonth || 0) / 15) * 100))}%`,
-                  }}
-                />
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between text-xs text-gray-400 pt-1">
-                <span>
-                  {subscription?.isUnlimited
-                    ? "Unlimited signatures unlocked"
-                    : `Resets on: ${subscription?.quotaResetDate ? new Date(subscription.quotaResetDate).toLocaleDateString() : "1st of next month"}`}
-                </span>
-                {!subscription?.isUnlimited && (
-                  <span className="text-yellow-400 font-semibold">
-                    {Math.max(0, 15 - (subscription?.usedThisMonth || 0))} free envelopes remaining
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Feature Entitlements Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-[#08090d] p-5 rounded-2xl border border-white/10 text-xs space-y-2">
-                <h4 className="font-bold text-white uppercase text-[11px] text-purple-400">Included Features</h4>
-                <ul className="space-y-1.5 text-gray-300">
-                  <li className="flex items-center gap-2">✓ Full Drag-and-Drop PDF Editor</li>
-                  <li className="flex items-center gap-2">✓ 2FA Email OTP Verification</li>
-                  <li className="flex items-center gap-2">✓ Cryptographic SHA-256 Audit Trail</li>
-                  <li className="flex items-center gap-2">
-                    {subscription?.isUnlimited ? "✓ 100% Ad-Free for Signers" : "• Ad-Supported Signing Page"}
-                  </li>
-                </ul>
-              </div>
-
-              <div className="bg-[#08090d] p-5 rounded-2xl border border-white/10 text-xs space-y-2 flex flex-col justify-between">
-                <div>
-                  <h4 className="font-bold text-white uppercase text-[11px] text-yellow-400">Plan Options</h4>
-                  <p className="text-gray-400 mt-1 leading-relaxed">
-                    Compare the plans, or manage your plan, extra documents, wallet and invoices on the billing page.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => navigate("/pricing")}
-                  className="mt-2 text-left text-xs font-bold text-purple-400 hover:text-purple-300 underline cursor-pointer"
-                >
-                  View All Plans &amp; Pricing →
-                </button>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => navigate("/billing")}
+              className="px-6 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-red-950/50 transition-all cursor-pointer"
+            >
+              Open plans &amp; billing
+            </button>
           </div>
         )}
 
@@ -569,12 +444,6 @@ export default function Settings() {
         )}
       </main>
 
-      {/* Upgrade & Plan Switch Modal */}
-      <UpgradeModal
-        isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
-        onUpgraded={loadSubscriptionData}
-      />
     </div>
   );
 }

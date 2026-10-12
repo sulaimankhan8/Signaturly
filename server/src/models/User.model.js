@@ -63,6 +63,16 @@ const userSchema = new mongoose.Schema({
         default: null,
     },
 
+    // Set by an administrator to stop the account being used. Documents already sent can still be signed.
+    suspendedAt:{
+        type: Date,
+        default: null,
+    },
+    suspendedReason:{
+        type: String,
+        default: "",
+    },
+
     // Two-step sign-in with an authenticator app. Secrets are stored encrypted and never returned.
     twoFactor: {
         enabled: { type: Boolean, default: false },

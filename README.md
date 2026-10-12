@@ -84,6 +84,8 @@ npm run seed:admin -- --email=you@example.com --password="at least 12 characters
 
 Sign in to the admin app at http://localhost:5174 with that email and password, and the value of `ADMIN_SECRET_KEY` from `server/.env`. The same account can sign in to the main app, where it is on the Enterprise plan, so every feature is open to it.
 
+On a production server an admin must also have two-step sign-in: switch it on for the account in the main app's Settings before signing in to the admin app.
+
 ### What behaves differently on a development machine
 
 | Thing | On your machine | In production |

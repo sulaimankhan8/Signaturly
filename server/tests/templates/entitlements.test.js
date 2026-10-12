@@ -4,9 +4,10 @@ import path from "path";
 import { api, createUser, makePdfBuffer } from "../helpers.js";
 import { setPlan } from "./fixtures.js";
 import { Subscription } from "../../src/models/Subscription.model.js";
+import { PLANS } from "../../src/config/plans.js";
 import { PACKS } from "../../src/templates/catalogue.js";
 import {
-  PLAN_TIER,
+  tierOfPlan,
   FEATURE_NAMES,
   can,
   canUsePack,
@@ -28,6 +29,7 @@ describe("P4-06 what each plan includes", () => {
     ["pro_annual", true, true, false, false, 25],
     ["lifetime", true, true, false, false, 25],
     ["business_monthly", true, true, false, true, 500],
+    ["business_annual", true, true, false, true, 500],
     ["enterprise", true, true, true, true, 5000],
   ];
 
@@ -41,9 +43,13 @@ describe("P4-06 what each plan includes", () => {
   });
 
   it("covers every plan an account can be on, and every feature", () => {
-    const plans = Subscription.schema.path("plan").enumValues;
-    expect(Object.keys(PLAN_TIER).sort()).toEqual([...plans].sort());
+    const plans = Object.keys(PLANS);
+    expect(plans.every((plan) => tierOfPlan(plan))).toBe(true);
+    expect(tierOfPlan("no-such-plan")).toBeUndefined();
     expect(EXPECTED.map(([plan]) => plan).sort()).toEqual([...plans].sort());
+    // An account can be put on any plan in the list and on nothing else
+    for (const plan of plans) expect(new Subscription({ userId: "64b000000000000000000000", plan }).validateSync(), plan).toBeUndefined();
+    expect(new Subscription({ userId: "64b000000000000000000000", plan: "no-such-plan" }).validateSync().errors.plan).toBeDefined();
     expect(FEATURE_NAMES.sort()).toEqual(["api", "bulkSend", "templates.own", "workspaces"]);
   });
 

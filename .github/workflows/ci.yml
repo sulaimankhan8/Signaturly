@@ -29,7 +29,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
   web:
-    name: Build ${{ matrix.app }}
+    name: Check and build ${{ matrix.app }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -45,6 +45,11 @@ jobs:
           cache: npm
           cache-dependency-path: ${{ matrix.app }}/package-lock.json
       - run: npm ci
+      # The admin app is linted and has unit tests; the client has neither in CI yet
+      - run: npm run lint
+        if: matrix.app == 'admin'
+      - run: npm test
+        if: matrix.app == 'admin'
       - run: npm run build
 
   # The real client against the real server, in a browser: phone-sized signing, Hindi, public pages
@@ -60,11 +65,15 @@ jobs:
           cache-dependency-path: |
             server/package-lock.json
             client/package-lock.json
+            admin/package-lock.json
             e2e/package-lock.json
       - run: npm ci
         working-directory: server
       - run: npm ci
         working-directory: client
+      # The stack builds the admin app too, so its packages have to be there
+      - run: npm ci
+        working-directory: admin
       - run: npm ci
         working-directory: e2e
       # Uses the Chrome that ships with the runner, so no browser is downloaded

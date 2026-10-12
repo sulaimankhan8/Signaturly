@@ -57,7 +57,7 @@ Not checked: the workspace migration on real data (only on seeded data); single 
 | 6 | Legal wording and templates unreviewed | You | A lawyer has not reviewed the terms, privacy notice, consent text or certificates. |
 | 6a | Phases 4 to 6 have had no second pair of eyes | You decide | They are tested but uncommitted, and they change who can read and send every document. Commit them to the branch and let CI run before anything is merged. |
 | 6b | The workspace migration has not been run on real data | Code, then you | `002-workspaces-2026-10` is tested forwards, twice and backwards on seeded data. Before production: back up, run it on a copy, compare counts. New code treats a document with no workspace as its creator's own, so deploying first and migrating after is safe. |
-| 7 | Browser tests do not cover everything | Code | Signing, sending, guided templates and the admin's template page are covered. The dashboard, bulk send, billing, settings and the rest of the admin app are not (A-22). |
+| 7 | Browser tests do not cover everything | Code | Signing, sending, guided templates and the admin app are covered. The dashboard, bulk send, billing and settings are not (A-22). |
 
 ---
 
@@ -111,7 +111,7 @@ Tasks only the account owner can do, in the order they block things. Section 10 
 | Money | Payment webhooks must be signed and are ignored on replay. The self-upgrade route and mock checkout cannot run in production. Billing is off there by default. | P1-01, P1-02, P1-03 |
 | Own documents | Only the owner can self-sign, and only an unsent document. Signature images cannot be remote links or file paths. | P1-09, P1-10 |
 | Accounts | 10-character passwords, email confirmation before sending, hashed and rotating refresh tokens, hashed single-use reset tokens. | P1-23, P1-24 |
-| Admin | No automatic promotion. Admin sessions use their own secret. Configuration is validated at start-up. | P1-26 (and most of P1-25) |
+| Admin | No automatic promotion. Admin sessions use their own secret. Configuration is validated at start-up. | P1-25, P1-26 |
 | Platform | Rate limits, security headers, strict origin list, no tokens in URLs, upload limits, atomic plan quota, reminder de-duplication, public health check. | P1-19, P1-21, P1-22, P1-28 to P1-31 |
 | Verification page | Returns masked names only: no emails, IP addresses or download link. | P1-27 |
 | Wording | Unsupported claims removed, with a test that keeps them out. Adverts removed from the signing page. | P1-32 |
@@ -207,7 +207,7 @@ Test harness with an in-memory database (S-03), test helpers (S-04), email outbo
 | S-13 Retire old scripts | The credential-bearing scripts, the two old `verify-*.js` scripts and the `scratch/` folder are deleted. The script that drops the database now refuses to run without an explicit flag, refuses in production, and is left out of the production image | Nothing in code |
 | P1-12 Validate all input | A global guard rejects database-operator input; schemas on all public and sign-in routes | Schemas on the remaining signed-in routes |
 | P1-18 Link expiry | 30-day expiry, random 64-character tokens, no links in the bulk-send response | A new token on every reminder was dropped by design: only an email change issues a new link |
-| P1-25 Admin lock-down | No promotion, separate secret, seeded admins only, login rate limit | Authenticator-app 2FA |
+| P1-25 Admin lock-down | No promotion, separate secret, seeded admins only, login rate limit, and the authenticator-app code at sign-in (required in production). Sign-ins and admin actions are recorded | Nothing in code. You: switch on two-step sign-in for the admin account before its first production sign-in |
 | P2-01 Signing library | `@signpdf` chosen and in use | A written decision note; it does not add timestamps by itself |
 | P2-02 Seal key | Certificate loaded from a secret; development certificate generated automatically | Key held in a key-management service |
 | P2-03 Seal on completion | Signing record appended, whole file signed, sealed copy is the download, retry job if sealing fails | Trusted timestamp; check in Adobe Acrobat and `pdfsig` |
@@ -295,7 +295,7 @@ The domain: you said you will buy `pactdoc.com`. On 11 October 2026 it had no DN
 | P0-07 | Remove secrets from git history | Your decision on how |
 | S-01, S-10 | Staging project; branch protection | You |
 | S-02 | Local `docker-compose.dev.yml` | Code |
-| S-06 | Component tests for the web apps | Code |
+| S-06 | Component tests for the client app (the admin app has them) | Code |
 | S-12 | Structured logger with redaction; error tracking | Code, plus an error-tracking account |
 | P2-13 | Transactional email provider and bounce handling | Your provider choice |
 | P2-16 | Billing page: plan, invoices, cancel | Code, after P2-14 |
@@ -332,14 +332,14 @@ The domain: you said you will buy `pactdoc.com`. On 11 October 2026 it had no DN
 | A-19 | Error replies from the server on the signing screens (wrong code, expired link, too many tries) are in English only. Send a code with each and translate it in the app. | 3 |
 | A-20 | Speed up the signing page on a weak signal. Measured at 400 kbit/s: 22 seconds to the first page of a 1.7 MB document. The PDF reader's worker (about 1 MB before compression) and 17 font families loaded on every page are the largest pieces. | 3 |
 | A-21 | Check the client's new routing on the live host: `/` and `/pricing` must serve their ready-made pages and every other path must reach `/app.html`. Tested locally against a stand-in host only. | First deploy |
-| A-22 | Browser tests for the dashboard, templates, bulk send, billing, settings and the admin app | 2 |
+| A-22 | Browser tests for the dashboard, templates, bulk send, billing and settings. Done for the admin app | 2 |
 | A-23 | The wording on the signature stamp ("Electronically signed") is English whatever the signer's language. Decide whether it should follow the language. | With the lawyer |
 | A-24 | The signing page asks the server to restore a sender's login on every visit and logs a harmless error. Skip that call on signer and public pages. | 3 |
 | A-25 | The fill-in screen reaches signers by email only. Add mobile number and WhatsApp or SMS, as the ordinary send screen has. | 4 |
 | A-26 | Your decision: may Free accounts fill in the Starter templates by answering questions? Allowed today. | You |
 | A-27 | The Business tier is defined in the plan table but no plan buys it yet; it arrives with the new plans (P4-13) and workspaces for teams (phase 5). | 4 |
 | A-28 | Text in Indian scripts makes PDFs about 150 KB a page. Fine for a few pages; look again before offering long templates in those scripts. | Later |
-| A-29 | Public template pages are written when the client is built, from the API's list at that moment. A template published or reviewed later gets its page only at the next build. Trigger a client rebuild from the admin app when a template is published, reviewed or retired (a deploy hook). | 4 |
+| A-29 | Public template pages are written when the client is built, from the API's list at that moment. A template published or reviewed later gets its page only at the next build. Built: the server calls a deploy hook when a template is published, reviewed or retired, and the admin app's Templates page has a button for it. You: create the deploy hook for the client project in Vercel and set it as `CLIENT_DEPLOY_HOOK_URL`. | You |
 | A-30 | The public template pages and the fill-in screen are in English only. Translate them with the other sender screens. | With P4-12 |
 | A-31 | Your decision: the prices the code proposes beyond Free and Pro (yearly Pro, extra-document packs, message prices, the Enterprise "from" price). All are in `server/src/config/plans.js`. | You |
 | A-32 | Razorpay checkout is written but has never met Razorpay: order creation and the payment window need a test-mode trial. The old Stripe checkout, which charged in dollars, was removed; Stripe's webhook handlers remain. | Before billing is switched on |
@@ -390,6 +390,8 @@ Optional variables, passed to the server only when they have a value:
 | `SELLER_LEGAL_NAME`, `SELLER_ADDRESS`, `SELLER_GSTIN`, `SELLER_STATE_CODE` | Printed on invoices. Without a GST number, receipts are issued |
 | `API_URL` | The API's public address, for example `https://api.pactdoc.com`. Needed for single sign-on |
 | `TEMPLATES_ALLOW_UNREVIEWED` | `true` shows templates no lawyer has reviewed. Leave unset for real customers |
+| `ADMIN_REQUIRE_2FA` | Admins must have two-step sign-in switched on to use the admin app. On by default in production |
+| `CLIENT_DEPLOY_HOOK_URL` | The client project's deploy hook from Vercel. Rebuilds the public template pages when a template is published, retired or reviewed |
 | `USAGE_CHARGING_ENABLED` | Takes each SMS or WhatsApp message from the sender's wallet. On by default in production |
 | `MESSAGING_ENABLED`, `MESSAGING_PROVIDER` | SMS and WhatsApp. Leave unset: only development providers exist |
 | `SIGNING_LINK_TTL_DAYS`, `FILE_URL_TTL_SECONDS`, `TRUST_PROXY` | Defaults are 30, 3600 and 1 |
@@ -636,7 +638,9 @@ When you sell outside India, Stripe needs building, not just configuring: prices
    MONGO_URI="the production connection string" npm --prefix server run seed:admin -- --email=you@pactdoc.com --password="at least 12 characters"
    ```
 
-   Sign in at `https://admin.pactdoc.com` with that email and password and the `ADMIN_SECRET_KEY` value.
+   In production an admin needs two-step sign-in. First sign in to the main app at `https://app.pactdoc.com` with that email and password, open Settings, and switch on two-step sign-in with an authenticator app. Keep the recovery codes.
+
+   Then sign in at `https://admin.pactdoc.com` with the email, the password, the `ADMIN_SECRET_KEY` value and the code from the app.
 5. In the app, sign up, upload a PDF, send it to yourself, sign it, and download the sealed copy.
 6. Open `/`, `/pricing` and a signing link on the live site and confirm each shows the right page (item A-21).
 

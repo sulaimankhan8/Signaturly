@@ -26,10 +26,16 @@ export const buildEnv = (source) => {
     smtpUser: source.SMTP_USER,
     smtpPass: source.SMTP_PASS,
     smtpFrom: source.SMTP_FROM || "noreply@pactdoc.com",
+    // Where an enquiry from the "Contact sales" form is sent. Empty: it is kept for the admin app only.
+    salesEmail: source.SALES_EMAIL || "",
     appName: source.APP_NAME || "PactDoc",
     appUrl: source.APP_URL || "http://localhost:5173",
     adminSecret: source.ADMIN_SECRET_KEY,
     adminJwtSecret: source.ADMIN_JWT_SECRET,
+    // An admin must have two-step sign-in switched on to use the admin app
+    adminRequire2fa: toBool(source.ADMIN_REQUIRE_2FA, isProd),
+    // Called to rebuild the public pages after a template is published, retired or reviewed
+    clientDeployHookUrl: source.CLIENT_DEPLOY_HOOK_URL || "",
     storageProvider: source.STORAGE_PROVIDER || "local",
     uploadsDir: source.UPLOADS_DIR || "uploads",
     gcpProjectId: source.GCP_PROJECT_ID || source.GOOGLE_CLOUD_PROJECT,

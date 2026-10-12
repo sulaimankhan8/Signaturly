@@ -299,3 +299,71 @@ export const sendEmailVerificationEmail = async ({ email, name, token }) => {
     text: `Confirm your email address: ${verifyUrl} (valid for 24 hours)`,
   });
 };
+
+/**
+ * Tells whoever follows up sales that someone has asked to talk about a plan. The answer goes
+ * to the person who asked: their address is the reply-to.
+ */
+export const sendSalesEnquiryEmail = async ({ to, enquiry }) => {
+  const facts = [
+    ["Name", enquiry.name],
+    ["Email", enquiry.email],
+    ["Company", enquiry.company],
+    ["People who would use it", enquiry.teamSize],
+    ["Asked about", enquiry.planName],
+  ].filter(([, value]) => value);
+
+  const content = `
+    ${heading("Someone asked to talk to sales")}
+    ${paragraph(`${enquiry.name} sent the “Contact sales” form. Reply to this email to answer them.`)}
+    <div class="card">${facts
+      .map(
+        ([label, value]) =>
+          `<div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700; margin-top:8px;">${esc(label)}</div><div style="font-size:14px; color:#0f172a; font-weight:600; margin-top:2px;">${esc(value)}</div>`
+      )
+      .join("")}</div>
+    ${enquiry.message ? paragraph(enquiry.message) : ""}
+  `;
+
+  return sendEmail({
+    to,
+    replyTo: enquiry.email,
+    subject: `Sales enquiry from ${enquiry.name}${enquiry.company ? ` (${enquiry.company})` : ""}`,
+    html: emailWrapper(content, "Sales enquiry"),
+    text: [...facts.map(([label, value]) => `${label}: ${value}`), "", enquiry.message].join("\n"),
+  });
+};
+
+/**
+ * An email about a customer's plan or a payment: what happened, in a sentence or two, and a
+ * way to the Billing page. `lines` are plain sentences; `facts` are label and value pairs
+ * shown together (what was paid for, how much, the invoice number).
+ */
+export const sendBillingEmail = async ({ email, name, subject, title, lines = [], facts = [] }) => {
+  const billingUrl = `${env.appUrl}/billing`;
+  const shown = facts.filter(([, value]) => value !== undefined && value !== null && value !== "");
+
+  const content = `
+    ${heading(title)}
+    ${paragraph(`Hello ${name || email},`)}
+    ${lines.map(paragraph).join("")}
+    ${
+      shown.length
+        ? `<div class="card">${shown
+            .map(
+              ([label, value]) =>
+                `<div style="font-size:11px; color:#64748b; text-transform:uppercase; font-weight:700; margin-top:8px;">${esc(label)}</div><div style="font-size:14px; color:#0f172a; font-weight:600; margin-top:2px;">${esc(value)}</div>`
+            )
+            .join("")}</div>`
+        : ""
+    }
+    ${button(billingUrl, "Open Billing")}
+  `;
+
+  return sendEmail({
+    to: email,
+    subject,
+    html: emailWrapper(content, title),
+    text: [`Hello ${name || email},`, ...lines, ...shown.map(([label, value]) => `${label}: ${value}`), `Billing: ${billingUrl}`].join("\n"),
+  });
+};

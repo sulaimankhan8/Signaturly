@@ -11,6 +11,7 @@ import { env } from "./config/env.js";
 import { serveProtectedFile } from "./middlewares/file.middleware.js";
 import { rejectOperatorKeys } from "./middlewares/validate.middleware.js";
 import { apiLimiter } from "./middlewares/rateLimit.middleware.js";
+import { keepPlansCurrent } from "./services/planCatalogue.service.js";
 
 const app = express();
 
@@ -37,12 +38,18 @@ const allowedOrigins = String(env.corsOrigin || "")
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Requests with no Origin header (server-to-server, curl) carry no browser credentials
-      callback(null, !origin || allowedOrigins.includes(origin));
+      // Requests with no Origin header (server-to-server, curl) carry no browser credentials.
+      // TEMPORARY: outside production every origin is allowed, so a dev server that moved to
+      // another port still works. Remove `!env.isProd ||` to go back to the exact list.
+      callback(null, !env.isProd || !origin || allowedOrigins.includes(origin));
     },
     credentials: true,
   })
 );
+
+// Admins change plans and prices while the service runs; every request, payment webhooks
+// included, is answered from the list as it stands now
+app.use("/api", keepPlansCurrent);
 
 // Payment webhooks need the raw request bytes for signature checks, so they come before the JSON parser
 app.use("/api/webhooks", webhookRoutes);

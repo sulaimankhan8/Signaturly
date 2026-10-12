@@ -24,6 +24,10 @@ export const protect = async (req, res, next) => {
   if (!user || user.deletedAt) {
     throw new ApiError(401, "User not found");
   }
+  // 401, not 403, so the app signs the person out; signing in again explains why
+  if (user.suspendedAt) {
+    throw new ApiError(401, "ACCOUNT_SUSPENDED: This account has been suspended.");
+  }
 
   req.user = {
     _id: user._id.toString(),

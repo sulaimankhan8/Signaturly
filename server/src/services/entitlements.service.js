@@ -1,5 +1,5 @@
 import { PACKS } from "../templates/catalogue.js";
-import { PLANS } from "../config/plans.js";
+import { PLANS, publicCatalogue } from "../config/plans.js";
 
 /**
  * What each plan can do (plan task P4-06).
@@ -7,13 +7,18 @@ import { PLANS } from "../config/plans.js";
  * This is the one place that knows. Routes ask "may this account use bulk send?"; they never
  * list plan names themselves, so adding or renaming a plan is a change to the two tables below
  * and nothing else.
+ *
+ * A plan has a tier, and the tables say what each tier gives. An admin can also set, for one
+ * plan, which of the features it has and how large a bulk send may be; where that is set it
+ * is used in place of what the tier gives. Template packs, the "Signed with PactDoc" line and
+ * single sign-on always follow the tier.
  */
 
 export const TIERS = ["free", "pro", "business", "enterprise"];
 
-// Every plan an account can be on, and the tier of features it buys. The plans themselves,
-// with their prices and document allowances, are listed in config/plans.js.
-export const PLAN_TIER = Object.fromEntries(Object.entries(PLANS).map(([plan, { tier }]) => [plan, tier]));
+// The tier of features a plan buys. The plans themselves, with their prices and document
+// allowances, are in config/plans.js; admins can change that list, so it is read each time.
+export const tierOfPlan = (plan) => (Object.prototype.hasOwnProperty.call(PLANS, plan) ? PLANS[plan].tier : undefined);
 
 const FEATURES = {
   free: {
@@ -52,14 +57,35 @@ const LIMITS = {
 export const FEATURE_NAMES = Object.keys(FEATURES.free);
 
 // What to call a feature when telling someone they need a higher plan
-const FEATURE_LABELS = {
+export const FEATURE_LABELS = {
   "templates.own": "Saving your own templates",
   bulkSend: "Bulk send",
   api: "API keys and webhooks",
   workspaces: "Team workspaces",
 };
 
-const TIER_LABELS = { free: "Free", pro: "Pro", business: "Business", enterprise: "Enterprise" };
+export const TIER_LABELS = { free: "Free", pro: "Pro", business: "Business", enterprise: "Enterprise" };
+
+/**
+ * What a plan includes: what its tier gives, with what an admin set for this plan in its place.
+ * `plan` is a plan as config/plans.js holds it. `features`, when set, is the list of features
+ * the plan has; `bulkSendMax`, when set, is its own limit.
+ */
+export const includesOf = (plan) => {
+  const tier = TIERS.includes(plan?.tier) ? plan.tier : "free";
+  const features = Array.isArray(plan?.features) ? Object.fromEntries(FEATURE_NAMES.map((name) => [name, plan.features.includes(name)])) : { ...FEATURES[tier] };
+  const limits = { ...LIMITS[tier], ...(Number.isInteger(plan?.bulkSendMax) ? { bulkSendMax: plan.bulkSendMax } : {}) };
+  return { features, limits };
+};
+
+// What a tier gives by itself, for the admin app to offer as a starting point
+export const describeTiers = () => TIERS.map((tier) => ({ id: tier, name: TIER_LABELS[tier], features: { ...FEATURES[tier] }, limits: { ...LIMITS[tier] } }));
+
+// The price list with what each plan includes, as the pricing and billing pages show it
+export const describeCatalogue = () => {
+  const catalogue = publicCatalogue();
+  return { ...catalogue, plans: catalogue.plans.map((plan) => ({ ...plan, ...includesOf(PLANS[plan.id]) })) };
+};
 
 /**
  * The plan an account is really on right now. A paid plan whose period has ended, with no
@@ -75,21 +101,23 @@ export const effectivePlan = (subscription, now = new Date()) => {
       subscription.status !== "past_due" &&
       subscription.status !== "active");
   const plan = lapsed ? "free" : subscription.plan || "free";
-  return PLAN_TIER[plan] ? plan : "free";
+  return tierOfPlan(plan) ? plan : "free";
 };
 
-export const tierOf = (subscription, now) => PLAN_TIER[effectivePlan(subscription, now)];
+export const tierOf = (subscription, now) => tierOfPlan(effectivePlan(subscription, now));
+
+const includedIn = (subscription, now) => includesOf(PLANS[effectivePlan(subscription, now)]);
 
 const rank = (tier) => TIERS.indexOf(tier);
 
 export const can = (subscription, feature, now) => {
   if (!(feature in FEATURES.free)) throw new Error(`Unknown feature: ${feature}`);
-  return FEATURES[tierOf(subscription, now)][feature];
+  return includedIn(subscription, now).features[feature];
 };
 
 export const limitOf = (subscription, limit, now) => {
   if (!(limit in LIMITS.free)) throw new Error(`Unknown limit: ${limit}`);
-  return LIMITS[tierOf(subscription, now)][limit];
+  return includedIn(subscription, now).limits[limit];
 };
 
 /**
@@ -118,8 +146,7 @@ export const describeEntitlements = (subscription, now) => {
   return {
     plan: effectivePlan(subscription, now),
     tier,
-    features: { ...FEATURES[tier] },
-    limits: { ...LIMITS[tier] },
+    ...includedIn(subscription, now),
     packs: Object.keys(PACKS).filter((pack) => canUsePack(subscription, pack, now)),
   };
 };
