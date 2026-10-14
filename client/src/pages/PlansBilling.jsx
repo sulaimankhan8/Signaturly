@@ -429,14 +429,30 @@ export default function PlansBilling({ initial }) {
       )}
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-12">
-        <div>
-          <h1 className="text-3xl font-black text-white tracking-tight">{signedIn ? "Plans & billing" : "Plans and prices"}</h1>
-          <p className="text-sm text-gray-400 mt-2 max-w-3xl leading-relaxed">
-            {signedIn
-              ? "Your plan, extra documents, wallet and invoices, in one place. Prices are in rupees and include GST."
-              : `Start free with ${freePlan?.documentsPerMonth ?? 5} documents a month. Prices are in rupees and include GST, with no charge per signer. A document is one PDF sent for signature, however many people sign it.`}
-          </p>
-        </div>
+        {signedIn ? (
+          <div>
+            <h1 className="text-3xl font-black text-white tracking-tight">Plans &amp; billing</h1>
+            <p className="text-sm text-gray-400 mt-2 max-w-3xl leading-relaxed">Your plan, extra documents, wallet and invoices, in one place. Prices are in rupees and include GST.</p>
+          </div>
+        ) : (
+          // The public price list opens like a landing page
+          <div className="relative text-center max-w-3xl mx-auto pt-4">
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-[38rem] max-w-full h-56 bg-red-600/10 blur-3xl rounded-full pointer-events-none" aria-hidden="true" />
+            <Link to="/" className="relative inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-white/5 border border-white/15 text-xs text-gray-300 hover:text-white hover:border-white/30">
+              <span aria-hidden="true">←</span> Back to home
+            </Link>
+            <p className="relative mt-4">
+              <span className="inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] bg-yellow-400/10 text-yellow-400 border border-yellow-400/40">Simple, transparent pricing</span>
+            </p>
+            <h1 className="relative mt-4 text-4xl sm:text-5xl font-black tracking-tight text-white leading-[1.1]">
+              Choose the perfect plan for{" "}
+              <span className="whitespace-nowrap text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-400 to-yellow-400">your e-signatures</span>
+            </h1>
+            <p className="relative text-sm sm:text-base text-gray-400 mt-4 max-w-xl mx-auto leading-relaxed">
+              Start free with {freePlan?.documentsPerMonth ?? 5} documents a month. Prices are in rupees and include GST, with no charge per signer. A document is one PDF sent for signature, however many people sign it.
+            </p>
+          </div>
+        )}
 
         {signedIn && account && !billingEnabled && (
           <p className="px-4 py-3 rounded-xl border-2 border-amber-400/40 bg-amber-400/10 text-amber-100 text-xs" role="status">

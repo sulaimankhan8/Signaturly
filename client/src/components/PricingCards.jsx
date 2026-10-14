@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import PlanCard from "./PlanCard";
+import { BUTTONS, lookOf } from "../utils/planLook";
 import PeriodSwitch from "./PeriodSwitch";
 import ContactSales from "./ContactSales";
 import { offersOf, offerOf, recordFor, bestSaving, savingSaid, savingOn, anyYearly, periodSaid } from "../utils/plans";
@@ -8,8 +9,7 @@ import { offersOf, offerOf, recordFor, bestSaving, savingSaid, savingOn, anyYear
 // How a plan may be bought. A price list that does not say sells it both ways.
 const soldAs = (plan) => plan.billing || { subscription: Boolean(plan.purchasable), prepaid: Boolean(plan.purchasable) };
 
-const loud = "block w-full text-center py-3 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 disabled:pointer-events-none text-black font-black uppercase tracking-wider rounded-xl text-xs border-2 border-black shadow-[4px_4px_0px_0px_#ef4444] transition-all";
-const quiet = "block w-full text-center py-3 bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:pointer-events-none text-white font-black uppercase tracking-wider rounded-xl text-xs border-2 border-white/30 transition";
+const quiet = BUTTONS.quiet;
 const note = "text-center text-[11px] text-gray-400 min-h-[2.25rem] flex items-center justify-center leading-snug";
 
 /**
@@ -60,7 +60,7 @@ export default function PricingCards({ catalogue, user = null, account = null, l
         </p>
       )}
 
-      <ul className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 ${large ? "gap-6 max-w-7xl mx-auto text-left" : "gap-4"} items-stretch`}>
+      <ul className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-6 gap-y-9 pt-3 ${large ? "max-w-7xl mx-auto text-left" : ""} items-stretch`}>
         {offers.map((offer) => {
           const { plan } = offer;
           const own = Boolean(mine) && offer === mine;
@@ -72,7 +72,7 @@ export default function PricingCards({ catalogue, user = null, account = null, l
           const otherWays = other ? soldAs(other) : null;
           const canSwitch = Boolean(other?.purchasable) && (account?.renews ? otherWays.subscription : otherWays.subscription || otherWays.prepaid);
           const saves = other && other === offer.yearly ? savingSaid(savingOn(offer)) : "";
-          const button = plan.highlight ? loud : quiet;
+          const button = lookOf(plan).button;
 
           return (
             <PlanCard key={plan.id} offer={offer} period={period} current={own} large={large} testId={`plan-${plan.id.replace(/_monthly$/, "")}`}>

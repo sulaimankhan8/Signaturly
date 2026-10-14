@@ -58,7 +58,7 @@ export default function Dialog({ open, title, onClose, children, footer, width =
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !busy) onClose();
       }}
@@ -69,9 +69,9 @@ export default function Dialog({ open, title, onClose, children, footer, width =
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`w-full ${width} max-h-[92vh] flex flex-col bg-surface-card border-2 border-edge rounded-t-xl sm:rounded-xl sm:shadow-hard-lg focus:outline-none`}
+        className={`w-full ${width} max-h-[92vh] flex flex-col bg-surface-card border border-edge rounded-t-2xl sm:rounded-2xl shadow-soft-lg focus:outline-none`}
       >
-        <header className="flex items-start justify-between gap-4 px-5 py-4 border-b-2 border-edge">
+        <header className="flex items-start justify-between gap-4 px-5 py-4 border-b border-line">
           <h2 id={titleId} className="font-display text-lg font-bold text-ink">
             {title}
           </h2>
@@ -80,7 +80,7 @@ export default function Dialog({ open, title, onClose, children, footer, width =
           </button>
         </header>
         <div className="px-5 py-4 overflow-y-auto text-sm text-ink">{children}</div>
-        {footer && <footer className="flex flex-wrap justify-end gap-2 px-5 py-4 border-t-2 border-edge">{footer}</footer>}
+        {footer && <footer className="flex flex-wrap justify-end gap-2 px-5 py-4 border-t border-line">{footer}</footer>}
       </div>
     </div>,
     document.body

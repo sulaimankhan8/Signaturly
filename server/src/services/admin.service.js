@@ -545,6 +545,8 @@ export const getOverview = async ({ range = "30d" } = {}) => {
   const today = indiaDay(now);
   const dayList = Array.from({ length: days }, (_, i) => indiaDay(new Date(now.getTime() - (days - 1 - i) * DAY_MS)));
   const since = indiaDayStart(dayList[0]);
+  // The same number of days just before, for what each figure is measured against
+  const before = { $gte: new Date(since.getTime() - days * DAY_MS), $lt: since };
   const past24h = new Date(now.getTime() - DAY_MS);
   const monthStart = indiaDayStart(`${today.slice(0, 7)}-01`);
   const lastMonthStart = indiaDayStart(`${indiaDay(new Date(monthStart.getTime() - DAY_MS)).slice(0, 7)}-01`);
@@ -559,6 +561,7 @@ export const getOverview = async ({ range = "30d" } = {}) => {
     receivedByKind, receivedLastMonth, failedPayments30d,
     signupsByDay, createdByDay, completedByDay, receivedByDay,
     attention,
+    signupsBefore, createdBefore, completedBefore, receivedBefore,
   ] = await Promise.all([
     User.countDocuments({ ...customers, deletedAt: null }),
     User.countDocuments({ ...customers, deletedAt: null, createdAt: { $gte: past24h } }),
@@ -577,6 +580,10 @@ export const getOverview = async ({ range = "30d" } = {}) => {
     perDay(PdfAudit, { event: "completed", createdAt: { $gte: since } }, "createdAt", realDocumentsOnly),
     perDay(Payment, { ...paid, occurredAt: { $gte: since } }, "occurredAt", [], "$amount"),
     needsAttention(now),
+    User.countDocuments({ ...customers, createdAt: before }),
+    Pdf.countDocuments({ testMode: { $ne: true }, createdAt: before }),
+    PdfAudit.aggregate([{ $match: { event: "completed", createdAt: before } }, ...realDocumentsOnly, { $count: "n" }]),
+    Payment.aggregate([{ $match: { ...paid, occurredAt: before } }, { $group: { _id: null, amount: { $sum: "$amount" } } }]),
   ]);
 
   // One row per plan that is sold or still held, in the catalogue's order
@@ -602,6 +609,8 @@ export const getOverview = async ({ range = "30d" } = {}) => {
     return (day) => map.get(day) || 0;
   };
   const [signups, created, completed, received] = [signupsByDay, createdByDay, completedByDay, receivedByDay].map(valueOn);
+  const dayRows = dayList.map((day) => ({ day, signups: signups(day), documentsCreated: created(day), documentsCompleted: completed(day), received: received(day) }));
+  const sumOf = (key) => dayRows.reduce((sum, row) => sum + row[key], 0);
 
   return {
     range,
@@ -624,7 +633,10 @@ export const getOverview = async ({ range = "30d" } = {}) => {
       total: documentStatuses.reduce((sum, row) => sum + row.n, 0),
       completed24h: completed24h[0]?.n || 0,
     },
-    days: dayList.map((day) => ({ day, signups: signups(day), documentsCreated: created(day), documentsCompleted: completed(day), received: received(day) })),
+    days: dayRows,
+    // The period's totals, and the same for the period of the same length just before it
+    period: { signups: sumOf("signups"), documentsCreated: sumOf("documentsCreated"), documentsCompleted: sumOf("documentsCompleted"), received: sumOf("received") },
+    previous: { signups: signupsBefore, documentsCreated: createdBefore, documentsCompleted: completedBefore[0]?.n || 0, received: receivedBefore[0]?.amount || 0 },
     attention,
   };
 };
@@ -661,6 +673,10 @@ export const getSystem = async () => {
     Job.findOne({ status: "pending", runAfter: { $lte: now } }).sort({ runAfter: 1 }).select("runAfter type").lean(),
     WebhookDelivery.aggregate([{ $match: { createdAt: { $gte: new Date(now.getTime() - DAY_MS) } } }, { $group: { _id: "$status", n: { $sum: 1 } } }]),
     needsAttention(now),
+    User.countDocuments({ ...customers, createdAt: before }),
+    Pdf.countDocuments({ testMode: { $ne: true }, createdAt: before }),
+    PdfAudit.aggregate([{ $match: { event: "completed", createdAt: before } }, ...realDocumentsOnly, { $count: "n" }]),
+    Payment.aggregate([{ $match: { ...paid, occurredAt: before } }, { $group: { _id: null, amount: { $sum: "$amount" } } }]),
   ]);
 
   return {

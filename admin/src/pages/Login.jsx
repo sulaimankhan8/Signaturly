@@ -60,7 +60,7 @@ export default function Login() {
           <Brand />
         </div>
 
-        <div className="panel shadow-hard-lg p-6">
+        <div className="panel shadow-soft-lg p-6">
           <h1 className="font-display text-2xl font-bold tracking-tight text-ink">Sign in</h1>
           <p className="text-sm text-ink-muted mt-1">For the people who run PactDoc.</p>
 

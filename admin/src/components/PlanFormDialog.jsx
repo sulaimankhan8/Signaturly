@@ -132,7 +132,7 @@ const Tick = ({ checked, onChange, disabled, children }) => (
 );
 
 const Part = ({ title, children }) => (
-  <fieldset className="space-y-3 border-t-2 border-edge pt-4">
+  <fieldset className="space-y-3 border-t border-line pt-4">
     <legend className="float-left w-full font-display text-sm font-bold text-ink mb-3">{title}</legend>
     <div className="clear-both space-y-3">{children}</div>
   </fieldset>
@@ -328,7 +328,7 @@ export default function PlanFormDialog({ open, plan, tiers, features, onClose, o
               On sale: customers can buy it
             </Tick>
             {form.purchasable && !form.legacy && may("sellSubscription") && (
-              <div className="ml-6 space-y-2 border-l-2 border-edge pl-4">
+              <div className="ml-6 space-y-2 border-l border-edge pl-4">
                 <Tick checked={form.sellSubscription} onChange={set("sellSubscription")}>
                   As a subscription: it renews by itself each {interval || "period"} until the customer turns that off. It is created at Razorpay when you save.
                 </Tick>

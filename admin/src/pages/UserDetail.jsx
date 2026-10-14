@@ -20,7 +20,7 @@ function Usage({ subscription }) {
       <span>
         {count(subscription.usedThisMonth)} of {count(subscription.monthlyQuota)} this month
       </span>
-      <div className="mt-1.5 h-3 rounded border-2 border-edge bg-surface-panel overflow-hidden" aria-hidden="true">
+      <div className="mt-1.5 h-2.5 rounded-full border border-edge bg-surface-panel overflow-hidden" aria-hidden="true">
         <div className={`h-full ${full ? "bg-amber-400" : "bg-chart"}`} style={{ width: `${share}%` }} />
       </div>
     </div>

@@ -13,7 +13,7 @@ const backToBilling = async (page, said = "Payment confirmed") => {
 test.describe("plans and billing", () => {
   test("the plans and billing page shows a visitor the plans in rupees and leads to sign-up", async ({ page }) => {
     await page.goto("/pricing");
-    await expect(page.getByRole("heading", { name: "Plans and prices" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Choose the perfect plan for your e-signatures" })).toBeVisible();
 
     await expect(page.getByTestId("plan-free")).toContainText("5 documents a month");
     await expect(page.getByTestId("plan-pro")).toContainText("₹299");

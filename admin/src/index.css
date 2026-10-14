@@ -23,14 +23,15 @@
 
 /* The looks that pages reach for outside the pieces in components/ui */
 @layer components {
-  /* A framed surface: a 2px edge and a hard shadow */
+  /* A framed surface: a hairline edge, a faint light from the top, a soft shadow */
   .panel {
-    @apply bg-surface-card border-2 border-edge rounded-xl shadow-hard;
+    @apply rounded-2xl border border-edge shadow-soft;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0) 40%), #11141c;
   }
 
   /* The heading row of a table */
   .thead-row {
-    @apply border-b-2 border-edge bg-white/[0.03] text-[11px] uppercase tracking-wider text-ink-muted;
+    @apply border-b border-edge bg-white/[0.02] text-[11px] uppercase tracking-wider text-ink-faint;
   }
   .thead-row th {
     font-weight: 700;
@@ -38,16 +39,16 @@
 
   /* A message set in the page, with its tone on the left edge */
   .notice {
-    @apply rounded-lg border-2 border-l-[6px] border-edge bg-white/5 px-4 py-3 text-sm text-ink-muted;
+    @apply rounded-xl border border-l-4 border-edge bg-white/5 px-4 py-3 text-sm text-ink-muted;
   }
   .notice-green {
-    @apply border-emerald-400/70 bg-emerald-400/10 text-emerald-100;
+    @apply border-emerald-400/40 border-l-emerald-400 bg-emerald-400/[0.07] text-emerald-100;
   }
   .notice-amber {
-    @apply border-amber-400/70 bg-amber-400/10 text-amber-100;
+    @apply border-amber-400/40 border-l-amber-400 bg-amber-400/[0.07] text-amber-100;
   }
   .notice-red {
-    @apply border-red-500/70 bg-red-500/10 text-red-100;
+    @apply border-red-500/40 border-l-red-500 bg-red-500/[0.07] text-red-100;
   }
 }
 
@@ -78,10 +79,11 @@
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f1118;
+  background: #0c0e14;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2f42;
+  background: #232838;
+  border-radius: 8px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #3f4660;

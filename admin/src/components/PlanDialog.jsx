@@ -102,7 +102,7 @@ export default function PlanDialog({ open, user, subscription, plans, onClose, o
           </Field>
         )}
 
-        <div className="rounded-lg border-2 border-edge bg-surface-panel px-3 py-2.5 space-y-2">
+        <div className="rounded-lg border border-edge bg-surface-panel px-3 py-2.5 space-y-2">
           <p>
             This plan gives{" "}
             <strong className="font-medium text-ink">{plan.documentsPerMonth === null ? "no monthly limit" : `${count(plan.documentsPerMonth * seats)} documents a month`}</strong>

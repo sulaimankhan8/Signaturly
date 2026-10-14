@@ -59,7 +59,7 @@ export default function DataTable({ columns, rows, rowKey = (row) => row.id, row
               return (
                 <tr
                   key={rowKey(row)}
-                  className={to ? "hover:bg-white/[0.05] cursor-pointer" : ""}
+                  className={to ? "hover:bg-white/[0.035] cursor-pointer transition-colors" : ""}
                   onClick={
                     to
                       ? (event) => {
@@ -94,7 +94,7 @@ export function Pagination({ page, pageSize, total, onPage }) {
   const to = Math.min(total, page * pageSize);
 
   return (
-    <nav className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-t-2 border-edge text-sm text-ink-muted" aria-label="Pages">
+    <nav className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-t border-line text-sm text-ink-muted" aria-label="Pages">
       <span>
         {count(from)} to {count(to)} of {count(total)}
       </span>

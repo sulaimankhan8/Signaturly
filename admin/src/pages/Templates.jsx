@@ -31,7 +31,7 @@ const matchesFilter = (item, filter) => {
   return true;
 };
 
-const textareaClass = "w-full rounded-lg bg-surface-panel border-2 border-edge px-3 py-2 font-mono text-xs leading-relaxed text-ink transition-shadow focus:border-ink focus:shadow-hard-sm focus:outline-none disabled:opacity-60";
+const textareaClass = "w-full rounded-lg bg-surface-panel border border-edge px-3 py-2 font-mono text-xs leading-relaxed text-ink transition focus:border-accent/70 focus:ring-2 focus:ring-accent/20 focus:outline-none disabled:opacity-60";
 
 export default function Templates() {
   const [params, setParams] = useSearchParams();
@@ -315,7 +315,7 @@ export default function Templates() {
       <div className="grid grid-cols-1 lg:grid-cols-[20rem_minmax(0,1fr)] gap-6 items-start">
         {/* Every template */}
         <div className="panel">
-          <div className="p-3 space-y-2 border-b-2 border-edge">
+          <div className="p-3 space-y-2 border-b border-line">
             <Input type="search" aria-label="Search templates" placeholder="Search by title or key" value={list.search} onChange={(e) => setList({ ...list, search: e.target.value })} />
             <div className="grid grid-cols-2 gap-2">
               <Select aria-label="Pack" value={list.pack} onChange={(e) => setList({ ...list, pack: e.target.value })}>
@@ -348,7 +348,7 @@ export default function Templates() {
                   type="button"
                   onClick={() => goTo({ key: item.key, language: item.language })}
                   aria-current={active ? "true" : undefined}
-                  className={`w-full text-left px-3 py-2 rounded-lg border-2 ${active ? "bg-white/10 border-ink shadow-hard-sm" : "border-transparent hover:bg-white/5 hover:border-edge"}`}
+                  className={`w-full text-left px-3 py-2 rounded-lg border ${active ? "bg-accent/10 border-accent/40" : "border-transparent hover:bg-white/5 hover:border-edge"}`}
                 >
                   <span className="block text-sm font-bold text-ink">{item.title}</span>
                   <span className="block text-xs text-ink-muted font-mono">
@@ -377,7 +377,7 @@ export default function Templates() {
                   type="button"
                   onClick={() => goTo({ key: template.key, language: template.language, version: v.id })}
                   aria-current={String(v.id) === String(version._id) ? "true" : undefined}
-                  className={`px-3 py-1 rounded-lg border-2 text-xs font-bold ${String(v.id) === String(version._id) ? "bg-ink border-black text-surface-page shadow-hard-sm" : "border-edge text-ink-muted hover:text-ink hover:border-ink"}`}
+                  className={`px-3 py-1 rounded-full border text-xs font-bold ${String(v.id) === String(version._id) ? "bg-accent/15 border-accent/50 text-white" : "border-edge text-ink-muted hover:text-ink hover:border-white/25"}`}
                 >
                   Version {v.version} · {v.status} · {plural(v.documents, "document")}
                 </button>

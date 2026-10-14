@@ -38,8 +38,8 @@ export function ToastProvider({ children }) {
           <div
             key={toast.id}
             role={toast.kind === "error" ? "alert" : "status"}
-            className={`pointer-events-auto flex items-start gap-3 rounded-lg border-2 px-4 py-3 text-sm shadow-hard ${
-              toast.kind === "error" ? "bg-[#2a1216] border-red-500 text-red-100" : "bg-surface-raised border-emerald-400 text-ink"
+            className={`pointer-events-auto flex items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-soft-lg backdrop-blur ${
+              toast.kind === "error" ? "bg-[#2a1216] border-red-500/50 text-red-100" : "bg-surface-raised border-emerald-400/40 text-ink"
             }`}
           >
             <span aria-hidden="true" className={`font-bold ${toast.kind === "error" ? "text-red-300" : "text-emerald-300"}`}>
