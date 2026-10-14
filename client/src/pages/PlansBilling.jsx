@@ -69,7 +69,7 @@ const inputClass = "w-full px-3 py-2.5 bg-[#08090d] border-2 border-white/15 rou
 const primary =
   "px-4 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:pointer-events-none text-white rounded-xl text-xs font-black uppercase tracking-wider border-2 border-black shadow-[3px_3px_0px_0px_#facc15] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all text-center";
 const secondary = "px-4 py-2.5 bg-white/5 hover:bg-white/10 disabled:opacity-40 disabled:pointer-events-none text-gray-100 rounded-xl text-xs font-bold border-2 border-white/15 transition-colors text-center";
-const jump = "mt-auto pt-4 text-xs text-red-400 hover:text-red-300 underline underline-offset-2 font-bold self-start";
+const jump = "mt-auto pt-4 text-xs text-red-400 hover:text-red-300 underline underline-offset-2 font-black self-start inline-flex items-center gap-1.5 group transition-colors";
 const day = (value) => (value ? new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "");
 const perMessage = (paise) => `₹${(paise / 100).toFixed(2)} a message`;
 
@@ -428,7 +428,7 @@ export default function PlansBilling({ initial }) {
         </header>
       )}
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-10">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-12">
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight">{signedIn ? "Plans & billing" : "Plans and prices"}</h1>
           <p className="text-sm text-gray-400 mt-2 max-w-3xl leading-relaxed">
@@ -509,7 +509,8 @@ export default function PlansBilling({ initial }) {
                 </div>
                 {mine.renewal.mode !== "auto" && (
                   <a href="#plans" className={jump}>
-                    {mine.paid ? "Change plan" : "See plans"}
+                    <span>{mine.paid ? "Change plan" : "See plans"}</span>
+                    <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
                   </a>
                 )}
               </>
@@ -522,7 +523,8 @@ export default function PlansBilling({ initial }) {
                   Free gives you {freePlan?.documentsPerMonth ?? 5} documents a month. A paid plan gives more, as a subscription that renews by itself or prepaid for one month or year at a time.
                 </p>
                 <a href="#plans" className={jump}>
-                  See plans
+                  <span>See plans</span>
+                  <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
                 </a>
               </>
             )}
@@ -546,7 +548,8 @@ export default function PlansBilling({ initial }) {
                   {mine.usage.extraDocuments > 0 ? `${mine.usage.extraDocuments} extra documents in hand` : "No extra documents in hand"}
                 </p>
                 <a href="#topups" className={jump}>
-                  Buy extra documents
+                  <span>Buy extra documents</span>
+                  <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
                 </a>
               </>
             ) : loading ? (
@@ -558,7 +561,8 @@ export default function PlansBilling({ initial }) {
                   Used after the month&apos;s allowance, on any plan, and kept until you use them{smallestPack ? `. From ${rupees(smallestPack.priceInr)} for ${smallestPack.documents}` : ""}.
                 </p>
                 <a href="#topups" className={jump}>
-                  See the packs
+                  <span>See the packs</span>
+                  <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
                 </a>
               </>
             )}
@@ -571,7 +575,8 @@ export default function PlansBilling({ initial }) {
                 <p className="text-2xl font-black text-white mt-3">{rupeesFromPaise(wallet.balancePaise)}</p>
                 <p className="text-xs text-gray-400 mt-2 leading-relaxed">Only for signing links sent by SMS or WhatsApp. Email is free, and plans are never paid from it.</p>
                 <a href="#wallet" className={jump}>
-                  Add credit
+                  <span>Add credit</span>
+                  <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
                 </a>
               </>
             ) : loading ? (
@@ -581,7 +586,8 @@ export default function PlansBilling({ initial }) {
                 <p className="text-lg font-black text-white mt-3">Optional credit for SMS and WhatsApp</p>
                 <p className="text-sm text-gray-400 mt-2 leading-relaxed">Signing links by email are always free. The wallet pays only for links you choose to send by SMS or WhatsApp.</p>
                 <a href="#wallet" className={jump}>
-                  See the prices
+                  <span>See the prices</span>
+                  <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">→</span>
                 </a>
               </>
             )}
@@ -589,7 +595,7 @@ export default function PlansBilling({ initial }) {
         </div>
 
         {/* 1. Plans */}
-        <section id="plans" className="scroll-mt-28 space-y-5">
+        <section id="plans" className="scroll-mt-28 space-y-6">
           <SectionHead number="1" title="Plans" paid="Subscription or prepaid">
             A plan gives you a number of documents every month. <strong className="text-gray-200">Subscribe</strong> and it renews by itself until you turn that off, or <strong className="text-gray-200">prepay</strong> for one month or year at a time. You choose which when you pay.
           </SectionHead>
@@ -638,7 +644,7 @@ export default function PlansBilling({ initial }) {
         </section>
 
         {/* 2. Extra documents */}
-        <section id="topups" className="scroll-mt-28 space-y-5" data-testid="billing-topups">
+        <section id="topups" className="scroll-mt-28 space-y-6" data-testid="billing-topups">
           <SectionHead number="2" title="Extra documents" paid="One payment">
             For a month when you send more than your plan allows. They are used after the monthly allowance, work on any plan including Free, and do not expire at month end. No wallet needed.
           </SectionHead>
@@ -653,7 +659,7 @@ export default function PlansBilling({ initial }) {
                 const change = (by) => setPacks((old) => ({ ...old, [pack.id]: Math.min(MAX_PACKS, Math.max(1, count + by)) }));
                 const best = cheapest !== null && each(pack) === cheapest;
                 return (
-                  <li key={pack.id} className={`flex flex-col rounded-2xl border-2 p-5 bg-[#13151f] ${best ? "border-yellow-400/70" : "border-white/15"}`} data-testid={`topup-${pack.id}`}>
+                  <li key={pack.id} className={`flex flex-col rounded-2xl border-2 p-5 bg-[#13151f] transition-all ${best ? "border-yellow-400 shadow-[4px_4px_0px_0px_#ef4444]" : "border-white/15 shadow-[4px_4px_0px_0px_#000]"}`} data-testid={`topup-${pack.id}`}>
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-base font-black text-white">{pack.documents} extra documents</p>
                       {best && <span className="px-2 py-0.5 text-[11px] font-black uppercase tracking-wider rounded border-2 border-black bg-yellow-400 text-black whitespace-nowrap">Best value</span>}
@@ -666,14 +672,14 @@ export default function PlansBilling({ initial }) {
                         <>
                           {/* How many packs, for a larger top-up in one payment */}
                           <div className="flex items-center justify-between gap-2">
-                            <div className="inline-flex items-center rounded-xl border-2 border-white/15 overflow-hidden" role="group" aria-label={`How many packs of ${pack.documents}`}>
-                              <button type="button" onClick={() => change(-1)} disabled={count <= 1 || Boolean(busy)} aria-label="One pack fewer" className="w-9 h-9 text-white font-black hover:bg-white/10 disabled:opacity-30">
+                            <div className="inline-flex items-center rounded-xl border-2 border-white/15 overflow-hidden bg-[#08090d]" role="group" aria-label={`How many packs of ${pack.documents}`}>
+                              <button type="button" onClick={() => change(-1)} disabled={count <= 1 || Boolean(busy)} aria-label="One pack fewer" className="w-9 h-9 text-white font-black hover:bg-white/10 active:bg-white/20 disabled:opacity-30">
                                 −
                               </button>
                               <span className="w-8 text-center text-sm font-black text-white tabular-nums" aria-live="polite">
                                 {count}
                               </span>
-                              <button type="button" onClick={() => change(1)} disabled={count >= MAX_PACKS || Boolean(busy)} aria-label="One pack more" className="w-9 h-9 text-white font-black hover:bg-white/10 disabled:opacity-30">
+                              <button type="button" onClick={() => change(1)} disabled={count >= MAX_PACKS || Boolean(busy)} aria-label="One pack more" className="w-9 h-9 text-white font-black hover:bg-white/10 active:bg-white/20 disabled:opacity-30">
                                 +
                               </button>
                             </div>
@@ -709,7 +715,7 @@ export default function PlansBilling({ initial }) {
         </section>
 
         {/* 3. Wallet */}
-        <section id="wallet" className="scroll-mt-28 space-y-5" data-testid="billing-wallet">
+        <section id="wallet" className="scroll-mt-28 space-y-6" data-testid="billing-wallet">
           <SectionHead number="3" title="Wallet" paid="Prepaid credit">
             Optional. Credit that pays only for signing links you send by SMS or WhatsApp; email is always free. Plans and extra documents are never paid from it, and nothing is added to it automatically.
           </SectionHead>

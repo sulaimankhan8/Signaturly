@@ -10,7 +10,7 @@ const soldAs = (plan) => plan.billing || { subscription: Boolean(plan.purchasabl
 
 const loud = "block w-full text-center py-3 bg-yellow-400 hover:bg-yellow-300 disabled:opacity-40 disabled:pointer-events-none text-black font-black uppercase tracking-wider rounded-xl text-xs border-2 border-black shadow-[4px_4px_0px_0px_#ef4444] transition-all";
 const quiet = "block w-full text-center py-3 bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:pointer-events-none text-white font-black uppercase tracking-wider rounded-xl text-xs border-2 border-white/30 transition";
-const note = "text-center text-[11px] text-gray-400";
+const note = "text-center text-[11px] text-gray-400 min-h-[2.25rem] flex items-center justify-center leading-snug";
 
 /**
  * The plans, with the monthly or yearly switch above them: on the landing page and on the
@@ -49,7 +49,7 @@ export default function PricingCards({ catalogue, user = null, account = null, l
   return (
     <div data-testid="billing-plans">
       {anyYearly(offers) && (
-        <div className={`flex ${large ? "justify-center mb-10" : "justify-start sm:justify-end mb-4"}`}>
+        <div className={`flex justify-center ${large ? "mb-10" : "mb-6"}`}>
           <PeriodSwitch yearly={yearly} onChange={setYearly} saving={savingSaid(bestSaving(offers))} />
         </div>
       )}
@@ -78,23 +78,35 @@ export default function PricingCards({ catalogue, user = null, account = null, l
             <PlanCard key={plan.id} offer={offer} period={period} current={own} large={large} testId={`plan-${plan.id.replace(/_monthly$/, "")}`}>
               {own ? (
                 <>
-                  <p className="text-xs text-gray-400">
-                    This is the plan you are on{periodSaid(current) ? `, paid ${periodSaid(current).toLowerCase()}` : ""}.{account.manageable ? " Manage it above." : ""}
-                  </p>
-                  {canSwitch && (
+                  {canSwitch ? (
                     <button type="button" className={quiet} disabled={account.held} onClick={() => account.onChoose(other, "auto")} aria-label={`Switch ${plan.name} to ${periodSaid(other).toLowerCase()} billing`}>
                       Switch to {periodSaid(other).toLowerCase()}
                       {saves ? ` · ${saves}` : ""}
                     </button>
+                  ) : (
+                    <button type="button" disabled className={`${quiet} opacity-60 cursor-default`}>
+                      Current plan
+                    </button>
                   )}
+                  <p className={note}>
+                    This is the plan you are on{periodSaid(current) ? `, paid ${periodSaid(current).toLowerCase()}` : ""}.{account.manageable ? " Manage it above." : ""}
+                  </p>
                 </>
               ) : plan.priceInr === 0 ? (
                 account ? (
-                  <p className="text-xs text-gray-400">Where an account returns when a paid plan ends. Your documents are kept.</p>
+                  <>
+                    <button type="button" disabled className={`${quiet} opacity-40 cursor-default`}>
+                      Free plan
+                    </button>
+                    <p className={note}>Where an account returns when a paid plan ends. Your documents are kept.</p>
+                  </>
                 ) : (
-                  <Link to={user ? "/dashboard" : "/register"} className={quiet}>
-                    {user ? "Go to dashboard" : "Start free"}
-                  </Link>
+                  <>
+                    <Link to={user ? "/dashboard" : "/register"} className={quiet}>
+                      {user ? "Go to dashboard" : "Start free"}
+                    </Link>
+                    <p className={note}>Free forever · No credit card required</p>
+                  </>
                 )
               ) : buyable ? (
                 <>

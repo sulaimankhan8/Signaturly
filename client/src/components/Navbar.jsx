@@ -754,28 +754,6 @@ export default function Navbar() {
           {/* Shown only to someone in more than one workspace */}
           <WorkspaceSwitcher className="hidden sm:flex" />
 
-          {/* Quick Sign Out (Desktop) */}
-          <button
-            onClick={handleLogout}
-            className="hidden sm:flex px-3.5 py-2 text-xs font-black uppercase tracking-wider text-white bg-red-600 hover:bg-red-500 border-2 border-black shadow-[2px_2px_0px_0px_#ffffff] hover:shadow-[3px_3px_0px_0px_#ffffff] rounded-xl transition-all items-center gap-1.5"
-            title="Sign Out"
-          >
-            <svg
-              className="w-4 h-4 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
-            <span>Logout</span>
-          </button>
-
           {/* Mobile Drawer Toggle Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
