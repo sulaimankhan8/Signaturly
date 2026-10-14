@@ -5,6 +5,7 @@ import {
   createCheckoutSessionController,
   confirmCheckoutController,
   checkoutStatusController,
+  checkoutPreviewController,
   devMockUpgradeController,
   devPayController,
   devRenewController,
@@ -27,6 +28,7 @@ router.get("/subscription", getSubscriptionController);
 router.post("/checkout", createCheckoutSessionController);
 router.post("/checkout/confirm", validate({ body: schemas.billingConfirm }), confirmCheckoutController);
 router.get("/checkout/status", validate({ query: schemas.billingStatus }), checkoutStatusController);
+router.get("/checkout/preview", validate({ query: schemas.billingPreview }), checkoutPreviewController);
 router.post("/auto-renew/stop", stopAutoRenewController);
 router.post("/portal", createBillingPortalController);
 

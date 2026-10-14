@@ -339,8 +339,10 @@ export const sendSalesEnquiryEmail = async ({ to, enquiry }) => {
  * way to the Billing page. `lines` are plain sentences; `facts` are label and value pairs
  * shown together (what was paid for, how much, the invoice number).
  */
-export const sendBillingEmail = async ({ email, name, subject, title, lines = [], facts = [] }) => {
-  const billingUrl = `${env.appUrl}/billing`;
+export const sendBillingEmail = async ({ email, name, subject, title, lines = [], facts = [], action = null }) => {
+  // The button leads to Billing, or to the one thing the email asks for (`action`: a path in the app and its label)
+  const billingUrl = `${env.appUrl}${action?.path || "/billing"}`;
+  const buttonLabel = action?.label || "Open Billing";
   const shown = facts.filter(([, value]) => value !== undefined && value !== null && value !== "");
 
   const content = `
@@ -357,13 +359,13 @@ export const sendBillingEmail = async ({ email, name, subject, title, lines = []
             .join("")}</div>`
         : ""
     }
-    ${button(billingUrl, "Open Billing")}
+    ${button(billingUrl, buttonLabel)}
   `;
 
   return sendEmail({
     to: email,
     subject,
     html: emailWrapper(content, title),
-    text: [`Hello ${name || email},`, ...lines, ...shown.map(([label, value]) => `${label}: ${value}`), `Billing: ${billingUrl}`].join("\n"),
+    text: [`Hello ${name || email},`, ...lines, ...shown.map(([label, value]) => `${label}: ${value}`), `${buttonLabel}: ${billingUrl}`].join("\n"),
   });
 };

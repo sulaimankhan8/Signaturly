@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PaymentProgress, { PaymentShell } from "./PaymentProgress";
-import { PAYMENT_STARTED, PAYMENT_ENDED, PAYMENT_PAID, PAYMENT_SHOWN, RETURN_PATH, rupees } from "../utils/checkout";
+import { PAYMENT_STARTED, PAYMENT_ENDED, PAYMENT_PAID, PAYMENT_SHOWN, RETURN_PATH } from "../utils/checkout";
 
 /**
  * Takes the customer from "Buy" to the page that confirms the payment without the page they
@@ -43,11 +43,10 @@ export default function PaymentFlow({ preload }) {
 
   if (!paying) return null;
 
-  const summary = [paying.description, paying.amountInr ? rupees(paying.amountInr) : ""].filter(Boolean).join(" · ");
   return (
     // Above everything the app draws, and beneath Razorpay's own window
     <PaymentShell className="fixed inset-0 z-[70] overflow-y-auto" data-testid="payment-flow">
-      <PaymentProgress doing={paying.paid ? 1 : 0} simulated={paying.simulated} nothingToday={paying.nothingToday} summary={summary} />
+      <PaymentProgress doing={paying.paid ? 1 : 0} simulated={paying.simulated} nothingToday={paying.nothingToday} description={paying.description} amountInr={paying.amountInr} />
     </PaymentShell>
   );
 }

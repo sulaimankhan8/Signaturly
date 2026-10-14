@@ -187,7 +187,7 @@ export default function Settings() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => navigate("/billing#plans")}
+              onClick={() => navigate("/billing/plans")}
               className="px-4 py-2 bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_#ef4444] transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <svg className="w-3.5 h-3.5 fill-current text-black" viewBox="0 0 20 20">

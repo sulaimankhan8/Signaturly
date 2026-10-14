@@ -196,7 +196,7 @@ const BulkSend = () => {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <button
                 type="button"
-                onClick={() => navigate("/billing#plans")}
+                onClick={() => navigate("/billing/plans")}
                 className="px-8 py-3.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_#ef4444] transition-all cursor-pointer"
               >
                 Upgrade to Pro →

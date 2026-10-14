@@ -4,6 +4,16 @@ import { useSelector, useDispatch } from "react-redux";
 import { performLogout } from "../store/authActions";
 import { UpgradeModal } from "./UpgradeModal";
 import WorkspaceSwitcher from "./WorkspaceSwitcher";
+import BillingAlert from "./BillingAlert";
+import { useSubscription } from "../hooks/useBillingAccount";
+import { billingCtaOf } from "../utils/billing";
+
+// The billing button's look, by what it says (utils/billing.js billingCtaOf)
+const CTA_LOOKS = {
+  upgrade: "text-black bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-300 shadow-[2px_2px_0px_0px_#ef4444] hover:shadow-[3px_3px_0px_0px_#ef4444]",
+  documents: "text-black bg-sky-300 hover:bg-sky-200 shadow-[2px_2px_0px_0px_#facc15]",
+  fix: "text-white bg-red-600 hover:bg-red-500 shadow-[2px_2px_0px_0px_#facc15]",
+};
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -16,6 +26,7 @@ export default function Navbar() {
   const [mobileExpandedSection, setMobileExpandedSection] = useState(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const navRef = useRef(null);
+  const billingCta = billingCtaOf(useSubscription());
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -590,17 +601,19 @@ export default function Navbar() {
 
         {/* User Profile & Right Action Area */}
         <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
-          {/* Upgrade: on a phone it is in the menu, where there is room for it */}
-          <button
-            onClick={() => navigate("/billing#plans")}
-            className="hidden sm:flex px-3.5 py-2 text-xs font-black uppercase tracking-wider text-black bg-gradient-to-r from-yellow-400 via-amber-400 to-yellow-500 hover:from-yellow-300 hover:to-amber-300 border-2 border-black shadow-[2px_2px_0px_0px_#ef4444] hover:shadow-[3px_3px_0px_0px_#ef4444] rounded-xl transition-all items-center gap-1.5 cursor-pointer transform hover:-translate-y-0.5 shrink-0"
-            title="See plans and upgrade"
-          >
-            <svg className="w-3.5 h-3.5 text-black shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            <span>Upgrade</span>
-          </button>
+          {/* The billing button, for how the account stands; on a phone it is in the menu, where there is room for it */}
+          {billingCta && (
+            <button
+              onClick={() => navigate(billingCta.to)}
+              className={`hidden sm:flex px-3.5 py-2 text-xs font-black uppercase tracking-wider border-2 border-black rounded-xl transition-all items-center gap-1.5 cursor-pointer transform hover:-translate-y-0.5 shrink-0 ${CTA_LOOKS[billingCta.kind]}`}
+              title={billingCta.kind === "upgrade" ? "See plans and upgrade" : billingCta.kind === "documents" ? "This month's documents are running out" : "Something about your plan needs you"}
+            >
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={billingCta.kind === "fix" ? "M12 9v4m0 4h.01M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" : billingCta.kind === "documents" ? "M12 5v14M5 12h14" : "M13 10V3L4 14h7v7l9-11h-7z"} />
+              </svg>
+              <span>{billingCta.label}</span>
+            </button>
+          )}
 
           {/* User Profile Menu */}
           <div className="relative shrink-0">
@@ -808,19 +821,21 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* Mobile Upgrade CTA */}
-          <button
-            onClick={() => {
-              navigate("/billing#plans");
-              setMobileMenuOpen(false);
-            }}
-            className="w-full py-2.5 px-4 text-xs font-black uppercase tracking-wider text-black bg-gradient-to-r from-yellow-400 to-amber-400 border-2 border-black rounded-xl shadow-[3px_3px_0px_0px_#ef4444] flex items-center justify-center gap-2"
-          >
-            <svg className="w-4 h-4 text-black shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            <span>Upgrade to Pro</span>
-          </button>
+          {/* The billing button, on a phone */}
+          {billingCta && (
+            <button
+              onClick={() => {
+                navigate(billingCta.to);
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full py-2.5 px-4 text-xs font-black uppercase tracking-wider border-2 border-black rounded-xl flex items-center justify-center gap-2 ${CTA_LOOKS[billingCta.kind]}`}
+            >
+              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>{billingCta.kind === "upgrade" ? "Upgrade your plan" : billingCta.label}</span>
+            </button>
+          )}
 
           <div className="space-y-1">
             {/* Dashboard */}
@@ -1078,6 +1093,9 @@ export default function Navbar() {
         onClose={() => setUpgradeModalOpen(false)}
         reason="Upgrade your workspace for more documents each month, more template packs and bulk send."
       />
+
+      {/* An overdue payment, or a plan about to end, said under the navbar on every page */}
+      <BillingAlert />
     </header>
   );
 }

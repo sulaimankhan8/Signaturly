@@ -90,8 +90,8 @@ const loadRazorpay = () =>
  */
 export const payFor = async (kind, item, { seats, renew, addOn, quantity, amountInr: chosenInr, stay = false } = {}) => {
   const what = { seats, renew, addOn, quantity, amountInr: chosenInr };
-  // Where the customer is now, so the confirming page can lead back
-  const from = window.location.pathname;
+  // Where the customer is now, so the confirming page can lead back (to the same checkout, after a failure)
+  const from = `${window.location.pathname}${window.location.search}`;
   // The payment screen goes up at once, before anything is asked of the server
   if (!stay) say(PAYMENT_STARTED, { paid: false });
 
@@ -100,6 +100,8 @@ export const payFor = async (kind, item, { seats, renew, addOn, quantity, amount
     // A plan that renews by itself is a subscription at the provider, not a single order
     const renews = order.mode === "subscription";
     const nothingToday = Boolean(renews && order.startsOn);
+    // How a plan takes over from the one the account is on: "upgrade" or "downgrade" (services/planChange.service.js)
+    const change = order.change === "upgrade" || order.change === "downgrade" ? order.change : undefined;
     const amountInr = order.isMock ? order.amount : order.amountPaise / 100;
     if (!stay) say(PAYMENT_STARTED, { description: order.description, amountInr: nothingToday ? 0 : amountInr, simulated: Boolean(order.isMock), nothingToday });
 
@@ -115,7 +117,7 @@ export const payFor = async (kind, item, { seats, renew, addOn, quantity, amount
       const done = await devPayApi(kind, item, what);
       if (stay) return "simulated";
       say(PAYMENT_STARTED, { paid: true });
-      return leaveForReturnPage({ simulated: true, paymentId: done?.paymentId || "", subscriptionId: done?.subscriptionId || "", description: order.description, amountInr, nothingToday, kind }, from);
+      return leaveForReturnPage({ simulated: true, paymentId: done?.paymentId || "", subscriptionId: done?.subscriptionId || "", description: order.description, amountInr, nothingToday, change, startsOn: order.startsOn || null, kind }, from);
     }
 
     const Razorpay = await loadRazorpay();
@@ -133,7 +135,7 @@ export const payFor = async (kind, item, { seats, renew, addOn, quantity, amount
           if (!stay) {
             // Razorpay's window closes now; the payment screen beneath it moves to its next step
             say(PAYMENT_STARTED, { paid: true });
-            leaveForReturnPage({ returned, description: order.description, amountInr, nothingToday, kind }, from);
+            leaveForReturnPage({ returned, description: order.description, amountInr, nothingToday, change, startsOn: order.startsOn || null, kind }, from);
             return;
           }
           confirmCheckoutApi(returned)

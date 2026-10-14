@@ -1,50 +1,66 @@
 /**
- * How each plan looks on its card: the tag above its name, its colour, and the button
- * beneath it. Plans are told apart by family (pro_monthly and pro_annual are both "pro");
- * a plan the list does not know gets the plain look.
+ * How each plan looks wherever it is shown: the tag above its name, its colour, its card, the
+ * button beneath it, and its panel at checkout. Plans are told apart by family (pro_monthly
+ * and pro_annual are both "pro"); a plan the list does not know gets the plain look.
  */
 
-const BUTTON = "block w-full text-center py-3.5 font-black uppercase tracking-wider rounded-xl text-xs border-2 transition-all disabled:opacity-40 disabled:pointer-events-none";
+const BUTTON = "flex w-full items-center justify-center gap-2 min-h-[46px] px-4 rounded-[10px] text-sm font-bold transition-colors text-center disabled:opacity-40 disabled:pointer-events-none";
 
 export const BUTTONS = {
-  yellow: `${BUTTON} bg-yellow-400 hover:bg-yellow-300 text-black border-black shadow-[4px_4px_0px_0px_#ef4444] hover:translate-x-px hover:translate-y-px hover:shadow-[3px_3px_0px_0px_#ef4444]`,
-  violet: `${BUTTON} bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white border-black shadow-[4px_4px_0px_0px_#000]`,
-  quiet: `${BUTTON} bg-white/[0.07] hover:bg-white/[0.14] text-white border-white/20`,
+  rose: `${BUTTON} bg-rose-600 hover:bg-rose-500 text-white`,
+  amber: `${BUTTON} bg-amber-400 hover:bg-amber-300 text-[#1a1405]`,
+  violet: `${BUTTON} bg-violet-600 hover:bg-violet-500 text-white`,
+  quiet: `${BUTTON} bg-white/[0.06] hover:bg-white/[0.11] border border-white/[0.14] text-gray-100`,
 };
 
 const LOOKS = {
   free: {
     tag: "Free forever",
     tick: "#34d399",
-    chip: "text-gray-300 border-white/15 bg-white/5",
-    frame: "border-white/15",
+    chip: "bg-emerald-400/[0.12] text-emerald-300",
+    card: "bg-[#12141c] border border-white/[0.09]",
+    ring: "!border-emerald-400/60",
+    heading: "text-emerald-300",
     button: BUTTONS.quiet,
+    solid: "bg-emerald-600",
+    summary: "bg-[#12141c] border-white/[0.1]",
   },
   pro: {
     tag: "Individual pro",
-    tick: "#facc15",
-    chip: "text-yellow-300 border-yellow-400/40 bg-yellow-400/10",
-    frame: "border-yellow-400",
-    button: BUTTONS.yellow,
+    tick: "#fbbf24",
+    chip: "bg-amber-400/[0.14] text-amber-300",
+    card: "bg-gradient-to-b from-amber-400/[0.08] via-[#12141c] to-[#12141c] border border-amber-400/40",
+    ring: "!border-amber-400",
+    heading: "text-amber-300",
+    button: BUTTONS.amber,
+    solid: "bg-amber-500",
+    summary: "bg-gradient-to-b from-amber-400/[0.10] via-[#12141c] to-[#12141c] border-amber-400/35",
   },
   business: {
     tag: "For teams",
     tick: "#a78bfa",
-    chip: "text-violet-300 border-violet-400/40 bg-violet-500/10",
-    frame: "border-violet-500/70",
-    glow: "bg-gradient-to-b from-violet-600/[0.12] to-transparent",
+    chip: "bg-violet-400/[0.14] text-violet-300",
+    card: "bg-gradient-to-b from-violet-500/[0.13] via-[#12141c] to-[#12141c] border border-violet-400/50",
+    ring: "!border-violet-400",
+    heading: "text-violet-300",
     button: BUTTONS.violet,
+    solid: "bg-violet-600",
+    summary: "bg-gradient-to-b from-violet-500/[0.12] via-[#12141c] to-[#12141c] border-violet-400/35",
   },
   enterprise: {
     tag: "Organisations",
     tick: "#60a5fa",
-    chip: "text-blue-300 border-blue-400/40 bg-blue-500/10",
-    frame: "border-white/15",
-    button: BUTTONS.quiet,
+    chip: "bg-sky-400/[0.13] text-sky-300",
+    card: "bg-[#12141c] border border-sky-400/30",
+    ring: "!border-sky-400",
+    heading: "text-sky-300",
+    button: `${BUTTONS.quiet} !border-sky-400/45`,
+    solid: "bg-sky-600",
+    summary: "bg-[#12141c] border-sky-400/35",
   },
 };
 
-const PLAIN = { tag: "", tick: "#34d399", chip: "", frame: "border-white/15", button: BUTTONS.quiet };
+const PLAIN = { tag: "", tick: "#34d399", chip: "bg-white/[0.07] text-gray-300", card: "bg-[#12141c] border border-white/[0.09]", ring: "!border-white/40", heading: "text-gray-200", button: BUTTONS.quiet, solid: "bg-gray-600", summary: "bg-[#12141c] border-white/[0.1]" };
 
 export const familyOf = (planId = "") => planId.replace(/_(monthly|annual|yearly)$/, "");
 

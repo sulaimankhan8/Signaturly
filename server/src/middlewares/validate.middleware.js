@@ -204,6 +204,12 @@ export const schemas = {
     state: optional(z.enum(["active", "overdue", "ending"])),
     plan: optional(planId),
   }),
+  // What checkout asks about a plan before anything is bought: which plan, for how many seats, and how it is paid
+  billingPreview: z.object({
+    plan: planId,
+    seats: optional(z.coerce.number().int().min(1).max(500)),
+    renew: optional(z.enum(["auto", "once"])),
+  }),
   // Which payment, or which subscription approved with nothing charged yet, the page shown after paying asks about
   billingStatus: z
     .object({

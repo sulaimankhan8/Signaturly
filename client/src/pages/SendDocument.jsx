@@ -490,7 +490,7 @@ export default function SendDocument() {
                 value={emailSubject}
                 onChange={(e) => {
                   if (!isProOrAbove && e.target.value.length > 0) {
-                    setUpgradeReason("Custom branded email subject lines require a the Pro plan.");
+                    setUpgradeReason("Custom branded email subject lines require the Pro plan.");
                     setUpgradeModalOpen(true);
                     return;
                   }
@@ -530,7 +530,7 @@ export default function SendDocument() {
                 value={reminderCadence}
                 onChange={(e) => {
                   if (!isProOrAbove && e.target.value !== "none") {
-                    setUpgradeReason("Automated recurring email reminders to signers require a the Pro plan.");
+                    setUpgradeReason("Automated recurring email reminders to signers require the Pro plan.");
                     setUpgradeModalOpen(true);
                     return;
                   }

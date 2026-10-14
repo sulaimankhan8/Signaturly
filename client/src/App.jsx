@@ -52,8 +52,14 @@ const Landing = page(() => import("./pages/Landing"));
 const FontTestLab = page(() => import("./pages/FontTestLab"));
 const UserGuide = page(() => import("./pages/UserGuide"));
 const PublicVerify = page(() => import("./pages/PublicVerify"));
-// Plans and billing: one page, at the public address and at the app's own
-const PlansBilling = page(() => import("./pages/PlansBilling"));
+// The public price list, and Billing for a signed-in account: four tabs and the checkout page
+const Pricing = page(() => import("./pages/Pricing"));
+const BillingLayout = page(() => import("./pages/billing/BillingLayout"));
+const BillingOverview = page(() => import("./pages/billing/Overview"));
+const BillingPlans = page(() => import("./pages/billing/Plans"));
+const BillingAddOns = page(() => import("./pages/billing/AddOns"));
+const BillingInvoices = page(() => import("./pages/billing/Invoices"));
+const Checkout = page(() => import("./pages/billing/Checkout"));
 const TeamWorkspaces = page(() => import("./pages/TeamWorkspaces"));
 const ApiSettings = page(() => import("./pages/ApiSettings"));
 const InviteAccept = page(() => import("./pages/InviteAccept"));
@@ -62,7 +68,7 @@ const SsoDone = page(() => import("./pages/SsoDone"));
 const EsignStandIn = page(() => import("./pages/EsignStandIn"));
 
 // The pages that are served as ready-made HTML
-const PRERENDERED = { "/": HomeRedirect, "/pricing": PlansBilling, "/verify": PublicVerify, "/userguide": UserGuide };
+const PRERENDERED = { "/": HomeRedirect, "/pricing": Pricing, "/verify": PublicVerify, "/userguide": UserGuide };
 
 /**
  * Fetches the code of a pre-rendered page before the app starts, so the app can take over the
@@ -98,8 +104,15 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomeRedirect />} />
           <Route path="/landing" element={<Landing />} />
-          <Route path="/pricing" element={<PlansBilling />} />
-          <Route path="/billing" element={<PlansBilling />} />
+          <Route path="/pricing" element={<Pricing />} />
+          {/* Old links (/billing#topups, /billing?plan=...) are sent on to their tab or to checkout by the layout */}
+          <Route path="/billing" element={<BillingLayout />}>
+            <Route index element={<BillingOverview />} />
+            <Route path="plans" element={<BillingPlans />} />
+            <Route path="add-ons" element={<BillingAddOns />} />
+            <Route path="invoices" element={<BillingInvoices />} />
+          </Route>
+          <Route path="/billing/checkout" element={<Checkout />} />
           <Route path="/billing/return" element={<PaymentReturn />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/workspaces" element={<TeamWorkspaces />} />

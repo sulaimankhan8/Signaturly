@@ -4,9 +4,13 @@ import { ProviderPlan } from "../models/ProviderPlan.model.js";
 import { upgradeUserPlan, addExtraDocuments } from "./subscription.service.js";
 import { creditWallet } from "./wallet.service.js";
 import { issueInvoiceForPayment } from "./invoice.service.js";
-import { quotaOf, acceptedPricesOf, seatAdditionPrice, isTopUpPack, packsOf, sameOffer, PLANS, TOPUP_PACKS } from "../config/plans.js";
+import { quotaOf, acceptedPricesOf, seatAdditionPrice, isTopUpPack, packsOf, sameOffer, isPlan, PLANS, TOPUP_PACKS } from "../config/plans.js";
 import { razorpayConfigured, readOrder, readSubscription, cancelSubscription } from "./razorpay.client.js";
+import { changeOf, unusedValueOf, creditDaysOn, DAY_MS } from "./planChange.service.js";
 import { enqueueJob } from "../jobs/queue.js";
+
+// Nothing waiting to change on the account's plan
+const NOTHING_SCHEDULED = { scheduledPlan: null, scheduledSeats: null, scheduledPlanFrom: null };
 
 /**
  * What happens to an account when money moves.
@@ -91,18 +95,34 @@ const endReplaced = async (subscriptionId, userId) => {
  * when, and only when, the payment is recorded for the first time.
  *
  * `replaces` is a subscription this one takes over from (see endReplaced).
+ *
+ * A single period of a bigger plan than the one running (an upgrade) starts today, and the
+ * time already paid for on the old plan is not lost: its value is added to the new period as
+ * days (services/planChange.service.js). A plan that was renewing by itself stops doing so.
  */
 export const applyPurchase = async ({ provider, userId, plan, seats, addOn, providerSubscriptionId, customerId, periodEnd, payment, once = false, renewalAmountInr, replaces }) => {
   const pack = addOn && isTopUpPack(addOn) ? TOPUP_PACKS[addOn] : null;
   const entry = { userId, provider, kind: "purchase", plan, item: pack ? addOn : null, providerSubscriptionId: providerSubscriptionId || null };
 
+  let creditMs = 0;
   if (once) {
+    const before = await Subscription.findOne({ userId: String(userId) });
+    if (before && changeOf(before, plan, seats) === "upgrade") creditMs = creditDaysOn(unusedValueOf(before), plan, seats) * DAY_MS;
+    if (replaces) {
+      // The plan that was renewing stops renewing here first, so Razorpay's word that it has
+      // ended finds nothing of this account to change; then it is ended there
+      if (before?.razorpaySubscriptionId === replaces) {
+        await Subscription.updateOne({ _id: before._id, razorpaySubscriptionId: replaces }, { $set: { autoRenew: false, razorpaySubscriptionId: null, renewalAmountInr: null, ...NOTHING_SCHEDULED } });
+      }
+      await endReplaced(replaces, userId);
+    }
     const recorded = await recordPayment({ ...entry, seats: PLANS[plan]?.perSeat ? seats || 1 : null, ...payment });
     if (!recorded) return null;
   }
 
   const sub = await upgradeUserPlan(userId, plan, {
     addToPeriod: once,
+    creditMs,
     seats: PLANS[plan]?.perSeat ? seats || 1 : undefined,
     stripeCustomerId: provider === "stripe" ? customerId : undefined,
     stripeSubscriptionId: provider === "stripe" ? providerSubscriptionId : undefined,
@@ -144,17 +164,37 @@ export const applyPurchase = async ({ provider, userId, plan, seats, addOn, prov
  * (monthly to yearly, or back), the account is named for it now: what it has is the same, and
  * what it will be charged, and how often, is what the customer has just approved.
  * `replaces` is a subscription this one takes over from (see endReplaced).
+ *
+ * `change` says how it takes over from the plan the account is on (services/planChange.service.js):
+ *   "upgrade"    the new plan starts now, paid for until `startsOn` by the unused time of the old
+ *                one; the first charge comes then. Granted once, the first time this is heard.
+ *   "downgrade"  the account keeps its plan until the paid time ends; the cheaper one is
+ *                waiting (`scheduledPlan`) and takes over with the first charge.
  */
-export const applyAutoRenewApproved = async ({ userId, plan, providerSubscriptionId, renewalAmountInr, replaces }) => {
-  const sub = userId ? await Subscription.findOne({ userId: String(userId) }) : null;
+export const applyAutoRenewApproved = async ({ userId, plan, seats, providerSubscriptionId, renewalAmountInr, replaces, change, startsOn }) => {
+  let sub = userId ? await Subscription.findOne({ userId: String(userId) }) : null;
   if (!sub) return null;
+
+  const firstHeard = sub.razorpaySubscriptionId !== providerSubscriptionId;
+  const perSeat = Boolean(PLANS[plan]?.perSeat);
+  if (change === "upgrade" && firstHeard && startsOn && isPlan(plan) && sub.plan !== plan) {
+    sub = await upgradeUserPlan(userId, plan, { seats: perSeat ? seats || 1 : undefined, periodEnd: startsOn });
+  }
 
   const startsRenewing = !sub.autoRenew;
   sub.razorpaySubscriptionId = providerSubscriptionId;
   sub.autoRenew = true;
   sub.cancelAtPeriodEnd = false;
   if (renewalAmountInr) sub.renewalAmountInr = renewalAmountInr;
-  if (plan && plan !== sub.plan && sameOffer(sub.plan, plan)) sub.plan = plan;
+  if (change === "downgrade" && isPlan(plan) && plan !== sub.plan) {
+    sub.scheduledPlan = plan;
+    sub.scheduledSeats = perSeat ? seats || 1 : null;
+    sub.scheduledPlanFrom = startsOn || sub.currentPeriodEnd;
+  } else {
+    // Anything else approved now takes the place of a move that was waiting
+    Object.assign(sub, NOTHING_SCHEDULED);
+    if (plan && plan !== sub.plan && sameOffer(sub.plan, plan)) sub.plan = plan;
+  }
   await sub.save();
 
   if (replaces && replaces !== providerSubscriptionId) await endReplaced(replaces, userId);
@@ -172,6 +212,13 @@ export const applyRenewal = async ({ provider, providerSubscriptionId, userId, p
   const end = toDate(periodEnd);
   if (end && (!sub.currentPeriodEnd || end > sub.currentPeriodEnd)) {
     sub.currentPeriodEnd = end;
+  }
+  // A move to a cheaper plan was waiting for this charge: it takes over now
+  if (isPlan(sub.scheduledPlan)) {
+    sub.plan = sub.scheduledPlan;
+    sub.seats = PLANS[sub.plan].perSeat ? sub.scheduledSeats || 1 : 1;
+    sub.previousPlan = null;
+    Object.assign(sub, NOTHING_SCHEDULED);
   }
   if (sub.plan === "free" && sub.previousPlan) {
     // Paid after lapsing: restore the plan they were on
@@ -224,10 +271,11 @@ export const applyCancellation = async ({ provider, providerSubscriptionId, user
   const sub = await findSubscription({ provider, providerSubscriptionId, userId });
   if (!sub) return null;
 
-  // Whichever way it ends, nothing renews by itself any more
+  // Whichever way it ends, nothing renews by itself any more, and no move to another plan is waiting
   const wasRenewing = Boolean(sub.autoRenew);
   sub.autoRenew = false;
   sub.renewalAmountInr = null;
+  Object.assign(sub, NOTHING_SCHEDULED);
 
   const stillPaidFor = sub.currentPeriodEnd && sub.currentPeriodEnd > new Date();
   if (atPeriodEnd && stillPaidFor) {
@@ -256,7 +304,7 @@ export const applyCancellation = async ({ provider, providerSubscriptionId, user
  * bought several at a time (`quantity`); the payment must be for that many. Wallet credit
  * of the customer's own choosing names its amount (`amountInr`), and the payment must be for it.
  */
-export const applyOrderPaid = async ({ provider, userId, kind, item, seats, addOn, quantity, amountInr, payment }) => {
+export const applyOrderPaid = async ({ provider, userId, kind, item, seats, addOn, quantity, amountInr, payment, replaces }) => {
   if (kind === "seats") return applySeatsPaid({ provider, userId, add: item, payment });
 
   const prices = acceptedPricesOf(kind, item, { seats, amountInr });
@@ -273,7 +321,7 @@ export const applyOrderPaid = async ({ provider, userId, kind, item, seats, addO
   }
 
   if (kind === "plan") {
-    const sub = await applyPurchase({ provider, userId, plan: item, seats: price.seats, addOn, payment, once: true });
+    const sub = await applyPurchase({ provider, userId, plan: item, seats: price.seats, addOn, payment, once: true, replaces });
     return sub ? { granted: true } : { granted: false, reason: "already granted" };
   }
 
@@ -410,14 +458,18 @@ export const planRenewedBy = async (subscription, knownPlan) => {
   const seats = Math.floor(Number(subscription?.quantity)) || Math.floor(Number(subscription?.notes?.seats)) || undefined;
   const addOn = isTopUpPack(subscription?.notes?.topup) ? subscription.notes.topup : undefined;
   const made = subscription?.plan_id ? await ProviderPlan.findOne({ provider: "razorpay", providerPlanId: String(subscription.plan_id) }).lean() : null;
-  // Written by this server when the customer moved a running subscription to the plan's other price
+  // Written by this server when the subscription takes over from one that was running
   const replaces = subscription?.notes?.replaces ? String(subscription.notes.replaces) : undefined;
-  if (made) return { plan: knownPlan(made.planId), seats, addOn, replaces, renewalAmountInr: made.priceInr * (seats || 1) };
+  // Written by this server for a move to another plan: an upgrade, granted on approval, or a downgrade, which waits
+  const change = ["upgrade", "downgrade"].includes(subscription?.notes?.change) ? subscription.notes.change : undefined;
+  const startAt = Number(subscription?.notes?.startsAt) || Number(subscription?.start_at) || 0;
+  const startsOn = startAt > 0 ? new Date(startAt * 1000) : undefined;
+  if (made) return { plan: knownPlan(made.planId), seats, addOn, replaces, change, startsOn, renewalAmountInr: made.priceInr * (seats || 1) };
   if (subscription?.plan_id && razorpayConfigured()) {
     console.error(`[Billing] Subscription ${subscription.id} is on a Razorpay plan this server did not make; nothing granted`);
     return { plan: null };
   }
-  return { plan: knownPlan(subscription?.notes?.plan), seats, addOn, replaces };
+  return { plan: knownPlan(subscription?.notes?.plan), seats, addOn, replaces, change, startsOn };
 };
 
 /**
@@ -462,6 +514,8 @@ export const handleRazorpayEvent = async (body, knownPlan) => {
         addOn: kind === "plan" ? notes.topup || undefined : undefined,
         quantity: kind === "topup" ? Number(notes.quantity) || 1 : undefined,
         amountInr: kind === "wallet" ? Number(notes.amount) || undefined : undefined,
+        // A plan bought for one period in place of one that was renewing: that subscription is ended
+        replaces: kind === "plan" && notes.replaces ? String(notes.replaces) : undefined,
         payment: paymentInfo,
       });
       return;
@@ -471,9 +525,9 @@ export const handleRazorpayEvent = async (body, knownPlan) => {
     // waits for it to end, and until then this is all that is heard.
     case "subscription.authenticated": {
       const userId = subscription?.notes?.userId;
-      const { plan, renewalAmountInr, replaces } = await planRenewedBy(subscription, knownPlan);
+      const { plan, seats, renewalAmountInr, replaces, change, startsOn } = await planRenewedBy(subscription, knownPlan);
       if (!userId || !plan) return;
-      await applyAutoRenewApproved({ userId, plan, providerSubscriptionId: subscription.id, renewalAmountInr, replaces });
+      await applyAutoRenewApproved({ userId, plan, seats, providerSubscriptionId: subscription.id, renewalAmountInr, replaces, change, startsOn });
       return;
     }
 

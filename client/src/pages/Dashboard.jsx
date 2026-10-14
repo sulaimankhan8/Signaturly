@@ -499,7 +499,7 @@ export default function Dashboard() {
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => navigate("/billing#plans")}
+                    onClick={() => navigate("/billing/plans")}
                     className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_#ef4444] hover:shadow-[4px_4px_0px_0px_#ef4444] transition-all whitespace-nowrap cursor-pointer"
                   >
                     <svg className="w-3.5 h-3.5 text-black fill-current" viewBox="0 0 20 20">
@@ -509,7 +509,7 @@ export default function Dashboard() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigate("/billing#topups")}
+                    onClick={() => navigate("/billing/add-ons")}
                     className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black transition-all whitespace-nowrap cursor-pointer"
                   >
                     Extra documents

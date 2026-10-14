@@ -317,7 +317,7 @@ export default function TeamWorkspaces() {
                         Get Business · {rupees(businessPlan.priceInr)} per person a month
                       </button>
                     ) : (
-                      <Link to="/billing#plans" className={quiet}>
+                      <Link to="/billing/plans" className={quiet}>
                         See plans
                       </Link>
                     )}
@@ -640,11 +640,12 @@ export default function TeamWorkspaces() {
       {buyingSeats > 0 && businessPlan && (
         <PlanCheckout
           open
-          plans={[businessPlan]}
+          plans={subscription.catalogue.plans.filter((p) => p.purchasable && (p.id === businessPlan.id || p.yearlyOf === businessPlan.id))}
           planId={businessPlan.id}
           seats={buyingSeats}
           chooseSeats
           maxSeats={subscription?.catalogue?.maxSeats}
+          gstRatePercent={subscription?.catalogue?.gstRatePercent}
           addOns={subscription?.catalogue?.topups || []}
           onClose={() => setBuyingSeats(0)}
           onDone={async (outcome) => {

@@ -96,6 +96,22 @@ const subscriptionSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    // A move to a cheaper plan that waits for the paid time to end: the subscription approved
+    // for it starts then, and its first charge switches the account to `scheduledPlan`
+    // (services/planChange.service.js). Null when nothing is waiting.
+    scheduledPlan: {
+      type: String,
+      default: null,
+      validate: { validator: (plan) => plan === null || isPlan(plan), message: "`{VALUE}` is not a plan" },
+    },
+    scheduledSeats: {
+      type: Number,
+      default: null,
+    },
+    scheduledPlanFrom: {
+      type: Date,
+      default: null,
+    },
     lastPaymentAmount: {
       type: Number,
       default: 0,

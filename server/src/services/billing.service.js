@@ -5,7 +5,8 @@ import { Invoice } from "../models/Invoice.model.js";
 import { User } from "../models/User.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { env } from "../config/env.js";
-import { PLANS, WALLET_CUSTOM, WALLET_MIN_INR, WALLET_MAX_INR, isPlan, priceOf, seatAdditionPrice, sellsAs, packsOf } from "../config/plans.js";
+import { PLANS, WALLET_CUSTOM, WALLET_MIN_INR, WALLET_MAX_INR, isPlan, priceOf, seatAdditionPrice, sellsAs, packsOf, sameOffer } from "../config/plans.js";
+import { moveTo, renewsNow } from "./planChange.service.js";
 import { applyOrderPaid, applyPurchase, applyAutoRenewApproved, handleRazorpayEvent, planRenewedBy } from "./billingEvents.service.js";
 import { startAutoRenew, completeSimulatedAutoRenew, renewalOf } from "./autoRenew.service.js";
 import { getOrCreateSubscription, usageOf } from "./subscription.service.js";
@@ -77,11 +78,20 @@ export const createCheckoutSession = async ({ userId, plan, kind = "plan", item,
     throw new ApiError(503, "BILLING_UNAVAILABLE: Paid plans are not available yet.");
   }
 
-  // A plan that renews by itself is already being paid for; a single period on top would be paid twice
+  // How this period takes over from the plan the account is on (services/planChange.service.js).
+  // A plan that renews by itself is already being paid for, so a single period of the same plan
+  // on top would be paid twice; a single period of a bigger plan takes over from it, and the
+  // subscription is ended once this is paid. A cheaper plan waits for the paid time to end,
+  // which only auto-renew can arrange.
+  let move = null;
   if (kind === "plan") {
-    const current = await Subscription.findOne({ userId }).select("autoRenew plan status").lean();
-    if (current?.autoRenew && current.plan !== "free" && ["active", "past_due"].includes(current.status)) {
+    const current = await getOrCreateSubscription(userId);
+    move = moveTo(current, what, price.seats);
+    if (renewsNow(current) && sameOffer(current.plan, what)) {
       throw new ApiError(409, "Your plan already renews automatically. Turn off auto-renew first if you want to change how you pay.");
+    }
+    if (!move.ways.includes("once")) {
+      throw new ApiError(409, move.change === "downgrade" ? "A cheaper plan starts when your present plan ends. Choose auto-renew to move to it then." : "That plan is sold as a subscription only");
     }
   }
 
@@ -112,6 +122,7 @@ export const createCheckoutSession = async ({ userId, plan, kind = "plan", item,
         ...(extra ? { topup: addOn } : {}),
         ...(packs > 1 ? { quantity: String(packs) } : {}),
         ...(kind === "wallet" && what === WALLET_CUSTOM ? { amount: String(price.amountInr) } : {}),
+        ...(move?.replaces && !String(move.replaces).startsWith("sim_sub_") ? { replaces: move.replaces } : {}),
       },
     }).catch((err) => {
       console.error("[Billing] Razorpay order could not be created:", err.providerMessage || err.message);
@@ -127,6 +138,8 @@ export const createCheckoutSession = async ({ userId, plan, kind = "plan", item,
       amountPaise: order.amount,
       currency: "INR",
       description,
+      change: move?.change,
+      creditDays: move?.creditDays || 0,
       customer: { name: user.name, email: user.email },
     };
   }
@@ -149,6 +162,8 @@ export const createCheckoutSession = async ({ userId, plan, kind = "plan", item,
     amount: amountInr,
     currency: "INR",
     description,
+    change: move?.change,
+    creditDays: move?.creditDays || 0,
     checkoutUrl: kind === "plan" ? `${CLIENT_URL}/settings?tab=billing&mock_plan=${what}` : undefined,
     message: "Development mode: no payment provider is configured, so the purchase can be simulated.",
   };
@@ -169,6 +184,8 @@ export const completeSimulatedOrder = async ({ userId, kind, item, seats, renew 
 
   const paymentId = `sim_${crypto.randomBytes(10).toString("hex")}`;
   const packs = kind === "topup" ? packsOf(quantity) : 1;
+  // As for a real order: a plan bought for one period in place of one that renews ends that subscription
+  const move = kind === "plan" ? moveTo(await getOrCreateSubscription(userId), item, price.seats) : null;
   const result = await applyOrderPaid({
     provider: "razorpay",
     userId,
@@ -177,6 +194,7 @@ export const completeSimulatedOrder = async ({ userId, kind, item, seats, renew 
     seats: price.seats,
     addOn: extra ? addOn : undefined,
     quantity: packs,
+    replaces: move?.replaces || undefined,
     amountInr: kind === "wallet" ? price.amountInr : undefined,
     payment: { providerPaymentId: paymentId, amount: price.amountInr * packs + (extra?.amountInr || 0), currency: "INR" },
   });
@@ -217,12 +235,13 @@ export const confirmCheckout = async (userId, { paymentId, orderId, subscription
 
   const subscription = await readSubscription(subscriptionId);
   if (!mine(subscription.notes)) throw new ApiError(403, "That payment belongs to another account");
-  const { plan, seats, addOn, renewalAmountInr, replaces } = await planRenewedBy(subscription, knownPlan);
+  const { plan, seats, addOn, renewalAmountInr, replaces, change, startsOn } = await planRenewedBy(subscription, knownPlan);
   if (!plan) throw new ApiError(400, "That payment could not be confirmed");
 
-  // Approved, with the first charge still to come when the time already paid for ends
+  // Approved, with the first charge still to come: when the time already paid for ends, or
+  // when the days an upgrade was given for unused time run out
   if (subscription.status === "authenticated") {
-    await applyAutoRenewApproved({ userId, plan, providerSubscriptionId: subscription.id, renewalAmountInr, replaces });
+    await applyAutoRenewApproved({ userId, plan, seats, providerSubscriptionId: subscription.id, renewalAmountInr, replaces, change, startsOn });
     return { confirmed: true };
   }
   if (subscription.status !== "active" || payment.status !== "captured") return { confirmed: false };
@@ -261,7 +280,7 @@ export const checkoutStatus = async (userId, { paymentId, subscriptionId }) => {
     approved: Boolean(subscriptionId && sub.autoRenew && sub.razorpaySubscriptionId === subscriptionId),
     payment: payment ? { kind: payment.kind, amount: payment.amount, currency: payment.currency, plan: payment.plan, item: payment.item, occurredAt: payment.occurredAt } : null,
     invoice: invoice ? { id: invoice._id, number: invoice.number, description: invoice.description, totalPaise: invoice.totalPaise, kind: invoice.kind } : null,
-    plan: { id: sub.plan, name: plan?.name || sub.plan, perSeat: Boolean(plan?.perSeat), interval: plan?.interval || null },
+    plan: { id: sub.plan, name: plan?.name || sub.plan, perSeat: Boolean(plan?.perSeat), seats: plan?.perSeat ? sub.seats || 1 : null, interval: plan?.interval || null },
     renewal: renewalOf(sub),
     usage: usageOf(sub),
   };

@@ -164,7 +164,7 @@ export default function TemplateEditor() {
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
               <button
                 type="button"
-                onClick={() => navigate("/billing#plans")}
+                onClick={() => navigate("/billing/plans")}
                 className="px-6 py-2.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_#ef4444] transition-all cursor-pointer"
               >
                 Upgrade to Pro →

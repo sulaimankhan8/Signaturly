@@ -191,14 +191,14 @@ describe("moving a plan between its monthly and its yearly price", () => {
     expect(await paymentsOf(user.id)).toEqual([["purchase", "pro_monthly", 299]]);
   });
 
-  it("moves a plan that renews to its other price in one step, and to no other plan", async () => {
+  it("moves a plan that renews to its other price in one step", async () => {
     const user = await createUser();
     await devPay(user, "pro_monthly", "auto");
     const before = await subOf(user.id);
 
-    // Another plan, or the same price again, still means turning auto-renew off first
-    expect((await checkout(user, "business_monthly", "auto", { seats: 2 })).status).toBe(409);
+    // The same price again is refused; another plan can be checked out without turning anything off
     expect((await checkout(user, "pro_monthly", "auto")).status).toBe(409);
+    expect((await checkout(user, "business_monthly", "auto", { seats: 2 })).status).toBe(200);
 
     expect((await checkout(user, "pro_annual", "auto")).status).toBe(200);
     expect((await devPay(user, "pro_annual", "auto")).status).toBe(200);

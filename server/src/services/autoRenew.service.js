@@ -8,6 +8,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { getOrCreateSubscription } from "./subscription.service.js";
 import { assertSeatsCoverTeams } from "./workspace.service.js";
 import { applyPurchase, applyRenewal, applyAutoRenewApproved, applyCancellation, applyPaymentFailure } from "./billingEvents.service.js";
+import { moveTo } from "./planChange.service.js";
 import { razorpayConfigured, createPlan, createSubscription, readSubscription, cancelSubscription, readSubscriptionInvoices } from "./razorpay.client.js";
 
 /**
@@ -58,12 +59,15 @@ export const renewalOf = (sub, now = new Date()) => {
   const plan = isPlan(sub?.plan) ? PLANS[sub.plan] : null;
   const seats = plan?.perSeat ? Math.max(1, sub.seats || 1) : 1;
   const running = Boolean(plan?.interval && sub.plan !== "free" && ["active", "past_due"].includes(sub.status) && sub.currentPeriodEnd);
-  if (!running) return { mode: "none", interval: null, endsOn: null, nextChargeOn: null, amountInr: null, overdue: false, canStart: false, canStop: false, canAddPeriod: false };
+  if (!running) return { mode: "none", interval: null, endsOn: null, nextChargeOn: null, amountInr: null, overdue: false, canStart: false, canStop: false, canAddPeriod: false, scheduled: null };
 
   // The period has run out and the account is in its few days of grace
   const overdue = sub.status === "past_due" || sub.currentPeriodEnd <= now;
   if (renewsNow(sub)) {
-    return { mode: "auto", interval: plan.interval, endsOn: null, nextChargeOn: sub.currentPeriodEnd, amountInr: sub.renewalAmountInr ?? plan.priceInr * seats, overdue, canStart: false, canStop: true, canAddPeriod: false };
+    // A move to a cheaper plan waiting for the paid time to end: what it is, and when
+    const next = isPlan(sub.scheduledPlan) ? PLANS[sub.scheduledPlan] : null;
+    const scheduled = next ? { plan: sub.scheduledPlan, name: next.name, interval: next.interval, seats: next.perSeat ? sub.scheduledSeats || 1 : null, from: sub.scheduledPlanFrom || sub.currentPeriodEnd } : null;
+    return { mode: "auto", interval: next?.interval || plan.interval, endsOn: null, nextChargeOn: sub.currentPeriodEnd, amountInr: sub.renewalAmountInr ?? plan.priceInr * seats, overdue, canStart: false, canStop: true, canAddPeriod: false, scheduled };
   }
   const ways = sellsAs(plan);
   return {
@@ -77,6 +81,7 @@ export const renewalOf = (sub, now = new Date()) => {
     canStart: ways.subscription,
     canStop: false,
     canAddPeriod: ways.prepaid && !plan.perSeat,
+    scheduled: null,
   };
 };
 
@@ -128,27 +133,36 @@ export const syncProviderPlan = async (planId) => {
 
 const descriptionOf = (plan, seats) => `PactDoc ${plan.name} plan${plan.perSeat ? `, ${seats} seat${seats === 1 ? "" : "s"}` : ""}, renewing every ${plan.interval}`;
 
-// What is being subscribed to, checked: the seats, the price of each renewal, any extra documents bought with it, and when it starts
+/**
+ * What is being subscribed to, checked: the seats, the price of each renewal, any extra
+ * documents bought with it, when it starts, and how it takes over from the plan the account is
+ * on (services/planChange.service.js):
+ *   the same plan, not yet renewing   the first charge waits for the time already paid for
+ *   the plan's other price            the same, taking over from a subscription that is running
+ *   an upgrade                        the new plan starts today; the unused time comes first as
+ *                                     extra days, so nothing is charged until they run out
+ *   a downgrade                       the first charge, and the cheaper plan, wait for the paid time to end
+ * A subscription that is running is ended once the new one is approved, so nothing is ever
+ * charged twice. Only the plan at the very price it already renews at cannot be bought again.
+ */
 const subscriptionFor = async ({ userId, planId, askedSeats, addOn }) => {
   if (!canAutoRenew(planId)) throw new ApiError(400, "That plan cannot be bought as a subscription");
 
   const sub = await getOrCreateSubscription(userId);
-  // A plan that renews can be moved to its other price (monthly to yearly, or back) in one
-  // step: the new subscription takes over from the one running. Anything else is turned off first.
-  const changesPeriod = renewsNow(sub) && sub.plan !== planId && sameOffer(sub.plan, planId);
-  if (renewsNow(sub) && !changesPeriod) throw new ApiError(409, "Your plan already renews automatically. Turn that off first to change it.");
+  if (renewsNow(sub) && sub.plan === planId) throw new ApiError(409, "Your plan already renews automatically at this price.");
 
   const plan = PLANS[planId];
   const seats = seatsFor(sub, planId, askedSeats);
   if (plan.perSeat) await assertSeatsCoverTeams(userId, seats);
 
+  const move = moveTo(sub, planId, seats);
   // Time already paid for on the same plan is used first: the first charge waits for it to end
-  const startsOn = paidUntilOn(sub, planId);
+  const startsOn = move.change === "same" || move.change === "switch" ? paidUntilOn(sub, planId) : move.startsOn;
   const extra = addOn ? priceOf("topup", addOn) : null;
   if (addOn && !extra) throw new ApiError(400, "That pack of extra documents is not available to buy");
   if (extra && startsOn) throw new ApiError(400, "Nothing is charged today, so extra documents cannot be added here. Buy them separately.");
 
-  return { plan, seats, startsOn, extra, renewalInr: plan.priceInr * seats, replaces: changesPeriod ? sub.razorpaySubscriptionId || null : null };
+  return { plan, seats, startsOn, extra, renewalInr: plan.priceInr * seats, replaces: move.replaces, change: move.change, creditDays: move.creditDays };
 };
 
 /**
@@ -165,7 +179,7 @@ const subscriptionFor = async ({ userId, planId, askedSeats, addOn }) => {
  */
 export const startAutoRenew = async ({ userId, plan: planId, seats: askedSeats, addOn }) => {
   if (!env.billingEnabled) throw new ApiError(503, "BILLING_UNAVAILABLE: Paid plans are not available yet.");
-  const { plan, seats, startsOn, extra, renewalInr, replaces } = await subscriptionFor({ userId, planId, askedSeats, addOn });
+  const { plan, seats, startsOn, extra, renewalInr, replaces, change, creditDays } = await subscriptionFor({ userId, planId, askedSeats, addOn });
 
   const user = await User.findById(userId);
   if (!user) throw new ApiError(404, "User not found");
@@ -183,6 +197,9 @@ export const startAutoRenew = async ({ userId, plan: planId, seats: askedSeats, 
     interval: plan.interval,
     startsOn,
     renewsAtInr: renewalInr,
+    // How this takes over from the plan the account is on, and the days its unused time is worth
+    change,
+    creditDays,
     ...(plan.perSeat ? { seats } : {}),
     ...(extra ? { addOn } : {}),
   };
@@ -198,7 +215,17 @@ export const startAutoRenew = async ({ userId, plan: planId, seats: askedSeats, 
       ...(extra ? { addons: [{ item: { name: extra.description, amount: extra.amountInr * 100, currency: "INR" } }] } : {}),
       // Read back when Razorpay reports, to decide who is subscribing and to what; the customer cannot change these
       // `replaces` is the subscription this one takes over from, which is ended once this one is approved
-      notes: { userId: user._id.toString(), plan: planId, kind: "auto_renew", seats: String(seats), ...(extra ? { topup: addOn } : {}), ...(replaces && !isSimulated(replaces) ? { replaces } : {}) },
+      // `change` says an upgrade is granted when approved, and a downgrade waits for its first charge
+      notes: {
+        userId: user._id.toString(),
+        plan: planId,
+        kind: "auto_renew",
+        seats: String(seats),
+        ...(extra ? { topup: addOn } : {}),
+        ...(replaces && !isSimulated(replaces) ? { replaces } : {}),
+        ...(change === "upgrade" || change === "downgrade" ? { change } : {}),
+        ...(startsOn ? { startsAt: String(Math.floor(startsOn.getTime() / 1000)) } : {}),
+      },
     });
     return { ...common, isMock: false, gateway: "razorpay", keyId: env.razorpayKeyId, subscriptionId: created.id, amountPaise: firstInr * 100, customer: { name: user.name, email: user.email } };
   }
@@ -215,13 +242,13 @@ export const startAutoRenew = async ({ userId, plan: planId, seats: askedSeats, 
  */
 export const completeSimulatedAutoRenew = async ({ userId, plan: planId, seats: askedSeats, addOn }) => {
   if (!env.devBillingSimulation) throw new ApiError(404, "Not found");
-  const { seats, startsOn, extra, renewalInr } = await subscriptionFor({ userId, planId, askedSeats, addOn });
+  const { seats, startsOn, extra, renewalInr, replaces, change } = await subscriptionFor({ userId, planId, askedSeats, addOn });
 
   const providerSubscriptionId = `sim_sub_${crypto.randomBytes(8).toString("hex")}`;
   // Nothing is paid when the subscription starts later, so there is no payment to name
   const paymentId = startsOn ? null : `sim_${crypto.randomBytes(10).toString("hex")}`;
   if (startsOn) {
-    await applyAutoRenewApproved({ userId, plan: planId, providerSubscriptionId, renewalAmountInr: renewalInr });
+    await applyAutoRenewApproved({ userId, plan: planId, seats, providerSubscriptionId, renewalAmountInr: renewalInr, replaces, change, startsOn });
   } else {
     await applyPurchase({
       provider: "razorpay",
@@ -231,6 +258,7 @@ export const completeSimulatedAutoRenew = async ({ userId, plan: planId, seats: 
       addOn: extra ? addOn : undefined,
       providerSubscriptionId,
       renewalAmountInr: renewalInr,
+      replaces,
       payment: { providerPaymentId: paymentId, amount: renewalInr + (extra?.amountInr || 0), currency: "INR" },
     });
   }

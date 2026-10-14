@@ -34,6 +34,11 @@ export const triggerDevMockUpgrade = async (plan) => {
   return res.data?.data;
 };
 
+// What checkout shows for a plan before anything is bought: what is charged today and later, and how
+// the move from the account's present plan is made (an upgrade's unused time becomes extra days)
+export const fetchCheckoutPreviewApi = async ({ plan, seats, renew }) =>
+  (await API.get("/billing/checkout/preview", { params: { plan, ...(seats ? { seats } : {}), ...(renew ? { renew } : {}) } })).data?.data;
+
 // Whether a payment has reached the account's record yet, and what it bought
 export const checkoutStatusApi = async ({ paymentId, subscriptionId }) =>
   (await API.get("/billing/checkout/status", { params: { ...(paymentId ? { paymentId } : {}), ...(subscriptionId ? { subscriptionId } : {}) } })).data?.data;

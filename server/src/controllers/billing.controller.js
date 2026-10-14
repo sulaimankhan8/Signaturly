@@ -5,6 +5,7 @@ import { getOrCreateSubscription, devMockUpgrade, usageOf } from "../services/su
 import { createCheckoutSession, createBillingPortalSession, completeSimulatedOrder, confirmCheckout, checkoutStatus, PLAN_CONFIG } from "../services/billing.service.js";
 import { describeEntitlements, describeCatalogue } from "../services/entitlements.service.js";
 import { renewalOf, stopAutoRenew, simulateRenewal } from "../services/autoRenew.service.js";
+import { checkoutPreview } from "../services/planChange.service.js";
 import { getWallet } from "../services/wallet.service.js";
 import { listInvoices, getInvoice, renderInvoicePdf, cleanBillingProfile } from "../services/invoice.service.js";
 import { User } from "../models/User.model.js";
@@ -72,6 +73,12 @@ export const devMockUpgradeController = asyncHandler(async (req, res) => {
       `Successfully upgraded to ${plan} (Dev Simulation Mode)`
     )
   );
+});
+
+// What checkout shows for a plan before anything is bought: what is charged today and later, and
+// how the move from the account's present plan is made (an upgrade's unused time as extra days)
+export const checkoutPreviewController = asyncHandler(async (req, res) => {
+  res.status(200).json(new ApiResponse(await checkoutPreview(req.user._id, req.valid.query), "Checkout preview"));
 });
 
 // Whether a payment has reached the account yet. Asked by the page a customer lands on after paying.

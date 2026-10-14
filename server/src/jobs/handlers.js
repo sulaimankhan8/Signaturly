@@ -80,7 +80,7 @@ const rupees = (amount) => `Rs. ${new Intl.NumberFormat("en-IN").format(amount)}
  * What to tell a customer about their plan or a payment. Returns null when there is nothing
  * worth an email (the payment or the account is gone, or it was a payment that failed).
  */
-const billingEmailFor = async ({ kind, userId, paymentId }) => {
+const billingEmailFor = async ({ kind, userId, paymentId, daysLeft, threshold }) => {
   const sub = await Subscription.findOne({ userId }).lean();
   const plan = isPlan(sub?.plan) ? PLANS[sub.plan] : null;
   const planName = plan?.name || "your plan";
@@ -137,6 +137,41 @@ const billingEmailFor = async ({ kind, userId, paymentId }) => {
         "You can turn auto-renew back on, or pay for a single period, from your Billing page.",
       ],
       facts: [],
+    };
+  }
+  if (kind === "ending_soon") {
+    // Said only while it is still true: auto-renew may have been turned on since this was queued
+    if (!plan || sub.plan === "free" || sub.autoRenew || !sub.currentPeriodEnd || new Date(sub.currentPeriodEnd) <= new Date()) return null;
+    const when = Number(daysLeft) <= 1 ? "tomorrow" : `in ${daysLeft} days`;
+    const price = plan.priceInr ? rupees(plan.priceInr * (plan.perSeat ? sub.seats || 1 : 1)) : "";
+    return {
+      subject: `Your ${env.appName} ${planName} plan ends ${when}`,
+      title: `Your ${planName} plan ends ${when}`,
+      lines: [
+        `Your ${planName} plan runs until ${until} and will not renew by itself.`,
+        "Turn on auto-renew to keep it without a break. Nothing is charged until that date, and you can turn it off at any time.",
+        "If you do nothing, the account moves to the Free plan on that date. Your documents are kept.",
+      ],
+      facts: [["Plan", planName], ["Runs until", until], ["Renews at", price ? `${price} a ${period}` : ""]],
+      action: { path: `/billing/checkout?plan=${encodeURIComponent(sub.plan)}&renew=auto`, label: "Turn on auto-renew" },
+    };
+  }
+  if (kind === "usage") {
+    if (!sub || !(sub.monthlyQuota > 0)) return null;
+    const all = Number(threshold) >= 100;
+    const resets = sub.quotaResetDate ? formatDate(sub.quotaResetDate) : "";
+    return {
+      subject: all ? `You have used this month's ${env.appName} documents` : `You have used ${threshold}% of this month's documents`,
+      title: all ? "This month's documents are used up" : `${threshold}% of this month's documents used`,
+      lines: [
+        `You have sent ${sub.usedThisMonth} of the ${sub.monthlyQuota} documents your ${planName === "your plan" ? "plan" : `${planName} plan`} includes this month.`,
+        resets ? `Your allowance comes round again on ${resets}.` : "",
+        sub.extraDocuments > 0
+          ? `You have ${sub.extraDocuments} extra documents, which are used after the allowance.`
+          : "To send more before then, buy extra documents with one payment (they never expire), or move to a bigger plan.",
+      ].filter(Boolean),
+      facts: [],
+      action: { path: "/billing/add-ons", label: "Add documents" },
     };
   }
   return null;

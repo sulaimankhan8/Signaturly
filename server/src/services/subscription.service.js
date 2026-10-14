@@ -4,6 +4,54 @@ import { ApiError } from "../utils/ApiError.js";
 import { env } from "../config/env.js";
 import { PLANS, UNLIMITED, isPlan, quotaOf, periodMsOf, sameOffer } from "../config/plans.js";
 import { includesOf } from "./entitlements.service.js";
+import { enqueueJob } from "../jobs/queue.js";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Tells the account's owner by email, once for each key. Queued apart from what caused it: an
+// email that cannot be sent must never hold up, or undo, a send or a check.
+const tell = (kind, details, idempotencyKey) =>
+  enqueueJob("email.billing", { kind, ...details }, { idempotencyKey }).catch((err) => console.error(`[Billing] Could not queue the ${kind} email:`, err.message));
+
+/**
+ * Says so by email when a send takes an account past 80% or 100% of its month's allowance:
+ * once each a month, and only the higher of the two when one send passes both.
+ */
+const tellUsage = (sub, count) => {
+  const quota = sub.monthlyQuota;
+  if (!(quota > 0) || quota >= UNLIMITED) return;
+  const after = sub.usedThisMonth;
+  const before = after - count;
+  const crossed = [100, 80].find((threshold) => before * 100 < threshold * quota && after * 100 >= threshold * quota);
+  if (!crossed) return;
+  // The month the allowance belongs to: the one before the next reset
+  const month = sub.quotaResetDate ? new Date(new Date(sub.quotaResetDate).getTime() - DAY_MS).toISOString().slice(0, 7) : new Date().toISOString().slice(0, 7);
+  tell("usage", { userId: String(sub.userId), threshold: crossed }, `email.billing:usage:${sub.userId}:${month}:${crossed}`);
+};
+
+/**
+ * Reminds the owner of a plan paid for once that it is about to end: a week before, and the
+ * day before. A plan that renews by itself needs no reminder. Run with the hourly check.
+ */
+export const remindPlansEndingSoon = async (now = new Date()) => {
+  const ending = await Subscription.find({
+    plan: { $ne: "free" },
+    status: "active",
+    autoRenew: { $ne: true },
+    cancelAtPeriodEnd: { $ne: true },
+    currentPeriodEnd: { $gt: now, $lte: new Date(now.getTime() + 7 * DAY_MS) },
+  })
+    .select("userId currentPeriodEnd")
+    .limit(500)
+    .lean();
+
+  for (const sub of ending) {
+    const daysLeft = Math.ceil((sub.currentPeriodEnd.getTime() - now.getTime()) / DAY_MS);
+    const offset = daysLeft <= 1 ? 1 : 7;
+    await tell("ending_soon", { userId: String(sub.userId), daysLeft }, `email.billing:ending:${sub._id}:${sub.currentPeriodEnd.toISOString()}:${offset}`);
+  }
+  return ending.length;
+};
 
 export const getOrCreateSubscription = async (userId) => {
   let sub = await Subscription.findOne({ userId });
@@ -131,6 +179,7 @@ export const reserveQuota = async (userId, count = 1) => {
       `Monthly document quota exceeded (${sub.usedThisMonth} of ${sub.monthlyQuota}${extra} used). Upgrade your plan or buy extra documents to send more.`
     );
   }
+  tellUsage(updated, count);
   return updated;
 };
 
@@ -181,6 +230,10 @@ export const upgradeUserPlan = async (userId, newPlan, metadata = {}) => {
   const sameSeats = !PLANS[newPlan].perSeat || !metadata.seats || Math.max(1, Number(metadata.seats) || 1) === Math.max(1, sub.seats || 1);
   const addsTime = metadata.addToPeriod && sameSeats && sameOffer(sub.plan, newPlan) && sub.status === "active" && sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() > now;
   const periodStart = addsTime ? sub.currentPeriodEnd.getTime() : now;
+  // An upgrade carries the value of the old plan's unused time as extra time on the new one
+  // (services/planChange.service.js): added to a period bought now (`creditMs`), or, bought with
+  // auto-renew, as the time until the first charge (`periodEnd`)
+  const creditMs = !addsTime && Number(metadata.creditMs) > 0 ? Number(metadata.creditMs) : 0;
 
   sub.plan = newPlan;
   if (metadata.seats) sub.seats = Math.max(1, Number(metadata.seats) || 1);
@@ -189,9 +242,13 @@ export const upgradeUserPlan = async (userId, newPlan, metadata = {}) => {
   // On a plan sold by the seat, the allowance is pooled: every seat adds to the one total
   sub.monthlyQuota = quotaOf(newPlan) * (PLANS[newPlan].perSeat ? sub.seats : 1);
   sub.quotaGrandfatheredUntil = null;
-  sub.currentPeriodEnd = newPlan === "free" ? null : new Date(periodStart + periodMsOf(newPlan));
+  sub.currentPeriodEnd = newPlan === "free" ? null : metadata.periodEnd ? new Date(metadata.periodEnd) : new Date(periodStart + periodMsOf(newPlan) + creditMs);
   sub.gracePeriodEnd = null;
   sub.cancelAtPeriodEnd = false;
+  // The account is now on the plan it was moving to, or on another: nothing is waiting any more
+  sub.scheduledPlan = null;
+  sub.scheduledSeats = null;
+  sub.scheduledPlanFrom = null;
   // A plan given by an administrator brings in no money; the next payment clears this
   sub.complimentary = Boolean(metadata.grantedByAdmin) && newPlan !== "free";
 
@@ -286,6 +343,13 @@ export const processSubscriptionLifecycle = async () => {
     }
   } catch (err) {
     console.error("Subscription lifecycle check error:", err);
+  }
+
+  // Plans paid for once that end within the week: their owners are reminded
+  try {
+    await remindPlansEndingSoon();
+  } catch (err) {
+    console.error("Ending-soon reminders could not be queued:", err.message);
   }
 };
 

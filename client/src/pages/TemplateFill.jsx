@@ -314,7 +314,7 @@ export default function TemplateFill() {
           <p className="text-sm text-gray-400">
             The {template.packName} templates are part of the {template.requiredTier} plan and above.
           </p>
-          <Link to="/billing#plans" className="inline-block px-5 py-2.5 bg-red-600 text-white rounded-xl text-xs font-bold">
+          <Link to="/billing/plans" className="inline-block px-5 py-2.5 bg-red-600 text-white rounded-xl text-xs font-bold">
             See plans
           </Link>
         </main>

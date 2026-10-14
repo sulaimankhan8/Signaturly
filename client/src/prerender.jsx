@@ -4,7 +4,7 @@ import { Provider } from "react-redux";
 import { store } from "./store/store";
 import "./i18n";
 import Landing from "./pages/Landing";
-import PlansBilling from "./pages/PlansBilling";
+import Pricing from "./pages/Pricing";
 import PublicVerify from "./pages/PublicVerify";
 import UserGuide from "./pages/UserGuide";
 import TemplatePublic, { TemplateIndex } from "./pages/TemplatePublic";
@@ -29,7 +29,7 @@ export const PAGES = [
   },
   {
     path: "/pricing",
-    component: PlansBilling,
+    component: Pricing,
     title: "Pricing — PactDoc",
     description: "PactDoc plans and prices in rupees: start free, move to Pro when you send more.",
     contains: "Plans and prices",
