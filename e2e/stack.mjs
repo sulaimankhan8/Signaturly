@@ -227,7 +227,7 @@ const draft = async ({ pages = 2, scanned = false, usedThisMonth = 0 } = {}) => 
  * Creates a sender, uploads a document and sends it to one signer.
  * The signer has a text field and a date field on page 1 and a signature field on the last page.
  */
-const seed = async ({ language = "en", authType = "none", pages = 2, scanned = false, signerName = "Asha Rao" } = {}) => {
+const seed = async ({ language = "en", authType = "none", pages = 2, scanned = false, signerName = "Asha Rao", fields: custom = null } = {}) => {
   const { token, pdfId, fileBytes, number } = await draft({ pages, scanned });
   const signerEmail = `signer${number}@example.test`;
 
@@ -236,11 +236,14 @@ const seed = async ({ language = "en", authType = "none", pages = 2, scanned = f
     token,
     json: {
       recipients: [{ name: signerName, email: signerEmail, language, authType }],
-      fields: [
-        field("city", "text", 1, { xPercent: 0.12, yPercent: 0.3, widthPercent: 0.4, heightPercent: 0.06 }),
-        field("date", "date", 1, { xPercent: 0.12, yPercent: 0.42, widthPercent: 0.4, heightPercent: 0.06 }),
-        field("signature", "signature", pages, { xPercent: 0.12, yPercent: 0.6, widthPercent: 0.45, heightPercent: 0.1 }),
-      ],
+      // A test can give its own fields (all for the one signer); otherwise text, date and signature
+      fields: custom
+        ? custom.map((f) => ({ ...f, recipientEmail: signerEmail }))
+        : [
+            field("city", "text", 1, { xPercent: 0.12, yPercent: 0.3, widthPercent: 0.4, heightPercent: 0.06 }),
+            field("date", "date", 1, { xPercent: 0.12, yPercent: 0.42, widthPercent: 0.4, heightPercent: 0.06 }),
+            field("signature", "signature", pages, { xPercent: 0.12, yPercent: 0.6, widthPercent: 0.45, heightPercent: 0.1 }),
+          ],
       message: "Please sign",
       signingOrder: false,
     },

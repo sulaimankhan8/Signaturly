@@ -15,6 +15,58 @@ const CTA_LOOKS = {
   fix: "text-white bg-red-600 hover:bg-red-500 shadow-[2px_2px_0px_0px_#facc15]",
 };
 
+// The sections of Billing, as the Billing menu lists them. Each chip turns solid on its own page.
+const BILLING_LINKS = [
+  {
+    to: "/billing",
+    label: "Overview",
+    hint: "Your plan, usage and next payment",
+    chip: "bg-red-600/20 border-red-500/40 text-red-400 group-hover:bg-red-600 group-hover:text-white",
+    on: "bg-red-600 border-black text-white",
+    d: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+  },
+  {
+    to: "/billing/plans",
+    label: "Plans",
+    hint: "Compare plans and upgrade",
+    chip: "bg-yellow-400/20 border-yellow-400/40 text-yellow-300 group-hover:bg-yellow-400 group-hover:text-black",
+    on: "bg-yellow-400 border-black text-black",
+    d: "M13 10V3L4 14h7v7l9-11h-7z",
+  },
+  {
+    to: "/billing/add-ons",
+    label: "Extra docs & wallet",
+    hint: "One payment, they never expire",
+    chip: "bg-blue-600/20 border-blue-500/40 text-blue-400 group-hover:bg-blue-600 group-hover:text-white",
+    on: "bg-blue-600 border-black text-white",
+    d: "M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+  },
+  {
+    to: "/billing/invoices",
+    label: "Invoices",
+    hint: "GST invoices and the details on them",
+    chip: "bg-emerald-600/20 border-emerald-500/40 text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white",
+    on: "bg-emerald-500 border-black text-black",
+    d: "M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z",
+  },
+];
+
+// The plan and this month's documents, said at the top of the Billing menu
+const standingOf = (data) => {
+  if (!data) return null;
+  const planId = data.entitlements?.plan || data.subscription?.plan;
+  const free = (data.entitlements?.tier || "free") === "free";
+  const name = data.catalogue?.plans?.find((plan) => plan.id === planId)?.name || data.availablePlans?.[planId]?.name || (free ? "Free" : planId);
+  const used = data.usage?.usedThisMonth || 0;
+  const quota = data.usage?.monthlyQuota ?? null;
+  const extra = data.usage?.extraDocuments || 0;
+  return {
+    name,
+    left: quota === null ? "No monthly limit" : `${Math.max(0, quota - used)} of ${quota} documents left`,
+    extra: extra > 0 ? `${extra} extra in hand` : "",
+  };
+};
+
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -26,7 +78,9 @@ export default function Navbar() {
   const [mobileExpandedSection, setMobileExpandedSection] = useState(null);
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
   const navRef = useRef(null);
-  const billingCta = billingCtaOf(useSubscription());
+  const subscriptionData = useSubscription();
+  const billingCta = billingCtaOf(subscriptionData);
+  const standing = standingOf(subscriptionData);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -72,6 +126,10 @@ export default function Navbar() {
     isPathActive("/verify") ||
     isPathActive("/userguide");
 
+  // Billing's own pages; checkout and the payment screens have a header of their own
+  const isBillingActive = isPathActive("/billing");
+  const billingSection = (to) => (to === "/billing" ? location.pathname.replace(/\/+$/, "") === "/billing" : isPathActive(to));
+
   const toggleDropdown = (name) => {
     setActiveDropdown((prev) => (prev === name ? null : name));
   };
@@ -83,7 +141,7 @@ export default function Navbar() {
   // Zero-layout-shift button class helper with spacious, comfortable dimensions
   const getNavBtnClass = (isActive, dropdownName) => {
     const isDropdownOpen = activeDropdown === dropdownName;
-    const base = "px-5 py-2.5 text-xs font-extrabold uppercase tracking-wide rounded-xl transition-colors duration-150 border-2 flex items-center gap-2.5 select-none shrink-0";
+    const base = "px-4 xl:px-5 py-2.5 text-xs font-extrabold uppercase tracking-wide rounded-xl transition-colors duration-150 border-2 flex items-center gap-2 xl:gap-2.5 select-none shrink-0";
     if (isActive) {
       return `${base} bg-red-600 text-white border-black shadow-[2px_2px_0px_0px_#facc15]`;
     }
@@ -127,14 +185,14 @@ export default function Navbar() {
         </div>
 
         {/* Desktop Center Navigation with Categorized Dropdowns */}
-        <nav className="hidden md:flex items-center w-max shrink-0 space-x-2.5 bg-[#13151f] p-2 rounded-2xl border-2 border-white/15 shadow-[3px_3px_0px_0px_#000]">
+        <nav className="hidden md:flex items-center w-max shrink-0 space-x-1.5 xl:space-x-2.5 bg-[#13151f] p-2 rounded-2xl border-2 border-white/15 shadow-[3px_3px_0px_0px_#000]">
           {/* 1. Dashboard Direct Link */}
           <button
             onClick={() => navigate("/dashboard")}
-            className={getNavBtnClass(location.pathname === "/dashboard", null)}
+            className={getNavBtnClass(location.pathname === "/dashboard", "dashboard")}
           >
             <svg
-              className="w-4 h-4 text-current shrink-0"
+              className="w-4 h-4 text-current shrink-0 hidden xl:block"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -157,7 +215,7 @@ export default function Navbar() {
               className={getNavBtnClass(isDocsActive, "docs")}
             >
               <svg
-                className="w-4 h-4 shrink-0"
+                className="w-4 h-4 shrink-0 hidden xl:block"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -267,7 +325,7 @@ export default function Navbar() {
               className={getNavBtnClass(isTemplatesActive, "templates")}
             >
               <svg
-                className="w-4 h-4 shrink-0"
+                className="w-4 h-4 shrink-0 hidden xl:block"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -399,7 +457,7 @@ export default function Navbar() {
               className={getNavBtnClass(isToolsActive, "tools")}
             >
               <svg
-                className="w-4 h-4 shrink-0"
+                className="w-4 h-4 shrink-0 hidden xl:block"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -597,6 +655,74 @@ export default function Navbar() {
               </div>
             )}
           </div>
+
+          {/* 5. Billing ▾ Dropdown (the four sections of Billing, with the plan as it stands) */}
+          <div className="relative shrink-0">
+            <button
+              onClick={() => toggleDropdown("billing")}
+              onMouseEnter={() => setActiveDropdown("billing")}
+              className={getNavBtnClass(isBillingActive, "billing")}
+            >
+              <svg className="w-4 h-4 shrink-0 hidden xl:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+              <span>Billing</span>
+              <svg
+                className={`w-3.5 h-3.5 shrink-0 opacity-80 transition-transform duration-200 ${
+                  activeDropdown === "billing" ? "rotate-180" : ""
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {activeDropdown === "billing" && (
+              <div
+                onMouseLeave={() => setActiveDropdown(null)}
+                className="absolute top-full right-0 mt-2 w-72 bg-[#12141e] border-2 border-white/20 rounded-2xl shadow-[5px_5px_0px_0px_#000] p-2 z-50 animate-in fade-in zoom-in-95 duration-150 space-y-1"
+              >
+                {standing && (
+                  <div className="mb-1.5 p-2.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="block text-[9px] font-mono font-bold uppercase tracking-wider text-gray-400">Your plan</span>
+                      <span className="block text-xs font-black text-white uppercase truncate">{standing.name}</span>
+                    </div>
+                    <div className="text-right text-[10px] leading-tight">
+                      <span className="block font-bold text-gray-200">{standing.left}</span>
+                      {standing.extra && <span className="block text-blue-300">{standing.extra}</span>}
+                    </div>
+                  </div>
+                )}
+                {BILLING_LINKS.map((link) => {
+                  const here = billingSection(link.to);
+                  return (
+                    <button
+                      key={link.to}
+                      onClick={() => {
+                        navigate(link.to);
+                        setActiveDropdown(null);
+                      }}
+                      aria-current={here ? "page" : undefined}
+                      className={`w-full text-left p-2.5 rounded-xl flex items-start gap-3 group transition-all ${here ? "bg-white/10" : "hover:bg-white/10"}`}
+                    >
+                      <div className={`w-8 h-8 rounded-lg border flex items-center justify-center shrink-0 transition-all ${here ? link.on : link.chip}`}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={link.d} />
+                        </svg>
+                      </div>
+                      <div>
+                        <span className="text-xs font-black text-white block uppercase tracking-wide">{link.label}</span>
+                        <span className="text-[10px] text-gray-400 block leading-tight">{link.hint}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* User Profile & Right Action Area */}
@@ -625,7 +751,7 @@ export default function Navbar() {
               <div className="w-6 h-6 rounded-lg bg-yellow-400 text-black border border-black flex items-center justify-center text-xs font-black uppercase">
                 {(user?.name || user?.email || "U")[0]}
               </div>
-              <span className="font-black text-xs max-w-[100px] truncate hidden md:inline">
+              <span className="font-black text-xs max-w-[100px] truncate hidden 2xl:inline">
                 {user?.name || user?.email || "Account"}
               </span>
               <svg
@@ -856,19 +982,47 @@ export default function Navbar() {
               <span>Dashboard</span>
             </button>
 
-            {/* Plans and billing */}
-            <button
-              onClick={() => {
-                navigate("/billing");
-                setMobileMenuOpen(false);
-              }}
-              className="w-full text-left px-4 py-2.5 text-xs font-black uppercase text-yellow-300 hover:bg-white/5 rounded-xl transition-all flex items-center gap-2.5"
-            >
-              <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
-              <span>Plans &amp; billing</span>
-            </button>
+            {/* Billing Accordion */}
+            <div className={`border rounded-xl overflow-hidden ${isBillingActive ? "border-red-500/60" : "border-white/10"}`}>
+              <button
+                onClick={() => toggleMobileSection("billing")}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-black uppercase text-yellow-300 bg-white/5"
+              >
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                  <span>Plans &amp; billing</span>
+                </div>
+                <span className="text-gray-400">{mobileExpandedSection === "billing" ? "−" : "+"}</span>
+              </button>
+              {mobileExpandedSection === "billing" && (
+                <div className="p-2 space-y-1 bg-black/20">
+                  {standing && (
+                    <p className="px-3 py-1.5 text-[11px] text-gray-400">
+                      <span className="font-black uppercase text-white">{standing.name}</span> · {standing.left}
+                      {standing.extra ? ` · ${standing.extra}` : ""}
+                    </p>
+                  )}
+                  {BILLING_LINKS.map((link) => (
+                    <button
+                      key={link.to}
+                      onClick={() => {
+                        navigate(link.to);
+                        setMobileMenuOpen(false);
+                      }}
+                      aria-current={billingSection(link.to) ? "page" : undefined}
+                      className={`w-full text-left px-3 py-2 text-xs rounded-lg flex items-center gap-2 ${billingSection(link.to) ? "bg-white/10 text-white font-black" : "text-gray-300 hover:text-white hover:bg-white/5"}`}
+                    >
+                      <svg className="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={link.d} />
+                      </svg>
+                      <span>{link.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Workspaces */}
             <button

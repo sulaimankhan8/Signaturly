@@ -1,248 +1,179 @@
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { LIGHT, INKS } from "./signature/lightTheme";
+import { ensureFont, fitFont, initialsOf, trimmedDataUrl } from "./signature/canvasTools";
 
+const SIZE = 240;
+const SCRIPT = "Dancing Script";
+
+/** Initials, typed as a monogram or drawn by hand */
 export default function InitialsStudio({ onConfirm, defaultName = "" }) {
   const { t } = useTranslation();
-  const defaultInitials = defaultName
-    ? defaultName
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .substring(0, 3)
-    : "";
-
   const [mode, setMode] = useState("type"); // type | draw
-  const [initialsText, setInitialsText] = useState(defaultInitials);
+  const [initialsText, setInitialsText] = useState(initialsOf(defaultName));
   const [badgeStyle, setBadgeStyle] = useState("monogram-circle"); // monogram-circle | monogram-square | handwritten
-  const [color, setColor] = useState("#000000");
-
-  useEffect(() => {
-    if (defaultName && defaultName.trim()) {
-      const calculated = defaultName
-        .split(" ")
-        .filter(Boolean)
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .substring(0, 3);
-      if (calculated) {
-        setInitialsText(calculated);
-      }
-    }
-  }, [defaultName]);
+  const [color, setColor] = useState(INKS[0].value);
 
   const canvasRef = useRef(null);
-  const ctxRef = useRef(null);
-  const [drawing, setDrawing] = useState(false);
+  const drawingRef = useRef(false);
   const strokesRef = useRef([]);
-
-  useEffect(() => {
-    if (mode === "draw" && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext("2d");
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = canvas.offsetWidth * dpr;
-      canvas.height = canvas.offsetHeight * dpr;
-      ctx.scale(dpr, dpr);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctxRef.current = ctx;
-      redraw();
-    }
-  }, [mode]);
-
-  const getPos = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-      color,
-    };
-  };
+  const [hasInk, setHasInk] = useState(false);
 
   const redraw = () => {
-    const ctx = ctxRef.current;
-    if (!ctx || !canvasRef.current) return;
-    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-
-    strokesRef.current.forEach((stroke) => {
-      if (!stroke || stroke.length === 0) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    for (const stroke of strokesRef.current) {
       ctx.beginPath();
-      ctx.strokeStyle = stroke[0].color || "#000000";
-      ctx.lineWidth = 3;
-      ctx.moveTo(stroke[0].x, stroke[0].y);
-      stroke.forEach((p) => ctx.lineTo(p.x, p.y));
+      ctx.strokeStyle = stroke.color;
+      ctx.lineWidth = 3.5;
+      stroke.points.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
       ctx.stroke();
-    });
+    }
   };
 
-  const generateInitialsImage = () => {
-    const text = (initialsText || "").trim().toUpperCase();
-    const canvas = document.createElement("canvas");
-    canvas.width = 240;
-    canvas.height = 240;
+  useEffect(() => {
+    if (mode !== "draw" || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.round(canvas.offsetWidth * ratio);
+    canvas.height = Math.round(canvas.offsetHeight * ratio);
     const ctx = canvas.getContext("2d");
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    redraw();
+  }, [mode]);
 
-    ctx.clearRect(0, 0, 240, 240);
+  const pointOf = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const generateInitialsImage = async () => {
+    const text = initialsText.trim().toUpperCase();
+    if (badgeStyle !== "monogram-square") await ensureFont(SCRIPT, { weight: "700" });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = SIZE;
+    canvas.height = SIZE;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
 
     if (badgeStyle === "monogram-circle") {
-      // Circle Badge
-      ctx.strokeStyle = color;
       ctx.lineWidth = 6;
       ctx.beginPath();
       ctx.arc(120, 120, 105, 0, Math.PI * 2);
       ctx.stroke();
-
-      ctx.font = "bold 90px 'Dancing Script', cursive, sans-serif";
-      ctx.fillStyle = color;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(text, 120, 120);
-
+      fitFont(ctx, text, (size) => `700 ${size}px "${SCRIPT}", cursive`, 90, 160);
     } else if (badgeStyle === "monogram-square") {
-      // Rounded Square Box
       ctx.fillStyle = "rgba(241, 245, 249, 0.9)";
-      ctx.strokeStyle = color;
       ctx.lineWidth = 5;
       ctx.beginPath();
       ctx.roundRect(15, 15, 210, 210, 24);
       ctx.fill();
       ctx.stroke();
-
-      ctx.font = "bold 80px sans-serif";
       ctx.fillStyle = color;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(text, 120, 120);
-
+      fitFont(ctx, text, (size) => `bold ${size}px sans-serif`, 80, 170);
     } else {
-      // Free cursive initials
-      ctx.font = "bold 110px 'Dancing Script', 'Great Vibes', cursive, sans-serif";
-      ctx.fillStyle = color;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(text, 120, 120);
+      fitFont(ctx, text, (size) => `700 ${size}px "${SCRIPT}", cursive`, 110, 220);
     }
-
+    ctx.fillText(text, 120, 124);
     return canvas.toDataURL("image/png");
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (mode === "draw") {
       if (strokesRef.current.length === 0) {
         toast.error(t("initials.needDrawing"));
         return;
       }
-      const dataUrl = canvasRef.current.toDataURL("image/png");
-      onConfirm(dataUrl);
+      onConfirm(trimmedDataUrl(canvasRef.current));
       toast.success(t("initials.drawn"));
-    } else {
-      if (!initialsText.trim()) {
-        toast.error(t("initials.needDrawing"));
-        return;
-      }
-      const dataUrl = generateInitialsImage();
-      onConfirm(dataUrl);
-      toast.success(t("initials.generated"));
+      return;
     }
+    if (!initialsText.trim()) {
+      toast.error(t("initials.needDrawing"));
+      return;
+    }
+    onConfirm(await generateInitialsImage());
+    toast.success(t("initials.generated"));
   };
 
   return (
-    <div className="space-y-4">
-      {/* Mode Switcher */}
-      <div className="flex bg-[#08090d] p-1 rounded-xl border border-white/10">
-        <button
-          type="button"
-          onClick={() => setMode("type")}
-          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-            mode === "type" ? "bg-white/15 text-white shadow border border-white/20" : "text-gray-400 hover:text-white"
-          }`}
-        >
-          {t("initials.modeType")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("draw")}
-          className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${
-            mode === "draw" ? "bg-white/15 text-white shadow border border-white/20" : "text-gray-400 hover:text-white"
-          }`}
-        >
-          {t("initials.modeDraw")}
-        </button>
+    <div className="space-y-3">
+      <div className={LIGHT.tabs} role="tablist">
+        {["type", "draw"].map((id) => (
+          <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => setMode(id)} className={LIGHT.tab(mode === id)}>
+            {t(id === "type" ? "initials.modeType" : "initials.modeDraw")}
+          </button>
+        ))}
       </div>
 
       {mode === "type" ? (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
+        <div className="space-y-3">
+          <div className="flex items-end gap-3">
             <div className="flex-1">
-              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
+              <label className={LIGHT.label} htmlFor="initials-text">
                 {t("initials.label")}
               </label>
               <input
+                id="initials-text"
                 type="text"
                 maxLength={4}
                 value={initialsText}
                 onChange={(e) => setInitialsText(e.target.value.toUpperCase())}
-                className="w-full px-3 py-2 bg-[#08090d] border border-white/10 rounded-xl text-white font-mono text-center font-bold tracking-widest text-base focus:outline-none focus:border-red-500"
+                className={`${LIGHT.input} text-center font-mono tracking-widest`}
               />
             </div>
-
-            <div className="flex items-center space-x-1.5 bg-black/40 p-1.5 rounded-xl border border-white/10 mt-5">
-              {[
-                { val: "#000000", hex: "bg-black" },
-                { val: "#1e3a8a", hex: "bg-blue-900" },
-                { val: "#991b1b", hex: "bg-red-800" },
-              ].map((c) => (
+            <div className="flex items-center gap-2 pb-0.5" role="radiogroup" aria-label={t("pad.ink")}>
+              {INKS.map((ink) => (
                 <button
-                  key={c.val}
+                  key={ink.value}
                   type="button"
-                  onClick={() => setColor(c.val)}
-                  className={`w-6 h-6 rounded-lg ${c.hex} border transition-all ${
-                    color === c.val ? "scale-110 border-white ring-2 ring-white/30" : "border-transparent opacity-70"
-                  }`}
+                  role="radio"
+                  aria-checked={color === ink.value}
+                  onClick={() => setColor(ink.value)}
+                  className={LIGHT.swatch(color === ink.value)}
+                  style={{ background: ink.value }}
+                  aria-label={t(`pad.color.${ink.key}`)}
                 />
               ))}
             </div>
           </div>
 
-          <div className="flex bg-[#08090d] p-1 rounded-xl border border-white/10">
+          <div className={LIGHT.tabs} role="radiogroup" aria-label={t("typed.style")}>
             {[
               { id: "monogram-circle", labelKey: "initials.styleCircle" },
               { id: "monogram-square", labelKey: "initials.styleSquare" },
               { id: "handwritten", labelKey: "initials.styleCursive" },
             ].map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => setBadgeStyle(b.id)}
-                className={`flex-1 py-1 text-[11px] font-bold rounded-lg transition-all ${
-                  badgeStyle === b.id ? "bg-white/20 text-white" : "text-gray-400 hover:text-white"
-                }`}
-              >
+              <button key={b.id} type="button" role="radio" aria-checked={badgeStyle === b.id} onClick={() => setBadgeStyle(b.id)} className={LIGHT.tab(badgeStyle === b.id)}>
                 {t(b.labelKey)}
               </button>
             ))}
           </div>
 
-          {/* Preview Box */}
-          <div className="border border-white/10 rounded-2xl p-4 bg-white flex items-center justify-center min-h-[110px] shadow-inner">
+          <div className="border-2 border-black rounded-2xl p-4 bg-white flex items-center justify-center min-h-[110px]">
             <div
               className={`w-20 h-20 flex items-center justify-center ${
-                badgeStyle === "monogram-circle"
-                  ? "rounded-full border-2"
-                  : badgeStyle === "monogram-square"
-                  ? "rounded-xl border-2 bg-slate-50 shadow-sm"
-                  : ""
+                badgeStyle === "monogram-circle" ? "rounded-full border-2" : badgeStyle === "monogram-square" ? "rounded-xl border-2 bg-slate-50" : ""
               }`}
               style={{ borderColor: color }}
             >
               <span
                 style={{
-                  fontFamily: badgeStyle === "monogram-square" ? "sans-serif" : "'Dancing Script', cursive",
+                  fontFamily: badgeStyle === "monogram-square" ? "sans-serif" : `"${SCRIPT}", cursive`,
                   color,
-                  fontSize: badgeStyle === "monogram-square" ? "28px" : "34px",
+                  fontSize: badgeStyle === "monogram-square" ? 28 : 34,
                   fontWeight: "bold",
                 }}
               >
@@ -253,43 +184,43 @@ export default function InitialsStudio({ onConfirm, defaultName = "" }) {
         </div>
       ) : (
         <div className="space-y-2">
-          <div className="border border-white/10 rounded-2xl h-40 bg-white shadow-inner relative overflow-hidden">
+          <div className="border-2 border-black rounded-2xl h-40 bg-white relative overflow-hidden shadow-[3px_3px_0px_0px_#000]">
             <canvas
               ref={canvasRef}
               className="w-full h-full touch-none cursor-crosshair"
+              aria-label={t("pad.hint")}
               onPointerDown={(e) => {
                 e.preventDefault();
                 e.currentTarget.setPointerCapture?.(e.pointerId);
-                setDrawing(true);
-                strokesRef.current.push([getPos(e)]);
+                drawingRef.current = true;
+                strokesRef.current.push({ color, points: [pointOf(e)] });
+                setHasInk(true);
               }}
               onPointerMove={(e) => {
-                if (!drawing) return;
-                strokesRef.current.at(-1).push(getPos(e));
+                if (!drawingRef.current) return;
+                strokesRef.current[strokesRef.current.length - 1].points.push(pointOf(e));
                 redraw();
               }}
-              onPointerUp={() => setDrawing(false)}
-              onPointerCancel={() => setDrawing(false)}
+              onPointerUp={() => (drawingRef.current = false)}
+              onPointerCancel={() => (drawingRef.current = false)}
             />
           </div>
           <button
             type="button"
+            disabled={!hasInk}
             onClick={() => {
               strokesRef.current = [];
+              setHasInk(false);
               redraw();
             }}
-            className="text-[11px] text-gray-400 hover:text-red-400 underline font-semibold"
+            className={`${LIGHT.quiet} disabled:opacity-40`}
           >
             {t("initials.clearPad")}
           </button>
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={handleConfirm}
-        className="w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-red-950/50 border border-red-500/30"
-      >
+      <button type="button" onClick={handleConfirm} className={`${LIGHT.primary} w-full`}>
         {t("initials.adopt")}
       </button>
     </div>

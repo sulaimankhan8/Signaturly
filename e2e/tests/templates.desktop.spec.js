@@ -89,13 +89,14 @@ test.describe("guided templates", () => {
       await signer.goto(`/sign/${recipient.token}`);
       await expect(pageCanvas(signer)).toBeVisible();
 
-      await signer.getByRole("button", { name: words.sig.tabType, exact: true }).click();
+      // The signature field opens the signature dialog
+      await signer.getByTestId("field-signature").first().getByRole("button").click();
+      await signer.getByRole("tab", { name: words.sig.tabType, exact: true }).click();
       await signer.getByPlaceholder(words.typed.placeholder).fill(recipient.name);
       await signer.getByRole("button", { name: words.typed.use }).click();
 
-      // The signature goes into the field the template placed, on the last page.
-      // A later signer also sees the signatures already given.
-      await signer.getByRole("button", { name: words.pager.next }).click();
+      // The signature goes into the signer's own fields, on the last page. Each signer is shown
+      // only their own fields; signatures already given are part of the page itself.
       await expect(signer.getByTestId("field-signature").filter({ has: signer.locator("img") })).toHaveCount(signaturesOnPage);
 
       await signer.getByRole("checkbox").check();
@@ -105,7 +106,7 @@ test.describe("guided templates", () => {
     };
 
     await sign(sent.recipients[0], en, 1);
-    await sign(sent.recipients[1], hi, 2);
+    await sign(sent.recipients[1], hi, 1);
 
     const done = await latestDocumentOf(account.ownerEmail);
     expect(done).toMatchObject({ status: "signed", sealed: true });

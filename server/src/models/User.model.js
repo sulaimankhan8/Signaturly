@@ -84,6 +84,24 @@ const userSchema = new mongoose.Schema({
         recoveryHashes: { type: [String], select: false, default: undefined },
     },
 
+    // The team whose single sign-on started the current session, or null for a session started
+    // with a password. The organisation's identity provider asks for the second step, so such a
+    // session meets that team's two-step sign-in rule (services/authorize.service.js).
+    ssoSessionWorkspaceId:{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Workspace",
+        default: null,
+    },
+
+    // The signature and initials the user adopted, kept with the account (not in the browser) so
+    // they follow the user to any device and are never left behind on a shared computer.
+    // Storage keys of PNG or JPEG files in the user's own folder.
+    savedSignature: {
+        signatureKey: { type: String, default: null },
+        initialsKey: { type: String, default: null },
+        updatedAt: { type: Date, default: null },
+    },
+
     // What the customer wants printed on their invoices
     billing: {
         legalName: { type: String, default: "" },

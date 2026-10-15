@@ -1,7 +1,19 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+
+// The lab compares typefaces the app itself does not use, so it loads them for itself (src/fonts.js has the app's own)
+const LAB_FONTS =
+  "https://fonts.googleapis.com/css2?family=Archivo+Black&family=Cormorant+Garamond:ital,wght@0,500;0,700;1,400&family=Fira+Code:wght@500;700&family=Inter:wght@400;600;800;900&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,700;1,6..72,400&family=Outfit:wght@500;700;900&family=Plus+Jakarta+Sans:ital,wght@0,400;0,600;0,700;0,800;1,400&family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap";
 import { Link } from "react-router-dom";
 
 export default function FontTestLab() {
+  useEffect(() => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = LAB_FONTS;
+    document.head.appendChild(link);
+    return () => link.remove();
+  }, []);
+
   // Scenario 1: Headline Font
   const [headlineFont, setHeadlineFont] = useState("Outfit");
   // Scenario 2: UI & Controls Font

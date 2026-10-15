@@ -14,6 +14,7 @@ import { readFile } from "../storage.service.js";
 import { sha256FromBuffer } from "../hash.service.js";
 import { appendAuditEvent } from "../auditLedger.service.js";
 import { fakeProvider } from "./providers/fake.provider.js";
+import { mergeSignerFields } from "../fieldRules.service.js";
 
 /**
  * Aadhaar eSign (plan tasks P6-02 to P6-06).
@@ -148,6 +149,9 @@ export const startEsign = async ({ token, filledFields, consent, consentVersion,
   if (!["sent", "viewed"].includes(recipient.status) || !["pending", "partially_signed"].includes(pdf.status)) {
     throw new ApiError(409, "This document is not waiting for your signature yet");
   }
+
+  // Checked now, before the wallet is charged and the signer leaves for the provider
+  mergeSignerFields({ fields: pdf.fields, submitted: filledFields, recipient });
 
   const provider = esignProvider();
   if (!provider) throw new ApiError(503, "ESIGN_UNAVAILABLE: Aadhaar eSign is not available right now. Ask the sender to switch you to ordinary signing.");

@@ -6,7 +6,7 @@ import { periodSaid, pointsOf } from "../../utils/plans";
 import { lookOf } from "../../utils/planLook";
 import InvoiceTable from "../../components/billing/InvoiceTable";
 import { Pill, SaveBadge, Note } from "../../components/billing/ui";
-import { BTN, PANEL, TINTS, ICONS } from "../../components/billing/theme";
+import { BTN, PANEL, ACCENTS, EYEBROW, ICONS } from "../../components/billing/theme";
 
 /**
  * Billing's first tab: how the plan stands and what happens next, this month's documents,
@@ -18,78 +18,76 @@ export default function Overview() {
   const { renewal, forecast } = mine;
 
   return (
-    <div className="grid gap-5">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {mine.paid ? <PlanHero mine={mine} account={account} held={held} busy={busy} stopRenewing={stopRenewing} simulateRenewal={simulateRenewal} goCheckout={goCheckout} /> : <FreeHero mine={mine} held={held} goCheckout={goCheckout} />}
+    <div className="grid gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {mine.paid ? (
+          <PlanHero mine={mine} account={account} held={held} busy={busy} stopRenewing={stopRenewing} simulateRenewal={simulateRenewal} goCheckout={goCheckout} />
+        ) : (
+          <FreeHero mine={mine} held={held} goCheckout={goCheckout} />
+        )}
         <NextPayment mine={mine} held={held} goCheckout={goCheckout} />
       </div>
 
       {!forecast.unlimited && forecast.level !== "ok" && <UsageNudge mine={mine} />}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <section aria-labelledby="tile-docs" className={`rounded-2xl p-[22px] ${TINTS.emerald.panel}`} data-testid="billing-usage">
-          <div className="flex items-center justify-between gap-3">
-            <h2 id="tile-docs" className="text-sm font-bold text-emerald-200">
-              Documents this month
-            </h2>
-            <ICONS.doc className="w-5 h-5 text-emerald-300" />
-          </div>
-          <p className="mt-2.5 font-display text-[34px] font-bold text-white">
-            {mine.usage.usedThisMonth}
-            {mine.usage.monthlyQuota !== null && <span className="text-base font-medium text-gray-400"> of {mine.usage.monthlyQuota}</span>}
-          </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Tile
+          id="tile-docs"
+          title="Documents this month"
+          accent="green"
+          icon={ICONS.doc}
+          testId="billing-usage"
+          figure={
+            <>
+              {mine.usage.usedThisMonth}
+              {mine.usage.monthlyQuota !== null && <span className="text-sm font-bold text-gray-400"> of {mine.usage.monthlyQuota}</span>}
+            </>
+          }
+        >
           {!forecast.unlimited && (
-            <div className="mt-3 h-2 rounded-full bg-white/[0.08] overflow-hidden" aria-hidden="true">
-              <div
-                className={`h-full rounded-full ${forecast.share >= 100 ? "bg-rose-500" : forecast.share >= 80 ? "bg-gradient-to-r from-amber-400 to-rose-500" : "bg-gradient-to-r from-emerald-400 to-amber-300"}`}
-                style={{ width: `${Math.max(forecast.share, 2)}%` }}
-              />
+            <div className="mb-2 h-3 rounded-md border-2 border-white/15 bg-[#090a0f] overflow-hidden" aria-hidden="true">
+              <div className={`h-full ${forecast.share >= 100 ? "bg-red-500" : forecast.share >= 80 ? "bg-yellow-400" : "bg-emerald-500"}`} style={{ width: `${Math.max(forecast.share, 2)}%` }} />
             </div>
           )}
-          <p className="mt-2.5 text-[13px] text-gray-400">{forecast.unlimited ? "No monthly limit" : `${forecast.left} left · resets on ${shortDay(mine.usage.resetsOn)}`}</p>
-        </section>
+          {forecast.unlimited ? "No monthly limit" : `${forecast.left} left · resets on ${shortDay(mine.usage.resetsOn)}`}
+        </Tile>
 
-        <section aria-labelledby="tile-extra" className={`rounded-2xl p-[22px] ${TINTS.sky.panel}`} data-testid="billing-extra">
-          <div className="flex items-center justify-between gap-3">
-            <h2 id="tile-extra" className="text-sm font-bold text-sky-200">
-              Extra documents
-            </h2>
-            <ICONS.plus className="w-5 h-5 text-sky-300" />
-          </div>
-          <p className="mt-2.5 font-display text-[34px] font-bold text-white">
-            {mine.usage.extraDocuments} <span className="text-base font-medium text-gray-400">in hand</span>
-          </p>
-          <p className="mt-3 text-[13px] text-gray-400">Used after the monthly allowance. They never expire.</p>
-          <Link to="/billing/add-ons" className="inline-block mt-2 text-sm font-bold text-sky-300 hover:text-sky-200">
-            Buy extra documents →
-          </Link>
-        </section>
+        <Tile
+          id="tile-extra"
+          title="Extra documents"
+          accent="blue"
+          icon={ICONS.plus}
+          testId="billing-extra"
+          figure={
+            <>
+              {mine.usage.extraDocuments} <span className="text-sm font-bold text-gray-400">in hand</span>
+            </>
+          }
+        >
+          Used after the monthly allowance. They never expire.
+          <TileLink to="/billing/add-ons" accent="blue">
+            Buy extra documents
+          </TileLink>
+        </Tile>
 
-        <section aria-labelledby="tile-wallet" className={`rounded-2xl p-[22px] ${TINTS.violet.panel}`} data-testid="overview-wallet">
-          <div className="flex items-center justify-between gap-3">
-            <h2 id="tile-wallet" className="text-sm font-bold text-violet-200">
-              Wallet balance
-            </h2>
-            <ICONS.wallet className="w-5 h-5 text-violet-300" />
-          </div>
-          <p className="mt-2.5 font-display text-[34px] font-bold text-white">{rupeesFromPaise(wallet?.balancePaise || 0)}</p>
-          <p className="mt-3 text-[13px] text-gray-400">Only for signing links by SMS or WhatsApp. Email is always free.</p>
-          <Link to="/billing/add-ons#wallet" className="inline-block mt-2 text-sm font-bold text-violet-300 hover:text-violet-200">
-            Add credit →
-          </Link>
-        </section>
+        <Tile id="tile-wallet" title="Wallet balance" accent="purple" icon={ICONS.wallet} testId="overview-wallet" figure={rupeesFromPaise(wallet?.balancePaise || 0)}>
+          Only for signing links by SMS or WhatsApp. Email is always free.
+          <TileLink to="/billing/add-ons#wallet" accent="purple">
+            Add credit
+          </TileLink>
+        </Tile>
       </div>
 
-      <section aria-labelledby="recent-heading" className={`${PANEL} overflow-hidden mt-3`} data-testid="recent-invoices">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-5">
+      <section aria-labelledby="recent-heading" className={`${PANEL} overflow-hidden`} data-testid="recent-invoices">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
           <div>
-            <h2 id="recent-heading" className="font-display text-xl font-bold text-white">
+            <h2 id="recent-heading" className="text-lg font-black uppercase tracking-tight text-white">
               Latest payments
             </h2>
-            <p className="mt-0.5 text-[13px] text-gray-400">Every payment has a GST invoice or receipt.</p>
+            <p className="text-xs text-gray-400">Every payment has a GST invoice or receipt.</p>
           </div>
           {invoices.length > 0 && (
-            <Link to="/billing/invoices" className={`${BTN.small} bg-white/[0.06] hover:bg-white/[0.11] border border-white/[0.14] text-gray-100`}>
+            <Link to="/billing/invoices" className={BTN.small}>
               All invoices and details
             </Link>
           )}
@@ -106,6 +104,48 @@ export default function Overview() {
   );
 }
 
+// One figure, as the dashboard's stat cards show theirs: a solid icon chip and a hard shadow in
+// its colour. What it means, and where to act on it, is beneath.
+const Tile = ({ id, title, accent, icon, testId, figure, children }) => {
+  const Glyph = icon;
+  return (
+    <section aria-labelledby={id} className={`bg-[#13151f] border-2 border-white/20 rounded-2xl p-5 flex flex-col ${ACCENTS[accent].shadow}`} data-testid={testId}>
+      <div className="flex items-center gap-4">
+        <span className={`w-12 h-12 shrink-0 grid place-items-center rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_#000] ${ACCENTS[accent].chip}`} aria-hidden="true">
+          <Glyph className="w-6 h-6" />
+        </span>
+        <div className="min-w-0">
+          <h2 id={id} className={EYEBROW}>
+            {title}
+          </h2>
+          <p className="text-[28px] leading-tight font-black text-white tabular-nums">{figure}</p>
+        </div>
+      </div>
+      <div className="mt-4 pt-3 border-t-2 border-dashed border-white/10 text-xs text-gray-400 leading-relaxed flex-1 flex flex-col">{children}</div>
+    </section>
+  );
+};
+
+const TileLink = ({ to, accent, children }) => (
+  <Link to={to} className={`mt-2 inline-flex items-center gap-1.5 self-start text-xs font-black uppercase tracking-wider ${ACCENTS[accent].link}`}>
+    {children}
+    <ICONS.arrow className="w-3.5 h-3.5" />
+  </Link>
+);
+
+// A short list of what the plan includes, ticked in the plan's colour
+const Points = ({ points, colour }) =>
+  points.length > 0 ? (
+    <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-sm font-medium text-gray-200">
+      {points.map((point) => (
+        <li key={point} className="inline-flex items-center gap-1.5">
+          <ICONS.check className={`w-3.5 h-3.5 ${colour}`} />
+          {point}
+        </li>
+      ))}
+    </ul>
+  ) : null;
+
 function PlanHero({ mine, held, busy, stopRenewing, goCheckout }) {
   const { renewal } = mine;
   const look = lookOf(mine.held);
@@ -113,9 +153,9 @@ function PlanHero({ mine, held, busy, stopRenewing, goCheckout }) {
   const amount = renewal.amountInr ? rupees(renewal.amountInr) : null;
 
   return (
-    <section aria-labelledby="plan-heading" className={`lg:col-span-2 min-w-0 rounded-[18px] p-6 sm:p-7 border ${look.summary}`} data-testid="billing-plan">
-      <div className="flex flex-wrap items-center gap-2.5">
-        <span className={`px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-[0.04em] ${look.chip}`}>Your plan</span>
+    <section aria-labelledby="plan-heading" className={`lg:col-span-2 min-w-0 rounded-2xl p-6 sm:p-7 border-2 ${look.summary}`} data-testid="billing-plan">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`px-2 py-0.5 rounded-md border-2 text-[10px] font-black uppercase tracking-wider ${look.chip}`}>Your plan</span>
         <Pill tone={mine.tone} dot>
           {mine.label}
         </Pill>
@@ -128,15 +168,14 @@ function PlanHero({ mine, held, busy, stopRenewing, goCheckout }) {
 
       <div className="mt-4 flex flex-wrap items-end justify-between gap-5">
         <div className="min-w-0">
-          <h2 id="plan-heading" className="font-display text-[44px] leading-none font-bold tracking-tight text-white">
+          <h2 id="plan-heading" className="text-4xl sm:text-5xl leading-none font-black uppercase tracking-tight text-white">
             {mine.planName}
-            {periodSaid(mine.held) && <span className="ml-2 font-sans text-lg font-medium tracking-normal text-gray-400">· {periodSaid(mine.held)}</span>}
+            {periodSaid(mine.held) && <span className="ml-2 text-base font-bold normal-case tracking-normal text-gray-400">· {periodSaid(mine.held)}</span>}
           </h2>
-          {points.length > 0 && <p className="mt-3 text-sm text-gray-300">{points.join(" · ")}</p>}
         </div>
         {renewal.mode !== "none" && amount && (
-          <div className="text-right">
-            <p className="text-[13px] text-gray-400">
+          <div className="sm:text-right">
+            <p className="text-[11px] font-black uppercase tracking-wider text-gray-400">
               {renewal.mode === "auto"
                 ? mine.scheduled
                   ? `${mine.scheduled.name} from ${day(mine.scheduled.from)}`
@@ -145,22 +184,27 @@ function PlanHero({ mine, held, busy, stopRenewing, goCheckout }) {
                   ? `Ended on ${day(renewal.endsOn)}`
                   : `Paid until ${day(renewal.endsOn)}`}
             </p>
-            <p className="mt-0.5 font-display text-3xl font-bold text-white">
+            <p className="mt-0.5 text-3xl font-black text-white tabular-nums">
               {amount}
-              <span className="font-sans text-sm font-medium text-gray-400"> / {renewal.interval}</span>
+              <span className="text-sm font-bold text-gray-400"> / {renewal.interval}</span>
             </p>
           </div>
         )}
       </div>
 
-      <p className={`mt-4 text-sm leading-relaxed ${renewal.overdue ? "text-rose-200" : "text-gray-300"}`} data-testid="billing-renewal">
+      <Points points={points} colour={look.heading} />
+
+      <p className={`mt-4 text-sm leading-relaxed ${renewal.overdue ? "text-red-300 font-bold" : "text-gray-300"}`} data-testid="billing-renewal">
         {mine.sentence}
         {mine.complimentary && " It was given to you by PactDoc."}
       </p>
 
-      <div className="mt-5 flex flex-wrap gap-2.5">
+      {renewal.mode === "auto" && renewal.overdue && mine.currentPlan && <PayAgain mine={mine} held={held} goCheckout={goCheckout} />}
+
+      <div className="mt-5 flex flex-wrap gap-3">
         {mine.nextUp && (
           <button type="button" onClick={() => goCheckout(mine.nextUp.plan)} disabled={held} className={BTN.primary}>
+            <ICONS.bolt className="w-4 h-4" />
             Upgrade to {mine.nextUp.plan.name}
           </button>
         )}
@@ -195,37 +239,63 @@ function PlanHero({ mine, held, busy, stopRenewing, goCheckout }) {
   );
 }
 
+// An automatic payment that failed: pay it again now, by a new approval or for one period. Either
+// takes the place of the failed one, so nothing is charged twice. Until then the plan carries on
+// through its grace (the account's `gracePeriodEnd`), and then moves to Free.
+function PayAgain({ mine, held, goCheckout }) {
+  const { renewal } = mine;
+  return (
+    <div className="mt-5 p-4 rounded-xl border-2 border-red-500 bg-red-600/10 shadow-[4px_4px_0px_0px_#ef4444]" role="alert" data-testid="billing-pay-again">
+      <p className="font-black text-white">Your automatic payment did not go through</p>
+      <p className="mt-1 text-sm text-gray-300 leading-relaxed">
+        Razorpay will try it again, but you can pay now to keep {mine.planName} without a break. Paying now takes the place of the failed payment, so you are never charged twice.
+      </p>
+      <div className="mt-3.5 flex flex-wrap gap-3">
+        <button type="button" onClick={() => goCheckout(mine.currentPlan, { renew: "auto" })} disabled={held} className={BTN.primary}>
+          <ICONS.lock className="w-4 h-4" />
+          Pay {rupees(renewal.amountInr)} now
+        </button>
+        <button type="button" onClick={() => goCheckout(mine.currentPlan, { renew: "once" })} disabled={held} className={BTN.secondary}>
+          Pay for one {renewal.interval} instead
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function FreeHero({ mine, held, goCheckout }) {
   const pro = mine.nextUp?.plan;
   return (
-    <section aria-labelledby="plan-heading" className="lg:col-span-2 min-w-0 rounded-[18px] p-6 sm:p-7 border bg-gradient-to-br from-rose-500/[0.10] via-[#12141c] to-[#12141c] border-rose-500/25" data-testid="billing-plan">
-      <div className="flex flex-wrap items-center gap-2.5">
-        <span className="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-[0.04em] bg-emerald-400/[0.12] text-emerald-300">Your plan</span>
+    <section aria-labelledby="plan-heading" className="lg:col-span-2 min-w-0 rounded-2xl p-6 sm:p-7 bg-[#13151f] border-2 border-white/20 shadow-[6px_6px_0px_0px_#ef4444]" data-testid="billing-plan">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="px-2 py-0.5 rounded-md border-2 border-black bg-emerald-500 text-black text-[10px] font-black uppercase tracking-wider">Your plan</span>
         <Pill tone="gray" dot>
           Free
         </Pill>
       </div>
-      <h2 id="plan-heading" className="mt-4 font-display text-[44px] leading-none font-bold tracking-tight text-white">
+      <h2 id="plan-heading" className="mt-4 text-4xl sm:text-5xl leading-none font-black uppercase tracking-tight text-white">
         Free
       </h2>
       <p className="mt-3 text-sm text-gray-300" data-testid="billing-renewal">
         {mine.sentence}
       </p>
       {pro && (
-        <div className="mt-5 flex flex-wrap items-center gap-4 p-4 rounded-2xl bg-black/20 border border-white/[0.08]">
+        <div className="mt-5 flex flex-wrap items-center gap-4 p-4 rounded-xl border-2 border-yellow-400 bg-yellow-400/[0.06]">
           <div className="flex-1 min-w-[220px]">
-            <p className="font-bold text-white">
-              {pro.name}: {pro.documentsPerMonth === null ? "no monthly limit" : `${pro.documentsPerMonth} documents a month`}
+            <p className="font-black text-white">
+              <span className="uppercase">{pro.name}</span>: {pro.documentsPerMonth === null ? "no monthly limit" : `${pro.documentsPerMonth} documents a month`}
             </p>
             <p className="mt-0.5 text-sm text-gray-400">{pointsOf(pro).slice(1, 4).join(" · ")}</p>
           </div>
-          <button type="button" onClick={() => goCheckout(pro)} disabled={held} className={BTN.primary}>
+          <button type="button" onClick={() => goCheckout(pro)} disabled={held} className={BTN.yellow}>
+            <ICONS.bolt className="w-4 h-4" />
             Upgrade to {pro.name} · {rupees(pro.priceInr)}/{pro.interval}
           </button>
         </div>
       )}
-      <Link to="/billing/plans" className="inline-block mt-4 text-sm font-bold text-gray-300 hover:text-white">
-        Compare every plan →
+      <Link to="/billing/plans" className="mt-4 inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-gray-300 hover:text-white">
+        Compare every plan
+        <ICONS.arrow className="w-3.5 h-3.5" />
       </Link>
     </section>
   );
@@ -237,39 +307,44 @@ function NextPayment({ mine, held, goCheckout }) {
 
   return (
     <section aria-labelledby="next-heading" className={`${PANEL} min-w-0 p-6 flex flex-col gap-4`}>
-      <h2 id="next-heading" className="text-[13px] font-bold uppercase tracking-[0.06em] text-gray-400">
+      <h2 id="next-heading" className={EYEBROW}>
         {title}
       </h2>
       {renewal.mode === "auto" ? (
         <>
           <div>
-            <p className="font-display text-3xl font-bold text-white">{rupees(renewal.amountInr)}</p>
+            <p className="text-3xl font-black text-white tabular-nums">{rupees(renewal.amountInr)}</p>
             <p className="mt-0.5 text-sm text-gray-300">
               on {day(renewal.nextChargeOn)}
               {!renewal.overdue && `, in ${daysUntil(renewal.nextChargeOn)} days`}
             </p>
           </div>
-          <div className="flex items-center gap-3 px-3.5 py-3 rounded-xl bg-[#0d0e14] border border-white/[0.07]">
-            <span className="w-9 h-9 grid place-items-center rounded-[9px] bg-sky-400/[0.14] text-sky-300" aria-hidden="true">
+          <div className="flex items-center gap-3 px-3.5 py-3 rounded-xl bg-[#090a0f] border-2 border-white/15">
+            <span className="w-9 h-9 grid place-items-center rounded-lg border-2 border-black bg-blue-600 text-white" aria-hidden="true">
               <ICONS.phone className="w-[18px] h-[18px]" />
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-bold text-gray-100">Automatic payment</p>
-              <p className="text-[13px] text-gray-400">Approved through Razorpay</p>
+              <p className="text-sm font-black text-gray-100">Automatic payment</p>
+              <p className="text-xs text-gray-400">Approved through Razorpay</p>
             </div>
           </div>
-          <p className="text-[13px] text-gray-400 leading-relaxed">Turning auto-renew off keeps your plan until {shortDay(renewal.nextChargeOn)}. Nothing more is charged.</p>
+          <p className="text-xs text-gray-400 leading-relaxed">Turning auto-renew off keeps your plan until {shortDay(renewal.nextChargeOn)}. Nothing more is charged.</p>
         </>
       ) : renewal.mode === "once" ? (
         <>
           <div>
-            <p className="font-display text-3xl font-bold text-white">{day(renewal.endsOn)}</p>
+            <p className="text-3xl font-black text-white">{day(renewal.endsOn)}</p>
             <p className="mt-0.5 text-sm text-gray-300">{renewal.overdue ? "Your paid time has ended." : `in ${daysUntil(renewal.endsOn)} days. It will not renew by itself.`}</p>
           </div>
           {renewal.canStart && mine.currentPlan && (
             <Note tone="violet" icon="shield">
               Turn on auto-renew and never lose access. Nothing is charged until {shortDay(renewal.endsOn)}.
-              <button type="button" onClick={() => goCheckout(mine.currentPlan, { renew: "auto" })} disabled={held} className="block mt-2 font-bold text-violet-200 hover:text-white underline underline-offset-2">
+              <button
+                type="button"
+                onClick={() => goCheckout(mine.currentPlan, { renew: "auto" })}
+                disabled={held}
+                className="block mt-1.5 text-xs font-black uppercase tracking-wider text-purple-300 hover:text-white underline underline-offset-2"
+              >
                 Turn on auto-renew
               </button>
             </Note>
@@ -277,8 +352,10 @@ function NextPayment({ mine, held, goCheckout }) {
         </>
       ) : (
         <>
-          <p className="font-display text-3xl font-bold text-white">None due</p>
-          <p className="text-sm text-gray-400 leading-relaxed">{mine.paid ? "This plan has no end date and nothing is charged for it." : "You pay nothing on Free. Extra documents and wallet credit are one payment each, whenever you need them."}</p>
+          <p className="text-3xl font-black uppercase text-white">None due</p>
+          <p className="text-sm text-gray-400 leading-relaxed">
+            {mine.paid ? "This plan has no end date and nothing is charged for it." : "You pay nothing on Free. Extra documents and wallet credit are one payment each, whenever you need them."}
+          </p>
         </>
       )}
     </section>
@@ -288,6 +365,7 @@ function NextPayment({ mine, held, goCheckout }) {
 function UsageNudge({ mine }) {
   const { forecast } = mine;
   const out = forecast.left === 0;
+  const red = out && forecast.extra === 0;
   const title = out
     ? forecast.extra > 0
       ? `This month's ${forecast.quota} documents are used. Your ${forecast.extra} extra documents are being used now.`
@@ -300,20 +378,24 @@ function UsageNudge({ mine }) {
       : `${forecast.left} left until ${shortDay(forecast.resets)}.`;
 
   return (
-    <div role="status" className={`flex flex-wrap items-center gap-4 px-5 py-4 rounded-[14px] border ${out && forecast.extra === 0 ? "bg-rose-500/[0.08] border-rose-500/30" : "bg-amber-400/[0.08] border-amber-400/30"}`} data-testid="usage-nudge">
-      <span className={`w-[38px] h-[38px] shrink-0 grid place-items-center rounded-[10px] ${out && forecast.extra === 0 ? "bg-rose-500/15 text-rose-300" : "bg-amber-400/15 text-amber-300"}`} aria-hidden="true">
+    <div
+      role="status"
+      className={`flex flex-wrap items-center gap-4 px-5 py-4 rounded-2xl border-2 ${red ? "bg-red-950/40 border-red-500/80 shadow-[4px_4px_0px_0px_#ef4444]" : "bg-amber-950/40 border-amber-500/80 shadow-[4px_4px_0px_0px_#f59e0b]"}`}
+      data-testid="usage-nudge"
+    >
+      <span className={`w-10 h-10 shrink-0 grid place-items-center rounded-xl border-2 border-black ${red ? "bg-red-600 text-white" : "bg-yellow-400 text-black"}`} aria-hidden="true">
         <ICONS.trend className="w-5 h-5" />
       </span>
       <div className="flex-[1_1_320px] min-w-0">
-        <p className={`font-bold ${out && forecast.extra === 0 ? "text-rose-100" : "text-amber-100"}`}>{title}</p>
+        <p className={`font-black ${red ? "text-red-200" : "text-amber-200"}`}>{title}</p>
         <p className="mt-0.5 text-sm text-gray-300">{detail}</p>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Link to="/billing/add-ons" className={BTN.secondary}>
+      <div className="flex flex-wrap gap-3">
+        <Link to="/billing/add-ons" className={red ? BTN.primary : BTN.yellow}>
           Add documents
         </Link>
         {mine.nextUp && (
-          <Link to="/billing/plans" className={BTN.ghost}>
+          <Link to="/billing/plans" className={BTN.secondary}>
             See bigger plans
           </Link>
         )}

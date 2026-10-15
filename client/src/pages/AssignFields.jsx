@@ -1,464 +1,124 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
-import PdfViewer from "../components/PdfViewer";
-import FieldPalette from "../components/FieldPalette";
-import DraggableField from "../components/DraggableField";
-import { sendDocumentApi } from "../api/send.api";
-import API from "../api/axios";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
+import DocumentEditor from "../components/editor/DocumentEditor";
+import { useFieldHistory } from "../components/editor/useFieldHistory";
+import { useAutosave } from "../components/editor/useAutosave";
+import { UI } from "../components/editor/icons";
+import { fetchDocumentForEditingApi, saveDraftApi } from "../api/pdf.api";
+import { sendProblems, sendSteps } from "../utils/sendFlow";
 
+/**
+ * Step 2 of sending: put each recipient's fields on the document. Pick whose fields you are
+ * placing on the left; every field shows its owner's colour. Saved as you go.
+ */
 export default function AssignFields() {
   const { pdfId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
 
-  const workflowConfig = location.state || {};
-  const recipients = workflowConfig.recipients || [];
-
-  const [pdfUrl, setPdfUrl] = useState(null);
-  const [docTitle, setDocTitle] = useState("");
-  const [totalPages, setTotalPages] = useState(1);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageDims, setPageDims] = useState({ width: 0, height: 0 });
-  const [fields, setFields] = useState([]);
-  const [selectedFieldId, setSelectedFieldId] = useState(null);
-  const [activeRecipientId, setActiveRecipientId] = useState(
-    recipients[0]?.id || null
-  );
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const history = useFieldHistory([]);
+  const { fields, resetFields } = history;
+  const [doc, setDoc] = useState(null);
+  const [recipients, setRecipients] = useState([]);
+  const [settings, setSettings] = useState({});
+  const [loaded, setLoaded] = useState(false);
+  // Fields given to the first signer while opening still need saving
+  const [reassigned, setReassigned] = useState(false);
 
   useEffect(() => {
-    if (!recipients || recipients.length === 0) {
-      toast.error("Please configure recipients first");
-      navigate(`/send/${pdfId}`);
-      return;
-    }
+    let current = true;
+    fetchDocumentForEditingApi(pdfId)
+      .then((data) => {
+        if (!current) return;
+        if (data.sent) {
+          toast.error("This document has already been sent.");
+          navigate("/dashboard");
+          return;
+        }
+        const draft = data.draft || {};
+        const people = draft.recipients || [];
+        if (people.length === 0) {
+          toast.error("Add the recipients first.");
+          navigate(`/send/${pdfId}`, { replace: true });
+          return;
+        }
 
-    const fetchPdf = async () => {
-      try {
-        const res = await API.get(`/pdf/${pdfId}`);
-        const data = res.data.data;
-        const url = `${import.meta.env.VITE_API_BASE_URL}${data.url}`;
-        setPdfUrl(url);
-        setDocTitle(data.originalFileName || "Document");
-        setTotalPages(data.pageCount || 1);
-      } catch (error) {
-        console.error("Error loading PDF for field assignment:", error);
-        toast.error("Failed to load PDF");
-      }
-    };
-
-    fetchPdf();
-  }, [pdfId, recipients, navigate]);
-
-  const activeRecipient =
-    recipients.find((r) => r.id === activeRecipientId) || recipients[0];
-
-  const selectedField = fields.find((f) => f.id === selectedFieldId);
-
-  const handlePageRender = ({ width, height }) => {
-    setPageDims({ width, height });
-  };
-
-  const addField = (type) => {
-    if (!activeRecipient) {
-      toast.error("Please select a signer first");
-      return;
-    }
-
-    const newFieldId = crypto.randomUUID();
-    const newField = {
-      id: newFieldId,
-      recipientId: activeRecipient.id,
-      recipientName: activeRecipient.name,
-      recipientEmail: activeRecipient.email,
-      recipientPhone: activeRecipient.phone || "",
-      recipientColor: activeRecipient.color,
-      type,
-      page: currentPage,
-      xPercent: 0.2,
-      yPercent: 0.2,
-      widthPercent:
-        type === "radio" || type === "checkbox"
-          ? 0.05
-          : type === "signature" || type === "initials"
-          ? 0.3
-          : 0.25,
-      heightPercent:
-        type === "radio" || type === "checkbox"
-          ? 0.04
-          : type === "signature" || type === "initials"
-          ? 0.12
-          : 0.06,
-      // A date field is left empty here: it takes the date on which its signer signs
-      value: "",
-      checked: false,
-      options: type === "dropdown" ? ["Choice A", "Choice B", "Choice C"] : [],
-    };
-
-    setFields((prev) => [...prev, newField]);
-    setSelectedFieldId(newFieldId);
-    toast.success(`Added ${type} for ${activeRecipient.name}`);
-  };
-
-  const updateField = (updatedField) => {
-    setFields((all) =>
-      all.map((x) => (x.id === updatedField.id ? updatedField : x))
-    );
-  };
-
-  const removeField = (id) => {
-    setFields((prev) => prev.filter((f) => f.id !== id));
-    if (selectedFieldId === id) setSelectedFieldId(null);
-    toast.success("Field removed");
-  };
-
-  const replicateFieldToAllPages = () => {
-    if (!selectedField) return;
-
-    const clones = [];
-    for (let p = 1; p <= totalPages; p++) {
-      if (p !== selectedField.page) {
-        clones.push({
-          ...selectedField,
-          id: crypto.randomUUID(),
-          page: p,
+        // Fields placed before there were recipients (signing it yourself first) go to the first signer
+        const first = people.find((r) => r.role !== "viewer") || people[0];
+        let moved = 0;
+        const placed = (draft.fields || []).map((field) => {
+          const owner = people.find((r) => r.id === field.recipientId);
+          if (owner && owner.role !== "viewer") return field;
+          moved += 1;
+          return { ...field, recipientId: first.id, recipientName: first.name, recipientEmail: first.email, recipientColor: first.color };
         });
-      }
-    }
+        if (moved > 0) {
+          toast(`${moved} field${moved === 1 ? " was" : "s were"} given to ${first.name || "the first signer"}. Change who fills each one in its settings.`, { duration: 6000 });
+        }
 
-    setFields((prev) => [...prev, ...clones]);
-    toast.success(`Replicated ${selectedField.type} to all ${totalPages} pages!`);
+        setDoc({ ...data, url: `${import.meta.env.VITE_API_BASE_URL}${data.url}` });
+        setRecipients(people);
+        setSettings(draft.settings || {});
+        resetFields(placed);
+        setReassigned(moved > 0);
+        setLoaded(true);
+      })
+      .catch((error) => {
+        if (error.response?.status === 401) navigate("/login");
+        else toast.error("The document could not be opened. Please try again.");
+      });
+    return () => {
+      current = false;
+    };
+  }, [pdfId, navigate, resetFields]);
+
+  const save = useCallback((value) => saveDraftApi(pdfId, value), [pdfId]);
+  const draft = useMemo(() => ({ mode: "send", fields, recipients, settings }), [fields, recipients, settings]);
+  const autosave = useAutosave(save, draft, { enabled: loaded, unsavedOnLoad: reassigned });
+
+  const go = async (to) => {
+    try {
+      await autosave.flush();
+    } catch {
+      // The tab asks before closing while anything is unsaved
+    }
+    navigate(to);
   };
 
-  const handleSendDocument = async () => {
-    if (fields.length === 0) {
-      toast.error("Please place at least one form field on the document");
+  const review = () => {
+    const problems = sendProblems(recipients, fields);
+    if (problems.length > 0) {
+      toast.error(problems[0]);
       return;
     }
-
-    let toastId = null;
-    try {
-      setIsSubmitting(true);
-      toastId = toast.loading("Dispatching document & sending invitation emails...");
-
-      await sendDocumentApi(pdfId, {
-        recipients,
-        fields,
-        emailSubject: workflowConfig.emailSubject,
-        message: workflowConfig.message,
-        reminderCadence: workflowConfig.reminderCadence,
-        expiresAt: workflowConfig.expiresAt,
-        signingOrder: workflowConfig.signingOrder,
-      });
-
-      if (toastId) toast.dismiss(toastId);
-      toast.success("Document sent to signers successfully!");
-
-      setTimeout(() => {
-        navigate("/dashboard");
-      }, 1000);
-    } catch (err) {
-      if (toastId) toast.dismiss(toastId);
-      console.error("Error sending document:", err);
-      toast.error(err.response?.data?.message || "Failed to send document");
-    } finally {
-      setIsSubmitting(false);
-    }
+    go(`/review/${pdfId}`);
   };
 
-  if (!pdfUrl) {
+  if (!doc) {
     return (
       <div className="min-h-screen bg-[#08090d] flex items-center justify-center">
         <Toaster position="top-right" />
-        <div className="w-10 h-10 border-4 border-white/10 border-t-red-600 rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-white/10 border-t-red-600 rounded-full animate-spin" role="status" aria-label="Opening the document" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans flex flex-col selection:bg-red-600 selection:text-white">
+    <>
       <Toaster position="top-right" />
-
-      {/* Header */}
-      <header className="bg-[#08090d]/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
-        <div className="px-4 sm:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center space-x-3 sm:space-x-4">
-            <button
-              onClick={() => navigate(`/send/${pdfId}`)}
-              className="p-2 rounded-xl text-gray-300 hover:text-white hover:bg-white/10 transition-colors flex items-center gap-1.5 text-xs font-bold"
-            >
-              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              <span>Back</span>
-            </button>
-
-            <div className="h-6 w-px bg-white/10" />
-
-            <div>
-              <h1 className="text-sm sm:text-base font-bold text-white max-w-[150px] sm:max-w-md truncate" title={docTitle}>
-                {docTitle}
-              </h1>
-              <p className="text-[10px] text-gray-400">
-                Step 2: Assign Fields ({fields.length} placed)
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={handleSendDocument}
-              disabled={isSubmitting}
-              className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-lg shadow-red-950/50 border border-red-500/30 transition-all flex items-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Sending...</span>
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                  <span>Send for Signing</span>
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex flex-1 overflow-hidden relative">
-        {/* Left Toolbox Sidebar */}
-        <aside className="w-80 overflow-y-auto bg-[#12141c] border-r border-white/10 p-5 space-y-6 z-30">
-          {/* Signer Selector Card */}
-          <div className="bg-[#08090d] rounded-2xl p-4 border border-white/10 space-y-3">
-            <h3 className="text-white font-display font-bold text-xs uppercase tracking-wider">
-              Select Active Signer
-            </h3>
-
-            <div className="space-y-1.5">
-              {recipients.map((r) => {
-                const isActive = r.id === activeRecipientId;
-                const signerFieldsCount = fields.filter((f) => f.recipientId === r.id).length;
-
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => setActiveRecipientId(r.id)}
-                    className={`w-full p-2.5 rounded-xl border text-left flex items-center justify-between transition-all ${
-                      isActive
-                        ? "bg-white/10 shadow-md font-bold"
-                        : "bg-white/5 hover:bg-white/10 opacity-70"
-                    }`}
-                    style={{
-                      borderColor: isActive ? r.color : "rgba(255,255,255,0.08)",
-                      borderLeftWidth: "4px",
-                      borderLeftColor: r.color,
-                    }}
-                  >
-                    <div className="flex items-center space-x-2.5 truncate">
-                      <div
-                        className="w-5 h-5 rounded-md text-white font-bold text-[10px] flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: r.color }}
-                      >
-                        #{r.signingOrder || 1}
-                      </div>
-                      <div className="truncate">
-                        <p className="text-xs text-white truncate">{r.name}</p>
-                        <p className="text-[10px] text-gray-400 truncate">{r.email}</p>
-                      </div>
-                    </div>
-
-                    <span
-                      className="px-2 py-0.5 rounded text-[10px] font-mono text-white font-bold"
-                      style={{ backgroundColor: `${r.color}30` }}
-                    >
-                      {signerFieldsCount} fields
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Form Field Tools for Active Signer */}
-          <div className="bg-[#08090d] rounded-2xl p-4 border border-white/10 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-white font-display font-bold text-xs uppercase tracking-wider">
-                Field Tools
-              </h3>
-              <span
-                className="text-[10px] font-bold px-2 py-0.5 rounded"
-                style={{
-                  backgroundColor: `${activeRecipient?.color}25`,
-                  color: activeRecipient?.color,
-                }}
-              >
-                For {activeRecipient?.name}
-              </span>
-            </div>
-
-            <FieldPalette onAdd={addField} activeColor={activeRecipient?.color} />
-          </div>
-
-          {/* Field Helper Actions when a field is selected */}
-          {selectedField && (
-            <div className="bg-[#08090d] rounded-2xl p-4 border border-red-500/30 space-y-3 animate-fadeIn">
-              <div className="flex items-center justify-between">
-                <h3 className="text-white font-display font-bold text-xs uppercase tracking-wider">
-                  Field Action Tools
-                </h3>
-                <span className="text-[10px] text-red-400 capitalize font-bold">
-                  {selectedField.type} (Page {selectedField.page})
-                </span>
-              </div>
-
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  onClick={replicateFieldToAllPages}
-                  className="w-full py-2 px-3 bg-red-950/40 hover:bg-red-900/60 border border-red-600/40 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all"
-                  title="Place this field at identical position on every page"
-                >
-                  <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-                  </svg>
-                  <span>Replicate to All {totalPages} Pages</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => removeField(selectedField.id)}
-                  className="w-full py-1.5 px-3 bg-white/5 hover:bg-red-950/60 text-gray-400 hover:text-red-300 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5"
-                >
-                  <span>Remove Selected Field</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Fields Placed Summary */}
-          <div className="bg-[#08090d] rounded-2xl p-4 border border-white/10 space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-gray-300">
-              <span>Placed Fields</span>
-              <span className="font-mono text-red-400">{fields.length}</span>
-            </div>
-
-            <div className="space-y-1 max-h-36 overflow-y-auto pr-1">
-              {fields.map((f, idx) => (
-                <div
-                  key={f.id}
-                  onClick={() => {
-                    if (f.page !== currentPage) setCurrentPage(f.page);
-                    setSelectedFieldId(f.id);
-                  }}
-                  className={`p-2 rounded-xl text-xs flex items-center justify-between cursor-pointer transition-colors ${
-                    selectedFieldId === f.id
-                      ? "bg-white/15 border font-bold"
-                      : "bg-white/5 hover:bg-white/10"
-                  }`}
-                  style={{
-                    borderColor: f.recipientColor,
-                    borderLeftWidth: "3px",
-                  }}
-                >
-                  <span className="text-gray-300 capitalize text-[11px] truncate">
-                    #{idx + 1} {f.type} (P.{f.page} &bull; {f.recipientName})
-                  </span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      removeField(f.id);
-                    }}
-                    className="text-gray-500 hover:text-red-400 text-xs ml-2"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </aside>
-
-        {/* Center PDF Editor Canvas */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-[#08090d]">
-          {/* Page Controls Toolbar */}
-          <div className="bg-[#12141c] border-b border-white/10 px-4 sm:px-6 py-2.5 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage <= 1}
-                className="p-1.5 rounded-lg text-gray-300 hover:bg-white/10 disabled:opacity-30 transition-colors"
-              >
-                ◀
-              </button>
-
-              <span className="text-xs font-mono font-bold text-white bg-black/40 px-3 py-1 rounded-lg border border-white/10">
-                Page {currentPage} / {totalPages}
-              </span>
-
-              <button
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage >= totalPages}
-                className="p-1.5 rounded-lg text-gray-300 hover:bg-white/10 disabled:opacity-30 transition-colors"
-              >
-                ▶
-              </button>
-            </div>
-
-            <div className="text-[11px] text-gray-400 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: activeRecipient?.color }} />
-              <span>Placing fields assigned to: <strong className="text-white">{activeRecipient?.name}</strong></span>
-            </div>
-          </div>
-
-          {/* Canvas */}
-          <div
-            className="flex-1 overflow-auto p-4 sm:p-6 flex items-center justify-center select-none"
-            onClick={() => setSelectedFieldId(null)}
-          >
-            <div className="relative inline-block shadow-2xl rounded-lg overflow-hidden border border-white/10">
-              <PdfViewer
-                fileUrl={pdfUrl}
-                pageNumber={currentPage}
-                onPageRender={handlePageRender}
-              />
-
-              <div
-                className="absolute top-0 left-0 pointer-events-none"
-                style={{
-                  width: pageDims.width,
-                  height: pageDims.height,
-                }}
-              >
-                <div className="w-full h-full relative pointer-events-auto">
-                  {fields
-                    .filter((f) => f.page === currentPage)
-                    .map((f) => (
-                      <DraggableField
-                        key={f.id}
-                        field={f}
-                        pageWidth={pageDims.width}
-                        pageHeight={pageDims.height}
-                        isSelected={f.id === selectedFieldId}
-                        onSelect={setSelectedFieldId}
-                        onUpdate={updateField}
-                        onRemove={removeField}
-                        signerColor={f.recipientColor}
-                        signerName={f.recipientName}
-                      />
-                    ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
-    </div>
+      <DocumentEditor
+        mode="send"
+        fileUrl={doc.url}
+        title={doc.originalFileName || "Document"}
+        subtitle={`Step 2 of 3 · ${fields.length} field${fields.length === 1 ? "" : "s"} placed`}
+        steps={sendSteps(pdfId, go, 2)}
+        participants={recipients}
+        history={history}
+        saveStatus={autosave.status}
+        onBack={() => go(`/send/${pdfId}`)}
+        backLabel="Recipients"
+        primaryAction={{ label: "Next: Review", onClick: review, icon: <UI.next className="w-4 h-4" /> }}
+      />
+    </>
   );
 }

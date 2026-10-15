@@ -17,6 +17,7 @@ import { Subscription } from "../models/Subscription.model.js";
 import { Payment } from "../models/Payment.model.js";
 import { Invoice } from "../models/Invoice.model.js";
 import { PLANS, isPlan } from "../config/plans.js";
+import { endLapsedSubscription } from "../services/autoRenew.service.js";
 import { formatDate } from "../utils/format.js";
 import { sendMessage } from "../services/messaging/index.js";
 import { chargeForMessage } from "../services/wallet.service.js";
@@ -80,7 +81,11 @@ const rupees = (amount) => `Rs. ${new Intl.NumberFormat("en-IN").format(amount)}
  * What to tell a customer about their plan or a payment. Returns null when there is nothing
  * worth an email (the payment or the account is gone, or it was a payment that failed).
  */
-const billingEmailFor = async ({ kind, userId, paymentId, daysLeft, threshold }) => {
+// Where a customer pays for their plan again: checkout for it with auto-renew, which takes the
+// place of an automatic payment that failed (services/autoRenew.service.js)
+const payAgainPath = (planId) => `/billing/checkout?plan=${encodeURIComponent(planId)}&renew=auto`;
+
+const billingEmailFor = async ({ kind, userId, paymentId, daysLeft, threshold, plan: endedPlanId, cancelled }) => {
   const sub = await Subscription.findOne({ userId }).lean();
   const plan = isPlan(sub?.plan) ? PLANS[sub.plan] : null;
   const planName = plan?.name || "your plan";
@@ -114,17 +119,67 @@ const billingEmailFor = async ({ kind, userId, paymentId, daysLeft, threshold })
       facts: [],
     };
   }
-  if (kind === "renewal_failed") {
-    const grace = sub?.gracePeriodEnd ? formatDate(sub.gracePeriodEnd) : "";
+  if (kind === "renewal_failed" || kind === "grace_ending") {
+    // Said only while it is still true: the payment may have gone through since this was queued
+    if (!plan || sub.status !== "past_due") return null;
+    const grace = sub.gracePeriodEnd ? formatDate(sub.gracePeriodEnd) : "";
+    const last = kind === "grace_ending";
     return {
-      subject: `We could not renew your ${env.appName} plan`,
-      title: "Your renewal payment did not go through",
+      subject: last ? `Your ${env.appName} ${planName} plan moves to Free tomorrow` : `We could not renew your ${env.appName} plan`,
+      title: last ? "Your plan moves to Free tomorrow" : "Your renewal payment did not go through",
       lines: [
-        `The automatic payment for your ${planName} plan could not be taken. It will be tried again.`,
-        grace ? `Your plan stays as it is until ${grace}. If the payment has still not gone through by then, the account moves to the Free plan; your documents are kept.` : "Your plan stays on for a few days meanwhile.",
-        "If your card or UPI approval has changed, turn auto-renew off and on again from your Billing page to approve a new one.",
+        last
+          ? `The automatic payment for your ${planName} plan has still not gone through.`
+          : `The automatic payment for your ${planName} plan could not be taken. Razorpay will try it again over the next few days.`,
+        grace ? `Your plan stays as it is until ${grace}. If it is not paid by then, the account moves to the Free plan; your documents are kept.` : "Your plan stays on for a few days meanwhile.",
+        "You can pay now with UPI, a card or a bank mandate. It takes the place of the payment that failed, so you are never charged twice.",
+      ],
+      facts: [["Plan", planName], ["Amount", each], ["Plan stays until", grace]],
+      action: { path: payAgainPath(sub.plan), label: each ? `Pay ${each} now` : "Pay now" },
+    };
+  }
+  if (kind === "renews_soon") {
+    // Said only while it is still true: auto-renew may have been turned off since this was queued
+    if (!plan || sub.plan === "free" || !sub.autoRenew || sub.cancelAtPeriodEnd || !sub.currentPeriodEnd || new Date(sub.currentPeriodEnd) <= new Date()) return null;
+    return {
+      subject: `Your ${env.appName} ${planName} plan renews on ${until}`,
+      title: `Your plan renews on ${until}`,
+      lines: [
+        `Your ${planName} plan renews automatically on ${until}${each ? ` for ${each}` : ""}, from the UPI or card you approved. There is nothing you need to do.`,
+        "Make sure that UPI account or card can pay that amount on the day. To stop the renewal, turn off auto-renew from your Billing page before then; you keep the time you have paid for, and nothing is refunded.",
+      ],
+      facts: [["Plan", planName], ["Renews on", until], ["Amount", each]],
+    };
+  }
+  if (kind === "plan_lapsed") {
+    const ended = isPlan(endedPlanId) ? PLANS[endedPlanId] : null;
+    const endedName = ended?.name || "paid";
+    // Back on a paid plan since this was queued: nothing to say
+    if (sub?.plan && sub.plan !== "free") return null;
+    return {
+      subject: `Your ${env.appName} ${endedName} plan has ended`,
+      title: `Your ${endedName} plan has ended`,
+      lines: [
+        cancelled
+          ? `Your ${endedName} plan has reached the end of the time you paid for, and the account is now on the Free plan.`
+          : `The payment for your ${endedName} plan did not go through, and the account is now on the Free plan. Nothing more will be charged.`,
+        "Your documents and templates are kept. Team workspaces are read-only until a plan that includes them is back on.",
+        "You can come back to a paid plan at any time from your Billing page.",
       ],
       facts: [],
+      action: ended?.purchasable ? { path: payAgainPath(endedPlanId), label: `Get ${endedName} again` } : { path: "/billing/plans", label: "See plans" },
+    };
+  }
+  if (kind === "mandate_ended") {
+    return {
+      subject: `Approve auto-renew again for your ${env.appName} plan`,
+      title: "Your auto-pay approval has been used up",
+      lines: [
+        "The UPI or card approval you gave for auto-renew covered a set number of payments, and the last of them has been taken. Nothing more will be charged.",
+        sub?.plan && sub.plan !== "free" && until ? `Your ${planName} plan stays as it is until ${until}. Approve auto-renew again to keep it without a break; nothing is charged before that date.` : "Approve auto-renew again from your Billing page to keep your plan renewing.",
+      ],
+      facts: [],
+      action: sub?.plan && sub.plan !== "free" ? { path: payAgainPath(sub.plan), label: "Approve auto-renew" } : null,
     };
   }
   if (kind === "auto_renew_off") {
@@ -184,6 +239,11 @@ export const registerJobHandlers = () => {
     if (!env.salesEmail) return;
     const enquiry = await enquiryForEmail(enquiryId);
     if (enquiry) await sendSalesEnquiryEmail({ to: env.salesEmail, enquiry });
+  });
+
+  // A plan that moved to Free after its payment never came: its subscription is ended at Razorpay
+  registerJobHandler("billing.end_subscription", async ({ userId, subscriptionId }) => {
+    await endLapsedSubscription({ userId, subscriptionId });
   });
 
   registerJobHandler("email.billing", async (payload) => {

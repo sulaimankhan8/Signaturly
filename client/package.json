@@ -11,6 +11,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/alex-brush": "^5.3.0",
+    "@fontsource/caveat": "^5.3.0",
+    "@fontsource/dancing-script": "^5.3.0",
+    "@fontsource/dm-sans": "^5.3.0",
+    "@fontsource/great-vibes": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/lora": "^5.3.0",
+    "@fontsource/space-grotesk": "^5.3.0",
     "@reduxjs/toolkit": "^2.11.2",
     "@vercel/analytics": "^1.6.1",
     "axios": "^1.13.2",
@@ -19,12 +27,10 @@
     "react": "18.2.0",
     "react-datepicker": "^9.1.0",
     "react-dom": "18.2.0",
-    "react-draggable": "^4.5.0",
     "react-hot-toast": "^2.6.0",
     "react-i18next": "^17.0.16",
     "react-pdf": "7.7.0",
     "react-redux": "^9.2.0",
-    "react-resizable": "^3.0.5",
     "react-router-dom": "^7.11.0"
   },
   "devDependencies": {

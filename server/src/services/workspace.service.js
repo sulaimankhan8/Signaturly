@@ -7,10 +7,10 @@ import { PdfAudit } from "../models/PdfAudit.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { env } from "../config/env.js";
 import { randomToken, sha256Hex } from "../utils/tokens.js";
-import { roleOf, roleCan, isReadAction, assertWorkspaceAccess } from "./authorize.service.js";
+import { roleOf, roleCan, isReadAction, assertWorkspaceAccess, assertTwoFactorRule, hasSecondStep, twoFactorRequired } from "./authorize.service.js";
 import { getOrCreateSubscription } from "./subscription.service.js";
 import { can, tierOf } from "./entitlements.service.js";
-import { sendWorkspaceInvitationEmail } from "./email.service.js";
+import { sendWorkspaceInvitationEmail, sendTwoFactorReminderEmail } from "./email.service.js";
 
 /**
  * Workspaces: the personal one every user has, team workspaces, and who is in them
@@ -72,9 +72,18 @@ export const attachWorkspace = async (req) => {
  * reach the pages that set it up, and nothing else in that workspace.
  */
 export const assertTwoFactorPolicy = (req) => {
-  if (req.workspace?.requireTwoFactor && !req.user.twoFactorEnabled) {
-    throw new ApiError(403, "TWO_FACTOR_REQUIRED: This workspace requires two-step sign-in. Switch it on in your settings to continue.");
-  }
+  if (req.workspace?.requireTwoFactor && !hasSecondStep(req.workspace, req.user)) throw twoFactorRequired();
+};
+
+// The parts of the API that hold nothing of a workspace's own: signing in and setting up two-step
+// sign-in, the person's own account and plan, and their workspaces, whose routes check each
+// workspace themselves. Every other route is refused by `protect` to someone working in a team
+// whose two-step rule they do not meet, so a new route is covered without anyone remembering to.
+const OUTSIDE_WORKSPACES = new Set(["auth", "user", "billing", "workspaces"]);
+
+export const assertTwoFactorPolicyForRoute = (req) => {
+  const area = String(req.baseUrl || "").split("/")[2];
+  if (!OUTSIDE_WORKSPACES.has(area)) assertTwoFactorPolicy(req);
 };
 
 /**
@@ -159,17 +168,22 @@ export const createTeamWorkspace = async (user, { name, primaryColor, companyNam
   return publicWorkspace(workspace, user.id);
 };
 
-const loadTeam = async (workspaceId, userId, action) => {
+// `user` is the signed-in person (req.user). Without `twoFactor`, the team's two-step rule is not
+// applied: only leaving a team is open to someone who does not meet it.
+const loadTeam = async (workspaceId, user, action, { twoFactor = true } = {}) => {
   if (!isId(String(workspaceId))) throw new ApiError(404, "Workspace not found");
   const workspace = await Workspace.findById(String(workspaceId));
   if (!workspace || workspace.status === "archived") throw new ApiError(404, "Workspace not found");
-  assertWorkspaceAccess(workspace, userId, action);
+  assertWorkspaceAccess(workspace, user.id, action);
+  if (twoFactor) await assertTwoFactorRule(workspace, user);
   if (workspace.personal) throw new ApiError(400, "A personal workspace has no members");
   return workspace;
 };
 
+// The team's own page stays open to a member who does not meet its two-step rule, so it can say why
+// nothing else is, and so they can leave
 export const getWorkspaceDetails = async (workspaceId, user) => {
-  const workspace = await Workspace.findById(isId(String(workspaceId)) ? String(workspaceId) : null).populate("ownerId", "name email").populate("members.userId", "name email twoFactor.enabled");
+  const workspace = await Workspace.findById(isId(String(workspaceId)) ? String(workspaceId) : null).populate("ownerId", "name email twoFactor.enabled").populate("members.userId", "name email twoFactor.enabled");
   if (!workspace || workspace.status === "archived") throw new ApiError(404, "Workspace not found");
   const role = assertWorkspaceAccess(workspace, user.id, "activity.read");
 
@@ -180,10 +194,15 @@ export const getWorkspaceDetails = async (workspaceId, user) => {
   return {
     ...publicWorkspace(workspace, user.id),
     role,
+    // Whether the person signs in here with a second step: their own two-step sign-in, or a session
+    // started through this team's single sign-on. Without it they cannot work in a team that
+    // requires two-step sign-in, nor require it of others.
+    twoFactorReady: hasSecondStep(workspace, user),
+    createdAt: workspace.createdAt,
     allowedFrameOrigins: workspace.allowedFrameOrigins || [],
     sso: { enabled: Boolean(workspace.sso?.enabled), issuer: workspace.sso?.issuer || "", clientId: workspace.sso?.clientId || "", emailDomains: workspace.sso?.emailDomains || [] },
     members: [
-      { userId: workspace.ownerId._id, name: workspace.ownerId.name, email: workspace.ownerId.email, role: "owner", status: "active" },
+      { userId: workspace.ownerId._id, name: workspace.ownerId.name, email: workspace.ownerId.email, role: "owner", status: "active", twoFactor: Boolean(workspace.ownerId.twoFactor?.enabled) },
       ...workspace.members
         .filter((m) => m.userId && String(m.userId._id) !== String(workspace.ownerId._id))
         .map((m) => ({ userId: m.userId._id, name: m.userId.name, email: m.userId.email, role: m.role, status: m.status, joinedAt: m.joinedAt, twoFactor: Boolean(m.userId.twoFactor?.enabled) })),
@@ -198,7 +217,7 @@ export const getWorkspaceDetails = async (workspaceId, user) => {
  * until it is answered or expires, so a team cannot grow past what it pays for by inviting.
  */
 export const inviteToWorkspace = async ({ workspaceId, user, email, role = "member" }) => {
-  const workspace = await loadTeam(workspaceId, user.id, "member.manage");
+  const workspace = await loadTeam(workspaceId, user, "member.manage");
   const address = String(email || "").trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) throw new ApiError(400, "Enter an email address");
   if (!["admin", "member", "viewer"].includes(role)) throw new ApiError(400, "Choose a role: admin, member or viewer");
@@ -236,8 +255,49 @@ export const inviteToWorkspace = async ({ workspaceId, user, email, role = "memb
   return { id: invitation._id, email: address, role, expiresAt: invitation.expiresAt };
 };
 
+/**
+ * Sends an invitation again, with a new link and a fresh seven days: the first email may have
+ * been missed or have run out. The old link stops working.
+ */
+export const resendInvitation = async ({ workspaceId, invitationId, user }) => {
+  const workspace = await loadTeam(workspaceId, user, "member.manage");
+  if (!isId(String(invitationId))) throw new ApiError(404, "Invitation not found");
+  const invitation = await Invitation.findOne({ _id: String(invitationId), workspaceId: workspace._id, status: "pending", expiresAt: { $gt: new Date() } });
+  if (!invitation) throw new ApiError(404, "Invitation not found");
+
+  const token = randomToken();
+  invitation.tokenHash = sha256Hex(token);
+  invitation.expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
+  await invitation.save();
+
+  await sendWorkspaceInvitationEmail({
+    email: invitation.email,
+    workspaceName: workspace.name,
+    inviterName: user.name || user.email,
+    role: invitation.role,
+    link: `${env.appUrl}/invite/${token}`,
+    hasAccount: Boolean(await User.exists({ email: invitation.email })),
+  });
+  return { id: invitation._id, email: invitation.email, role: invitation.role, expiresAt: invitation.expiresAt };
+};
+
+/**
+ * Asks a member who has not switched on two-step sign-in to do so, by email, with a link to
+ * where it is set up.
+ */
+export const remindTwoFactor = async ({ workspaceId, memberId, user }) => {
+  const workspace = await loadTeam(workspaceId, user, "member.manage");
+  if (!isId(String(memberId)) || !workspace.members.some((m) => String(m.userId) === String(memberId))) throw new ApiError(404, "Member not found");
+  const member = await User.findById(String(memberId)).select("name email twoFactor.enabled");
+  if (!member) throw new ApiError(404, "Member not found");
+  if (member.twoFactor?.enabled) throw new ApiError(409, `${member.name || member.email} already has two-step sign-in`);
+
+  await sendTwoFactorReminderEmail({ email: member.email, name: member.name, workspaceName: workspace.name, askedBy: user.name || user.email, link: `${env.appUrl}/settings` });
+  return { email: member.email };
+};
+
 export const revokeInvitation = async ({ workspaceId, invitationId, user }) => {
-  const workspace = await loadTeam(workspaceId, user.id, "member.manage");
+  const workspace = await loadTeam(workspaceId, user, "member.manage");
   if (!isId(String(invitationId))) throw new ApiError(404, "Invitation not found");
   const result = await Invitation.updateOne({ _id: String(invitationId), workspaceId: workspace._id, status: "pending" }, { status: "revoked" });
   if (result.modifiedCount === 0) throw new ApiError(404, "Invitation not found");
@@ -256,7 +316,17 @@ export const describeInvitation = async (token) => {
   const invitation = await findInvitation(token);
   const workspace = await Workspace.findById(invitation.workspaceId).lean();
   if (!workspace || workspace.status === "archived") throw new ApiError(410, "This invitation is no longer valid. Ask for a new one.");
-  return { workspaceName: workspace.name, role: invitation.role, email: invitation.email, hasAccount: Boolean(await User.exists({ email: invitation.email })) };
+  const inviter = await User.findById(invitation.invitedBy).select("name").lean();
+  return {
+    workspaceName: workspace.name,
+    role: invitation.role,
+    email: invitation.email,
+    hasAccount: Boolean(await User.exists({ email: invitation.email })),
+    // Shown on the invitation page: who asked, until when, and the team's own name and look
+    inviterName: inviter?.name || "",
+    expiresAt: invitation.expiresAt,
+    branding: { companyName: workspace.branding?.companyName || "", logoUrl: workspace.branding?.logoUrl || "", primaryColor: workspace.branding?.primaryColor || "" },
+  };
 };
 
 /**
@@ -282,7 +352,7 @@ export const acceptInvitation = async (token, user) => {
 };
 
 export const changeMemberRole = async ({ workspaceId, memberId, role, user }) => {
-  const workspace = await loadTeam(workspaceId, user.id, "member.manage");
+  const workspace = await loadTeam(workspaceId, user, "member.manage");
   if (!["admin", "member", "viewer"].includes(role)) throw new ApiError(400, "Choose a role: admin, member or viewer");
   const result = await Workspace.updateOne({ _id: workspace._id, "members.userId": String(memberId) }, { $set: { "members.$.role": role } });
   if (result.matchedCount === 0) throw new ApiError(404, "Member not found");
@@ -298,11 +368,19 @@ export const changeMemberRole = async ({ workspaceId, memberId, role, user }) =>
 export const removeMember = async ({ workspaceId, memberId, user }) => {
   if (!isId(String(memberId))) throw new ApiError(404, "Member not found");
   const leaving = String(memberId) === String(user.id);
-  const workspace = await loadTeam(workspaceId, user.id, leaving ? "activity.read" : "member.manage");
+  const workspace = await loadTeam(workspaceId, user, leaving ? "activity.read" : "member.manage", { twoFactor: !leaving });
 
   if (String(workspace.ownerId) === String(memberId)) throw new ApiError(400, "The owner cannot be removed. Transfer or delete the workspace instead.");
   if (!workspace.members.some((m) => String(m.userId) === String(memberId))) throw new ApiError(404, "Member not found");
 
+  return handOverAndRemove(workspace, memberId);
+};
+
+/**
+ * Takes a member out of a team and gives what they made in it to the team's owner. Also used when
+ * a member closes their account (services/privacy.service.js), so the team keeps its documents.
+ */
+export const handOverAndRemove = async (workspace, memberId) => {
   await Workspace.updateOne({ _id: workspace._id }, { $pull: { members: { userId: String(memberId) } } });
 
   const handOver = { workspaceId: workspace._id, userId: String(memberId) };
@@ -317,6 +395,9 @@ export const updateWorkspaceSettings = async ({ workspaceId, user, changes }) =>
   if (!isId(String(workspaceId))) throw new ApiError(404, "Workspace not found");
   const workspace = await Workspace.findById(String(workspaceId));
   if (!workspace || workspace.status === "archived") throw new ApiError(404, "Workspace not found");
+  // Someone with no part in the team is told it does not exist, before the two-step rule is applied
+  assertWorkspaceAccess(workspace, user.id, "activity.read");
+  await assertTwoFactorRule(workspace, user);
 
   const set = {};
   const text = (value, max) => (typeof value === "string" ? value.trim().slice(0, max) : null);
@@ -343,7 +424,12 @@ export const updateWorkspaceSettings = async ({ workspaceId, user, changes }) =>
 
   if (changes.policy !== undefined) {
     assertWorkspaceAccess(workspace, user.id, "policy.manage");
-    if (changes.policy.requireTwoFactor !== undefined) set["policy.requireTwoFactor"] = Boolean(changes.policy.requireTwoFactor);
+    if (changes.policy.requireTwoFactor !== undefined) {
+      const required = Boolean(changes.policy.requireTwoFactor);
+      // Whoever requires it must have it, so the rule cannot shut out the person who set it
+      if (required && !hasSecondStep(workspace, user)) throw new ApiError(400, "Switch on two-step sign-in for your own account before requiring it of everyone.");
+      set["policy.requireTwoFactor"] = required;
+    }
     if (changes.policy.retentionDays !== undefined) {
       const days = changes.policy.retentionDays === null || changes.policy.retentionDays === "" ? null : Number(changes.policy.retentionDays);
       if (days !== null && (!Number.isInteger(days) || days < 30 || days > 3650)) throw new ApiError(400, "Keep documents for between 30 and 3,650 days, or leave it empty to keep them");
@@ -379,6 +465,8 @@ export const workspaceActivity = async (workspaceId, user, { limit = 50 } = {}) 
   const workspace = await Workspace.findById(isId(String(workspaceId)) ? String(workspaceId) : null).lean();
   if (!workspace) throw new ApiError(404, "Workspace not found");
   assertWorkspaceAccess(workspace, user.id, "activity.read");
+  // The feed names the team's documents and the people who signed them
+  await assertTwoFactorRule(workspace, user);
 
   const filter = workspace.personal ? { userId: user.id } : { workspaceId: workspace._id };
   const documents = await Pdf.find({ ...filter, deletedAt: null }).select("_id originalFileName").sort({ updatedAt: -1 }).limit(500).lean();

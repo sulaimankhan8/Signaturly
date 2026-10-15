@@ -1,135 +1,123 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
+import { LIGHT, INKS } from "./signature/lightTheme";
+import { ensureFont, fitFont, trimmedDataUrl } from "./signature/canvasTools";
 
+// Typeface names are proper names and are shown as they are in every language
 const CURSIVE_FONTS = [
-  // Typeface names are proper names and are shown as they are in every language
-  { name: "Great Vibes", font: "'Great Vibes', cursive", size: 40 },
-  { name: "Dancing Script", font: "'Dancing Script', cursive", size: 36 },
-  { name: "Caveat", font: "'Caveat', cursive", size: 38 },
-  { name: "Alex Brush", font: "'Alex Brush', cursive", size: 40 },
+  { name: "Great Vibes", weight: "400" },
+  { name: "Dancing Script", weight: "700" },
+  { name: "Caveat", weight: "700" },
+  { name: "Alex Brush", weight: "400" },
 ];
 
+const WIDTH = 900;
+const HEIGHT = 240;
+
+/**
+ * Type a name and pick a handwriting typeface. Long names are made smaller to fit rather than
+ * cut off, and the typeface is loaded before the signature is drawn so it never comes out in
+ * a plain fallback.
+ */
 export default function TypeSignature({ onConfirm, defaultText = "" }) {
   const { t } = useTranslation();
   const [typedName, setTypedName] = useState(defaultText);
-  const [selectedFont, setSelectedFont] = useState(CURSIVE_FONTS[0].font);
-  const [color, setColor] = useState("#000000");
+  const [font, setFont] = useState(CURSIVE_FONTS[0]);
+  const [color, setColor] = useState(INKS[0].value);
+  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (defaultText && defaultText.trim()) {
-      setTypedName(defaultText.trim());
-    }
-  }, [defaultText]);
-
-  const generateSignatureImage = () => {
+  const generate = async () => {
     const text = typedName.trim();
     if (!text) {
       toast.error(t("typed.needName"));
-      return null;
+      return;
     }
-
-    const canvas = document.createElement("canvas");
-    canvas.width = 600;
-    canvas.height = 200;
-    const ctx = canvas.getContext("2d");
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.font = `64px ${selectedFont}`;
-    ctx.fillStyle = color;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, canvas.width / 2, canvas.height / 2);
-
-    return canvas.toDataURL("image/png");
-  };
-
-  const handleConfirm = () => {
-    const dataUrl = generateSignatureImage();
-    if (dataUrl) {
-      onConfirm(dataUrl);
+    setBusy(true);
+    try {
+      await ensureFont(font.name, { weight: font.weight });
+      const canvas = document.createElement("canvas");
+      canvas.width = WIDTH;
+      canvas.height = HEIGHT;
+      const ctx = canvas.getContext("2d");
+      fitFont(ctx, text, (size) => `${font.weight} ${size}px "${font.name}", cursive`, 120, WIDTH - 60);
+      ctx.fillStyle = color;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, WIDTH / 2, HEIGHT / 2);
+      onConfirm(trimmedDataUrl(canvas));
       toast.success(t("typed.generated"));
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
-    <div className="space-y-4">
-      {/* Name Input */}
+    <div className="space-y-3">
       <div>
-        <label className="block text-xs font-black uppercase tracking-wider text-gray-300 mb-1.5">
+        <label className={LIGHT.label} htmlFor="typed-name">
           {t("typed.label")}
         </label>
         <input
+          id="typed-name"
           type="text"
           value={typedName}
+          maxLength={80}
           onChange={(e) => setTypedName(e.target.value)}
           placeholder={t("typed.placeholder")}
-          className="w-full px-3.5 py-2.5 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-yellow-400 text-xs font-medium"
+          autoComplete="name"
+          className={LIGHT.input}
         />
       </div>
 
-      {/* Font & Color Selectors */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center space-x-1.5 bg-[#090a0f] p-1.5 rounded-xl border-2 border-white/20">
-          {[
-            { key: "black", val: "#000000", hex: "bg-black" },
-            { key: "blue", val: "#1d4ed8", hex: "bg-blue-600" },
-            { key: "red", val: "#b91c1c", hex: "bg-red-600" },
-          ].map((c) => (
+        <div className="flex items-center gap-2" role="radiogroup" aria-label={t("pad.ink")}>
+          {INKS.map((ink) => (
             <button
-              key={c.val}
+              key={ink.value}
               type="button"
-              onClick={() => setColor(c.val)}
-              className={`w-6 h-6 rounded-lg ${c.hex} border-2 transition-all ${
-                color === c.val ? "scale-110 border-white ring-2 ring-yellow-400" : "border-black/50 opacity-70"
-              }`}
-              title={t(`pad.color.${c.key}`)}
-              aria-label={t(`pad.color.${c.key}`)}
+              role="radio"
+              aria-checked={color === ink.value}
+              onClick={() => setColor(ink.value)}
+              className={LIGHT.swatch(color === ink.value)}
+              style={{ background: ink.value }}
+              title={t(`pad.color.${ink.key}`)}
+              aria-label={t(`pad.color.${ink.key}`)}
             />
           ))}
         </div>
-
-        <select
-          value={selectedFont}
-          onChange={(e) => setSelectedFont(e.target.value)}
-          className="bg-[#090a0f] border-2 border-white/20 text-white text-xs font-black uppercase tracking-wider rounded-xl px-3 py-2 focus:outline-none focus:border-yellow-400"
-        >
-          {CURSIVE_FONTS.map((f) => (
-            <option key={f.name} value={f.font}>
-              {f.name}
-            </option>
-          ))}
-        </select>
       </div>
 
-      {/* Signature Preview */}
-      <div className="border-2 border-black rounded-2xl p-4 bg-white min-h-[110px] flex items-center justify-center shadow-[4px_4px_0px_0px_#000] overflow-hidden">
-        {typedName.trim() ? (
-          <span
-            style={{
-              fontFamily: selectedFont,
-              color,
-              fontSize: "42px",
-              lineHeight: 1.2,
-            }}
-            className="select-none text-center"
-          >
-            {typedName}
-          </span>
-        ) : (
-          <span className="text-xs text-gray-400 italic font-medium">{t("typed.preview")}</span>
-        )}
+      {/* Each typeface, showing the name as it will look */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label={t("typed.style")}>
+        {CURSIVE_FONTS.map((option) => {
+          const active = option.name === font.name;
+          return (
+            <button
+              key={option.name}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              aria-label={option.name}
+              onClick={() => setFont(option)}
+              className={`min-h-[64px] px-3 rounded-xl border-2 border-black bg-white flex items-center justify-center overflow-hidden transition-all ${
+                active ? "ring-4 ring-yellow-300 shadow-[3px_3px_0px_0px_#000]" : "opacity-80 hover:opacity-100"
+              }`}
+            >
+              <span
+                className="truncate max-w-full leading-tight"
+                style={{ fontFamily: `"${option.name}", cursive`, fontWeight: option.weight, color, fontSize: typedName.length > 22 ? 22 : 30 }}
+              >
+                {typedName.trim() || t("typed.preview")}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      <button
-        type="button"
-        onClick={handleConfirm}
-        disabled={!typedName.trim()}
-        className="w-full py-3 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white font-black uppercase tracking-wider rounded-xl text-xs transition-all shadow-[3px_3px_0px_0px_#facc15] border-2 border-black hover:-translate-x-0.5 hover:-translate-y-0.5"
-      >
+      <button type="button" onClick={generate} disabled={!typedName.trim() || busy} className={`${LIGHT.primary} w-full`}>
         {t("typed.use")}
       </button>
     </div>
   );
 }
-

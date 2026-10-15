@@ -104,8 +104,9 @@ export const moveTo = (sub, planId, askedSeats, now = new Date()) => {
     creditDays,
     startsOn,
     paidUntil,
-    // A plan that renews is never left renewing beside the one that takes its place
-    replaces: renewsNow(sub) && change !== "same" ? sub.razorpaySubscriptionId || null : null,
+    // A plan that renews is never left renewing beside the one that takes its place; nor is one
+    // whose payment failed, when the customer pays for the plan again
+    replaces: renewsNow(sub) && (change !== "same" || sub.status === "past_due") ? sub.razorpaySubscriptionId || null : null,
     // A cheaper plan waits for the paid time to end, which only a subscription can do
     ways: [ways.subscription && "auto", ways.prepaid && change !== "downgrade" && "once"].filter(Boolean),
   };

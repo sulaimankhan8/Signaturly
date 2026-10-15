@@ -6,6 +6,8 @@ import {
   getWorkspaceDetails,
   inviteToWorkspace,
   revokeInvitation,
+  resendInvitation,
+  remindTwoFactor,
   describeInvitation,
   acceptInvitation,
   changeMemberRole,
@@ -39,7 +41,17 @@ export const revokeInvitationController = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse({}, "Invitation withdrawn"));
 });
 
-// Open to anyone holding the link: it shows only the workspace's name and the invited address
+export const resendInvitationController = asyncHandler(async (req, res) => {
+  const invitation = await resendInvitation({ workspaceId: req.params.id, invitationId: req.params.invitationId, user: req.user });
+  res.status(200).json(new ApiResponse(invitation, `Invitation sent again to ${invitation.email}`));
+});
+
+export const remindTwoFactorController = asyncHandler(async (req, res) => {
+  const result = await remindTwoFactor({ workspaceId: req.params.id, memberId: req.params.memberId, user: req.user });
+  res.status(200).json(new ApiResponse(result, `Reminder sent to ${result.email}`));
+});
+
+// Open to anyone holding the link: it shows the workspace's name and look, who invited whom, and until when
 export const describeInvitationController = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(await describeInvitation(req.params.token), "Invitation"));
 });

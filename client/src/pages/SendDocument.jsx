@@ -1,586 +1,404 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { RECIPIENT_PALETTE } from "../utils/constants";
-import API from "../api/axios";
-import { fetchUserSubscription } from "../api/billing.api";
-import { fetchEsignAvailabilityForSenderApi } from "../api/send.api";
-import { UpgradeModal } from "../components/UpgradeModal";
-import Navbar from "../components/Navbar";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useCurrentUser } from "../hooks/useCurrentUser";
 import toast, { Toaster } from "react-hot-toast";
+import Navbar from "../components/Navbar";
+import { fetchDocumentForEditingApi, saveDraftApi } from "../api/pdf.api";
+import { fetchUserProfileApi } from "../api/user.api";
+import { fetchEsignAvailabilityForSenderApi, fetchRecentRecipientsApi } from "../api/send.api";
+import { useAutosave, saveStatusText } from "../components/editor/useAutosave";
+import { BTN, PANEL, INPUT, LABEL, EYEBROW, ICONS } from "../components/billing/theme";
+import { newRecipient, passcodeFor, rememberPasscode, sendSteps } from "../utils/sendFlow";
+import { RECIPIENT_PALETTE } from "../utils/constants";
 
+/**
+ * Step 1 of sending: who receives the document, in what order, how they are reached and how
+ * they prove who they are. Saved as a draft as the sender types.
+ */
 export default function SendDocument() {
   const { pdfId } = useParams();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const user = useCurrentUser();
 
-  const [docMeta, setDocMeta] = useState(null);
-  const [subData, setSubData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [doc, setDoc] = useState(null);
+  const [kept, setKept] = useState({ mode: "send", fields: [], settings: {} });
+  const [recipients, setRecipients] = useState([]);
   const [signingOrder, setSigningOrder] = useState(false);
-  const [emailSubject, setEmailSubject] = useState("");
-  const [message, setMessage] = useState("");
-  const [reminderCadence, setReminderCadence] = useState("none");
-  const [expiresAt, setExpiresAt] = useState("");
-  const [savedContacts, setSavedContacts] = useState([]);
-  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
-  const [upgradeReason, setUpgradeReason] = useState("");
+  const [loaded, setLoaded] = useState(false);
+  // The list was made here rather than read from the draft, so it still needs saving
+  const [madeHere, setMadeHere] = useState(false);
+  const [esign, setEsign] = useState({ available: false, pricePaise: 0 });
+  const [passcodes, setPasscodes] = useState({});
+  // People sent to before, offered as the sender types a name or address
+  const [recent, setRecent] = useState([]);
 
-  // On a paid plan, whichever one. The server says what level the account's plan is, so a
-  // plan added or renamed in the admin app counts without being listed here.
-  const isProOrAbove = Boolean(subData?.entitlements?.tier && subData.entitlements.tier !== "free");
-
-  const [recipients, setRecipients] = useState([
-    {
-      id: crypto.randomUUID(),
-      name: "",
-      email: "",
-      role: "signer",
-      color: RECIPIENT_PALETTE[0].color,
-      authType: "none",
-      passcode: "",
-    },
-  ]);
+  const me = useMemo(() => ({ name: user?.name || "", email: (user?.email || "").toLowerCase() }), [user?.name, user?.email]);
+  const includesMe = recipients.some((r) => r.email.trim().toLowerCase() === me.email && me.email);
 
   useEffect(() => {
-    // Load saved contacts from localStorage
-    try {
-      const stored = localStorage.getItem("pactdoc_saved_contacts");
-      if (stored) {
-        setSavedContacts(JSON.parse(stored));
-      }
-    } catch (e) {}
+    let current = true;
+    fetchEsignAvailabilityForSenderApi().then((value) => current && value && setEsign(value)).catch(() => {});
+    fetchRecentRecipientsApi().then((people) => current && setRecent(people)).catch(() => {});
 
-    // Aadhaar eSign is offered as a way to sign only where a provider is connected
-    fetchEsignAvailabilityForSenderApi().then(setEsign).catch(() => {});
+    // "Me & others" from the upload page, or fields the sender placed for themselves first.
+    // Opened from a link or after a reload, the sender's own name is fetched with the document.
+    const wantsMe = params.get("me") === "1" || params.get("from") === "self";
+    Promise.all([fetchDocumentForEditingApi(pdfId), wantsMe && !me.email ? fetchUserProfileApi().catch(() => null) : null])
+      .then(([data, profile]) => {
+        if (!current) return;
+        const self = me.email ? me : { name: profile?.name || "", email: (profile?.email || "").toLowerCase() };
+        if (data.sent) {
+          toast.error("This document has already been sent.");
+          navigate("/dashboard");
+          return;
+        }
+        setDoc(data);
+        const draft = data.draft || {};
+        setKept({ fields: draft.fields || [], settings: draft.settings || {} });
+        setSigningOrder(Boolean(draft.settings?.signingOrder));
 
-    const fetchDoc = async () => {
-      try {
-        const [docRes, sub] = await Promise.all([
-          API.get(`/pdf/${pdfId}`),
-          fetchUserSubscription().catch(() => null),
-        ]);
-        setDocMeta(docRes.data.data);
-        setSubData(sub);
-      } catch (err) {
-        console.error("Error fetching PDF meta:", err);
-        toast.error("Failed to load document details");
-      } finally {
-        setIsLoading(false);
-      }
+        let list = draft.recipients?.length ? draft.recipients : [];
+        const fromDraft = list.length;
+        if (wantsMe && self.email && !list.some((r) => (r.email || "").toLowerCase() === self.email)) {
+          list = [newRecipient(0, { name: self.name, email: self.email, isSender: true }), ...list];
+        }
+        if (list.length === 0) list = [newRecipient(0)];
+        setMadeHere(list.length !== fromDraft);
+        setRecipients(list.map((r, i) => ({ ...newRecipient(i), ...r })));
+        setPasscodes(Object.fromEntries(list.map((r) => [r.id, passcodeFor(pdfId, r.id)])));
+        setLoaded(true);
+      })
+      .catch((error) => {
+        if (error.response?.status === 401) navigate("/login");
+        else toast.error("The document could not be opened. Please try again.");
+      });
+
+    return () => {
+      current = false;
     };
-    fetchDoc();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pdfId]);
 
-  // Whether Aadhaar eSign can be chosen, and what one signature costs in paise
-  const [esign, setEsign] = useState({ available: false, pricePaise: 0 });
+  const save = useCallback((value) => saveDraftApi(pdfId, value), [pdfId]);
+  const draft = useMemo(
+    () => ({ mode: "send", fields: kept.fields, recipients, settings: { ...kept.settings, signingOrder } }),
+    [kept, recipients, signingOrder]
+  );
+  const autosave = useAutosave(save, draft, { enabled: loaded, unsavedOnLoad: madeHere });
 
-  const addRecipient = () => {
-    const nextColorIdx = recipients.length % RECIPIENT_PALETTE.length;
-    setRecipients((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        name: "",
-        email: "",
-        role: "signer",
-        color: RECIPIENT_PALETTE[nextColorIdx].color,
-        authType: "none",
-        passcode: "",
-      },
-    ]);
-  };
+  const update = (id, changes) => setRecipients((list) => list.map((r) => (r.id === id ? { ...r, ...changes } : r)));
 
-  const updateRecipient = (id, updates) => {
-    setRecipients((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...updates } : r))
+  const suggest = (id, key, value) => {
+    const match = recent.find((p) => (key === "name" ? p.name === value : (p.email || "").toLowerCase() === value.trim().toLowerCase()));
+    setRecipients((list) =>
+      list.map((r) => {
+        if (r.id !== id) return r;
+        const next = { ...r, [key]: value };
+        if (match) {
+          if (!r.name.trim() || key === "name") next.name = match.name;
+          if (!r.email.trim() || key === "email") next.email = match.email || r.email;
+          if (!(r.phone || "").trim() && match.phone) next.phone = match.phone;
+        }
+        return next;
+      })
     );
   };
 
-  const selectSavedContact = (id, contact) => {
-    updateRecipient(id, { name: contact.name, email: contact.email });
-    toast.success(`Loaded contact: ${contact.name}`);
-  };
+  const add = (extra = {}) => setRecipients((list) => [...list, newRecipient(list.length, extra)]);
 
-  const removeRecipient = (id) => {
+  const remove = (id) => {
     if (recipients.length <= 1) {
-      toast.error("At least one recipient is required");
+      toast.error("At least one recipient is needed.");
       return;
     }
-    setRecipients((prev) => prev.filter((r) => r.id !== id));
+    const placed = kept.fields.filter((f) => f.recipientId === id).length;
+    if (placed > 0 && !window.confirm(`Remove this recipient and the ${placed} field${placed === 1 ? "" : "s"} placed for them?`)) return;
+    setRecipients((list) => list.filter((r) => r.id !== id));
+    setKept((k) => ({ ...k, fields: k.fields.filter((f) => f.recipientId !== id) }));
   };
 
-  const moveRecipient = (index, direction) => {
-    const newIdx = index + direction;
-    if (newIdx < 0 || newIdx >= recipients.length) return;
-    const copy = [...recipients];
-    const item = copy.splice(index, 1)[0];
-    copy.splice(newIdx, 0, item);
-    setRecipients(copy);
+  const move = (index, direction) => {
+    const target = index + direction;
+    if (target < 0 || target >= recipients.length) return;
+    setRecipients((list) => {
+      const copy = [...list];
+      const [item] = copy.splice(index, 1);
+      copy.splice(target, 0, item);
+      return copy;
+    });
   };
 
-  const proceedToFieldAssignment = () => {
-    // Validate recipients
-    const contactsToSave = [...savedContacts];
-
+  const next = async () => {
     for (let i = 0; i < recipients.length; i++) {
       const r = recipients[i];
+      const label = r.name.trim() || `Recipient ${i + 1}`;
       if (!r.name.trim()) {
-        toast.error(`Please provide a name for Recipient #${i + 1}`);
+        toast.error(`Enter a name for recipient ${i + 1}.`);
         return;
       }
       const byPhone = r.channel === "sms" || r.channel === "whatsapp";
       if (byPhone && !(r.phone || "").trim()) {
-        toast.error(`Please provide a mobile number for Recipient #${i + 1}`);
+        toast.error(`Enter a mobile number for ${label}.`);
         return;
       }
-      if (!byPhone && (!r.email.trim() || !r.email.includes("@"))) {
-        toast.error(`Please provide a valid email for Recipient #${i + 1}`);
+      if (!byPhone && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email.trim())) {
+        toast.error(`Enter a valid email address for ${label}.`);
         return;
       }
-      if (r.authType === "passcode" && !r.passcode?.trim()) {
-        toast.error(`Please provide an access passcode for Recipient #${i + 1}`);
+      if (r.authType === "passcode" && (passcodes[r.id] || "").trim().length < 4) {
+        toast.error(`Set a passcode of at least 4 characters for ${label}.`);
         return;
-      }
-
-      // Add to contact cache if not existing
-      const cleanEmail = r.email.trim().toLowerCase();
-      if (cleanEmail && !contactsToSave.some((c) => c.email.toLowerCase() === cleanEmail)) {
-        contactsToSave.push({ name: r.name.trim(), email: cleanEmail });
       }
     }
-
+    if (!recipients.some((r) => r.role !== "viewer")) {
+      toast.error("Someone needs to sign or approve the document.");
+      return;
+    }
+    for (const r of recipients) rememberPasscode(pdfId, r.id, r.authType === "passcode" ? passcodes[r.id] : "");
     try {
-      localStorage.setItem("pactdoc_saved_contacts", JSON.stringify(contactsToSave.slice(-25)));
-    } catch (e) {}
-
-    // Pass configuration to AssignFields stage
-    navigate(`/assign/${pdfId}`, {
-      state: {
-        recipients: recipients.map((r, idx) => ({
-          ...r,
-          signingOrder: idx + 1,
-        })),
-        signingOrder,
-        emailSubject,
-        message,
-        reminderCadence,
-        expiresAt,
-      },
-    });
+      await autosave.flush();
+    } catch {
+      toast.error("Your changes could not be saved. Check your connection and try again.");
+      return;
+    }
+    navigate(`/assign/${pdfId}`);
   };
 
-  if (isLoading) {
+  if (!doc) {
     return (
       <div className="min-h-screen bg-[#08090d] flex items-center justify-center">
         <Toaster position="top-right" />
-        <div className="w-10 h-10 border-4 border-white/10 border-t-red-600 rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-white/10 border-t-red-600 rounded-full animate-spin" role="status" aria-label="Loading" />
       </div>
     );
   }
 
+  const steps = sendSteps(pdfId, (to) => autosave.flush().catch(() => {}).then(() => navigate(to)), 1, { canReview: false });
+
   return (
-    <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans selection:bg-red-600 selection:text-white">
+    <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans">
       <Toaster position="top-right" />
       <Navbar />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
-          <div>
-            <div className="flex items-center space-x-2 text-xs text-red-400 font-bold uppercase tracking-wider mb-1">
-              <span>Step 1 of 2</span>
-              <span>&bull;</span>
-              <span>Workflow Setup</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-display font-extrabold text-white">
-              Add Recipients &amp; Configure Flow
-            </h1>
-            <p className="text-gray-400 text-xs mt-1">
-              Document: <span className="text-white font-semibold">{docMeta?.originalFileName}</span> ({docMeta?.pageCount} pages)
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div className="min-w-0">
+            <ol className="flex items-center gap-1 text-[11px] font-black uppercase tracking-wider mb-3" aria-label="Steps">
+              {steps.map((step, index) => (
+                <li key={step.label} className="flex items-center gap-1">
+                  {index > 0 && <span className="w-4 h-0.5 bg-white/20" aria-hidden="true" />}
+                  <button
+                    type="button"
+                    disabled={!step.onClick}
+                    onClick={step.onClick}
+                    aria-current={step.active ? "step" : undefined}
+                    className={`px-2.5 py-1.5 rounded-lg border-2 ${step.active ? "bg-yellow-400 text-black border-black" : "border-white/10 text-gray-400"}`}
+                  >
+                    {index + 1}. {step.label}
+                  </button>
+                </li>
+              ))}
+            </ol>
+            <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-white">Who receives it</h1>
+            <p className="text-gray-400 text-xs mt-1 truncate">
+              {doc.originalFileName} · {doc.pageCount} page{doc.pageCount === 1 ? "" : "s"}
+              <span className="ml-2 text-gray-500" role="status">
+                {saveStatusText(autosave.status)}
+              </span>
             </p>
           </div>
-
-          <button
-            onClick={proceedToFieldAssignment}
-            className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-950/50 border border-red-500/30 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer"
-          >
-            <span>Next: Place Form Fields</span>
-            <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+          <button type="button" onClick={next} className={BTN.primary}>
+            Next: Place Form Fields
+            <ICONS.arrow className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Recipients Card */}
-        <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+        <section className={`${PANEL} p-5 sm:p-6 space-y-5`} aria-labelledby="recipients-heading">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-display font-bold text-white">Document Signers</h2>
-              <p className="text-gray-400 text-xs mt-0.5">Specify who needs to sign or review this agreement.</p>
+              <h2 id="recipients-heading" className="text-base font-black uppercase tracking-tight text-white">
+                Recipients
+              </h2>
+              <p className="text-gray-400 text-xs mt-0.5">Signers sign; approvers approve without a signature; viewers get a copy.</p>
             </div>
-
-            <label className="flex items-center space-x-2 cursor-pointer bg-white/5 px-3 py-1.5 rounded-xl border border-white/10 select-none">
-              <input
-                type="checkbox"
-                checked={signingOrder}
-                onChange={(e) => setSigningOrder(e.target.checked)}
-                className="accent-red-600 rounded"
-              />
-              <span className="text-xs font-semibold text-gray-200">Enforce Sequential Order</span>
+            <label className="flex items-center gap-2.5 cursor-pointer select-none bg-[#090a0f] border-2 border-white/20 rounded-xl px-3 min-h-[44px]">
+              <input type="checkbox" checked={signingOrder} onChange={(e) => setSigningOrder(e.target.checked)} className="w-4 h-4 accent-red-600" />
+              <span className="text-xs font-black uppercase tracking-wider text-white">Sign in this order</span>
             </label>
           </div>
 
-          {/* Recipient Rows */}
-          <div className="space-y-4">
-            {recipients.map((recipient, index) => (
-              <div
-                key={recipient.id}
-                className="bg-[#08090d] border border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 transition-all hover:border-white/20"
-                style={{ borderLeftColor: recipient.color, borderLeftWidth: "4px" }}
-              >
-                {/* Index / Reorder handle */}
-                <div className="flex items-center space-x-2">
-                  <div
-                    className="w-7 h-7 rounded-lg text-white font-bold text-xs flex items-center justify-center shadow"
-                    style={{ backgroundColor: recipient.color }}
-                  >
-                    #{index + 1}
-                  </div>
-
-                  {signingOrder && (
-                    <div className="flex flex-col">
-                      <button
-                        type="button"
-                        disabled={index === 0}
-                        onClick={() => moveRecipient(index, -1)}
-                        className="text-gray-500 hover:text-white disabled:opacity-20 p-0.5"
-                      >
-                        ▲
-                      </button>
-                      <button
-                        type="button"
-                        disabled={index === recipients.length - 1}
-                        onClick={() => moveRecipient(index, 1)}
-                        className="text-gray-500 hover:text-white disabled:opacity-20 p-0.5"
-                      >
-                        ▼
-                      </button>
+          <ol className="space-y-4">
+            {recipients.map((r, index) => {
+              const byPhone = r.channel === "sms" || r.channel === "whatsapp";
+              const isMe = me.email && r.email.trim().toLowerCase() === me.email;
+              return (
+                <li key={r.id} className="bg-[#090a0f] border-2 border-white/15 rounded-2xl p-4 shadow-[3px_3px_0px_0px_#000]" style={{ borderLeftColor: r.color, borderLeftWidth: 6 }}>
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-8 h-8 rounded-lg border-2 border-black text-black font-black text-xs flex items-center justify-center" style={{ background: r.color }}>
+                        {signingOrder ? index + 1 : "•"}
+                      </span>
+                      <span className="text-xs font-black uppercase tracking-wider text-white">
+                        {r.name.trim() || `Recipient ${index + 1}`}
+                        {isMe && <span className="ml-2 px-1.5 py-0.5 rounded bg-yellow-400 text-black text-[10px]">You</span>}
+                      </span>
                     </div>
-                  )}
-                </div>
+                    <div className="flex items-center gap-1">
+                      {signingOrder && (
+                        <>
+                          <button type="button" className={BTN.small} disabled={index === 0} onClick={() => move(index, -1)} aria-label={`Move ${r.name || "recipient"} earlier`}>
+                            ↑
+                          </button>
+                          <button type="button" className={BTN.small} disabled={index === recipients.length - 1} onClick={() => move(index, 1)} aria-label={`Move ${r.name || "recipient"} later`}>
+                            ↓
+                          </button>
+                        </>
+                      )}
+                      {recipients.length > 1 && (
+                        <button type="button" className={`${BTN.small} hover:bg-red-600`} onClick={() => remove(r.id)} aria-label={`Remove ${r.name || "recipient"}`}>
+                          <ICONS.close className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
-                {/* Name */}
-                <div className="flex-1 w-full sm:w-auto">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[10px] uppercase font-bold text-gray-400">
-                      Signer Name
-                    </label>
-                    {savedContacts.length > 0 && (
-                      <select
-                        className="text-[10px] bg-transparent text-red-400 font-bold focus:outline-none cursor-pointer"
-                        onChange={(e) => {
-                          const contact = savedContacts.find((c) => c.email === e.target.value);
-                          if (contact) selectSavedContact(recipient.id, contact);
-                        }}
-                        defaultValue=""
-                      >
-                        <option value="" disabled>Saved Contacts ▾</option>
-                        {savedContacts.map((c) => (
-                          <option key={c.email} value={c.email} className="bg-[#12141c] text-white">
-                            {c.name} ({c.email})
-                          </option>
-                        ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div>
+                      <label className={LABEL} htmlFor={`name-${r.id}`}>
+                        Name
+                      </label>
+                      <input id={`name-${r.id}`} className={INPUT} placeholder="e.g. John Doe" autoComplete="off" list="recent-names" value={r.name} onChange={(e) => suggest(r.id, "name", e.target.value)} />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor={`email-${r.id}`}>
+                        Email {byPhone ? "(optional)" : ""}
+                      </label>
+                      <input id={`email-${r.id}`} type="email" className={INPUT} placeholder="john@company.com" autoComplete="off" list="recent-emails" value={r.email} onChange={(e) => suggest(r.id, "email", e.target.value)} />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor={`phone-${r.id}`}>
+                        Mobile {byPhone ? "" : "(optional)"}
+                      </label>
+                      <input id={`phone-${r.id}`} type="tel" inputMode="tel" className={INPUT} placeholder="+91 98765 43210" value={r.phone || ""} onChange={(e) => update(r.id, { phone: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor={`role-${r.id}`}>
+                        Role
+                      </label>
+                      <select id={`role-${r.id}`} className={INPUT} value={r.role} onChange={(e) => update(r.id, { role: e.target.value })}>
+                        <option value="signer">Signer</option>
+                        <option value="approver">Approver</option>
+                        <option value="viewer">Viewer (gets a copy)</option>
                       </select>
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor={`channel-${r.id}`}>
+                        Send by
+                      </label>
+                      <select id={`channel-${r.id}`} className={INPUT} value={r.channel || "email"} onChange={(e) => update(r.id, { channel: e.target.value })}>
+                        <option value="email">Email</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="sms">SMS</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor={`language-${r.id}`}>
+                        Their language
+                      </label>
+                      <select id={`language-${r.id}`} className={INPUT} value={r.language || "en"} onChange={(e) => update(r.id, { language: e.target.value })}>
+                        <option value="en">English</option>
+                        <option value="hi">हिन्दी</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={LABEL} htmlFor={`auth-${r.id}`}>
+                        Identity check
+                      </label>
+                      <select id={`auth-${r.id}`} className={INPUT} value={r.authType || "none"} onChange={(e) => update(r.id, { authType: e.target.value })}>
+                        <option value="none">The link only</option>
+                        <option value="otp">One-time code</option>
+                        <option value="passcode">A passcode you give them</option>
+                      </select>
+                    </div>
+                    {r.authType === "passcode" && (
+                      <div>
+                        <label className={LABEL} htmlFor={`passcode-${r.id}`}>
+                          Passcode
+                        </label>
+                        <input
+                          id={`passcode-${r.id}`}
+                          type="password"
+                          autoComplete="new-password"
+                          className={INPUT}
+                          placeholder="At least 4 characters"
+                          value={passcodes[r.id] || ""}
+                          onChange={(e) => setPasscodes((all) => ({ ...all, [r.id]: e.target.value }))}
+                        />
+                        <p className="text-[11px] text-gray-500 mt-1">Tell them separately. It is not saved with the draft.</p>
+                      </div>
+                    )}
+                    {esign.available && r.role === "signer" && (
+                      <div>
+                        <label className={LABEL} htmlFor={`esign-${r.id}`}>
+                          Signs with
+                        </label>
+                        <select
+                          id={`esign-${r.id}`}
+                          className={INPUT}
+                          value={r.signatureType || "electronic"}
+                          onChange={(e) => update(r.id, { signatureType: e.target.value })}
+                          title="Aadhaar eSign signers sign last, one at a time, and each signature is paid for from the wallet"
+                        >
+                          <option value="electronic">Drawn or typed signature</option>
+                          <option value="aadhaar">Aadhaar eSign (₹{(esign.pricePaise / 100).toFixed(0)} from wallet)</option>
+                        </select>
+                      </div>
                     )}
                   </div>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. John Doe"
-                    value={recipient.name}
-                    onChange={(e) => updateRecipient(recipient.id, { name: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#12141c] border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-red-500"
-                  />
-                </div>
+                </li>
+              );
+            })}
+          </ol>
 
-                {/* Email */}
-                <div className="flex-1 w-full sm:w-auto">
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    required={!recipient.channel || recipient.channel === "email"}
-                    placeholder="john@company.com"
-                    value={recipient.email}
-                    onChange={(e) => updateRecipient(recipient.id, { email: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#12141c] border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-red-500"
-                  />
-                </div>
-
-                {/* Mobile number: needed to send by SMS or WhatsApp */}
-                <div className="w-full sm:w-40">
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
-                    Mobile (optional)
-                  </label>
-                  <input
-                    type="tel"
-                    inputMode="tel"
-                    placeholder="+91 98765 43210"
-                    value={recipient.phone || ""}
-                    onChange={(e) => updateRecipient(recipient.id, { phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#12141c] border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-red-500"
-                  />
-                </div>
-
-                {/* How the signing link reaches this person */}
-                <div className="w-full sm:w-32">
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
-                    Send by
-                  </label>
-                  <select
-                    value={recipient.channel || "email"}
-                    onChange={(e) => updateRecipient(recipient.id, { channel: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#12141c] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-red-500"
-                  >
-                    <option value="email">Email</option>
-                    <option value="whatsapp">WhatsApp</option>
-                    <option value="sms">SMS</option>
-                  </select>
-                </div>
-
-                {/* Language of the emails, messages and signing page this person sees */}
-                <div className="w-full sm:w-28">
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
-                    Language
-                  </label>
-                  <select
-                    value={recipient.language || "en"}
-                    onChange={(e) => updateRecipient(recipient.id, { language: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#12141c] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-red-500"
-                  >
-                    <option value="en">English</option>
-                    <option value="hi">हिन्दी</option>
-                  </select>
-                </div>
-
-                {/* Role */}
-                <div className="w-full sm:w-28">
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
-                    Role
-                  </label>
-                  <select
-                    value={recipient.role}
-                    onChange={(e) => updateRecipient(recipient.id, { role: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#12141c] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-red-500"
-                  >
-                    <option value="signer">Signer</option>
-                    <option value="viewer">Viewer</option>
-                    <option value="approver">Approver</option>
-                  </select>
-                </div>
-
-                {/* Authentication Security Tier */}
-                <div className="w-full sm:w-44">
-                  <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1 flex items-center justify-between">
-                    <span>Security</span>
-                    {recipient.authType !== "none" && (
-                      <span className="text-[9px] text-red-400 font-bold uppercase tracking-wider">2FA</span>
-                    )}
-                  </label>
-                  <select
-                    value={recipient.authType || "none"}
-                    onChange={(e) => updateRecipient(recipient.id, { authType: e.target.value })}
-                    className={`w-full px-3 py-2 bg-[#12141c] border rounded-xl text-white text-xs focus:outline-none ${
-                      recipient.authType !== "none" ? "border-red-500/50 bg-red-950/20" : "border-white/10 focus:border-red-500"
-                    }`}
-                  >
-                    <option value="none">Standard (Direct Secure Link)</option>
-                    <option value="otp">Email OTP (6-Digit Verification)</option>
-                    <option value="passcode">Access Passcode Required</option>
-                  </select>
-                </div>
-
-                {/* How this person signs, where Aadhaar eSign is available */}
-                {esign.available && recipient.role === "signer" && (
-                  <div className="w-full sm:w-44">
-                    <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">Signs with</label>
-                    <select
-                      value={recipient.signatureType || "electronic"}
-                      onChange={(e) => updateRecipient(recipient.id, { signatureType: e.target.value })}
-                      className="w-full px-3 py-2 bg-[#12141c] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-red-500"
-                      title="Aadhaar eSign signers sign last, one at a time, and each signature is paid for from the wallet"
-                    >
-                      <option value="electronic">Drawn or typed signature</option>
-                      <option value="aadhaar">Aadhaar eSign (₹{(esign.pricePaise / 100).toFixed(0)} from wallet)</option>
-                    </select>
-                  </div>
-                )}
-
-                {/* Conditional Passcode Input */}
-                {recipient.authType === "passcode" && (
-                  <div className="w-full sm:w-36">
-                    <label className="block text-[10px] uppercase font-bold text-red-400 mb-1">
-                      Set Passcode
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. 123456"
-                      value={recipient.passcode || ""}
-                      onChange={(e) => updateRecipient(recipient.id, { passcode: e.target.value })}
-                      className="w-full px-3 py-2 bg-[#12141c] border border-red-500/40 rounded-xl text-white text-xs focus:outline-none focus:border-red-500 font-mono"
-                    />
-                  </div>
-                )}
-
-                {/* Remove */}
-                {recipients.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeRecipient(recipient.id)}
-                    className="self-end sm:self-center p-2 text-gray-500 hover:text-red-400 hover:bg-white/5 rounded-xl transition-colors"
-                    title="Remove Recipient"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                )}
-              </div>
+          <datalist id="recent-names">
+            {recent.map((p) => (
+              <option key={`n-${p.email || p.phone}`} value={p.name}>
+                {p.email || p.phone}
+              </option>
             ))}
-          </div>
+          </datalist>
+          <datalist id="recent-emails">
+            {recent.filter((p) => p.email).map((p) => (
+              <option key={`e-${p.email}`} value={p.email}>
+                {p.name}
+              </option>
+            ))}
+          </datalist>
 
-          <button
-            type="button"
-            onClick={addRecipient}
-            className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-gray-300 hover:text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Add Another Signer</span>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button type="button" onClick={() => add()} className={`${BTN.secondary} flex-1`}>
+              <ICONS.plus className="w-4 h-4" /> Add a recipient
+            </button>
+            {!includesMe && me.email && (
+              <button type="button" onClick={() => add({ name: me.name, email: me.email, isSender: true, color: RECIPIENT_PALETTE[recipients.length % RECIPIENT_PALETTE.length].color })} className={`${BTN.yellow} flex-1`}>
+                <ICONS.plus className="w-4 h-4" /> Add me
+              </button>
+            )}
+          </div>
+        </section>
+
+        <div className="flex justify-between gap-3">
+          <button type="button" onClick={() => autosave.flush().catch(() => {}).then(() => navigate("/dashboard"))} className={BTN.ghost}>
+            <ICONS.back className="w-4 h-4" /> Documents
+          </button>
+          <button type="button" onClick={next} className={BTN.primary}>
+            Continue to fields
+            <ICONS.arrow className="w-4 h-4" />
           </button>
         </div>
-
-        {/* Message & Expiration Settings Card */}
-        <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-          <div className="flex items-center justify-between border-b border-white/10 pb-4">
-            <div>
-              <h2 className="text-base font-display font-bold text-white">Email &amp; Expiration Settings</h2>
-              <p className="text-gray-400 text-xs mt-0.5">Customize email delivery notes and automated reminder cadences.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            {/* Custom Email Subject */}
-            <div className="sm:col-span-2">
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-[10px] uppercase font-bold text-gray-400">
-                  Custom Email Subject Line (Optional)
-                </label>
-                {!isProOrAbove && (
-                  <span className="text-[9px] font-bold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/30">
-                    PRO FEATURE
-                  </span>
-                )}
-              </div>
-              <input
-                type="text"
-                placeholder={`e.g. [Urgent] Please review and sign: ${docMeta?.originalFileName || "Agreement"}`}
-                value={emailSubject}
-                onChange={(e) => {
-                  if (!isProOrAbove && e.target.value.length > 0) {
-                    setUpgradeReason("Custom branded email subject lines require the Pro plan.");
-                    setUpgradeModalOpen(true);
-                    return;
-                  }
-                  setEmailSubject(e.target.value);
-                }}
-                className="w-full px-3.5 py-2.5 bg-[#08090d] border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-red-500"
-              />
-            </div>
-
-            {/* Personal Invitation Note */}
-            <div className="sm:col-span-2">
-              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">
-                Personal Invitation Note (Included in Signer Email)
-              </label>
-              <textarea
-                rows={3}
-                placeholder="Please review and sign this agreement at your earliest convenience."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#08090d] border border-white/10 rounded-xl text-white text-xs placeholder-gray-500 focus:outline-none focus:border-red-500"
-              />
-            </div>
-
-            {/* Automated Email Reminders */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="block text-[10px] uppercase font-bold text-gray-400">
-                  Automated Email Reminders
-                </label>
-                {!isProOrAbove && (
-                  <span className="text-[9px] font-bold text-yellow-400 bg-yellow-400/10 px-2 py-0.5 rounded border border-yellow-400/30">
-                    PRO FEATURE
-                  </span>
-                )}
-              </div>
-              <select
-                value={reminderCadence}
-                onChange={(e) => {
-                  if (!isProOrAbove && e.target.value !== "none") {
-                    setUpgradeReason("Automated recurring email reminders to signers require the Pro plan.");
-                    setUpgradeModalOpen(true);
-                    return;
-                  }
-                  setReminderCadence(e.target.value);
-                }}
-                className="w-full px-3.5 py-2.5 bg-[#08090d] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-red-500"
-              >
-                <option value="none">No Automated Reminders (Standard)</option>
-                <option value="3days">Remind Every 3 Days (PRO)</option>
-                <option value="5days">Remind Every 5 Days (PRO)</option>
-                <option value="daily">Daily Reminders Until Signed (ENTERPRISE)</option>
-              </select>
-            </div>
-
-            {/* Expiration Date */}
-            <div>
-              <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1.5">
-                Expiration Date (Optional)
-              </label>
-              <input
-                type="date"
-                value={expiresAt}
-                onChange={(e) => setExpiresAt(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#08090d] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-red-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Footer Navigation */}
-        <div className="flex justify-end pt-4">
-          <button
-            onClick={proceedToFieldAssignment}
-            className="px-8 py-3.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white text-xs font-bold rounded-xl shadow-lg shadow-red-950/50 border border-red-500/30 transition-all hover:scale-105 cursor-pointer"
-          >
-            Proceed to Field Placement →
-          </button>
-        </div>
+        <p className={`${EYEBROW} text-gray-500 text-center`}>Email subject, message, reminders and the deadline are set on the review step.</p>
       </main>
-
-      {/* Upgrade Paywall Modal */}
-      <UpgradeModal
-        isOpen={upgradeModalOpen}
-        onClose={() => setUpgradeModalOpen(false)}
-        reason={upgradeReason}
-        onUpgraded={() => {
-          fetchUserSubscription().then(setSubData);
-          setUpgradeModalOpen(false);
-        }}
-      />
     </div>
   );
 }

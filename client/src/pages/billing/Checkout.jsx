@@ -10,8 +10,9 @@ import { standingOf, checkoutSetupFor, day, rankOf, stateName, GST_RATE_FALLBACK
 import { saveBillingProfileApi } from "../../api/billing.api";
 import { CheckoutChoices, OrderSummary, MoveNote } from "../../components/billing/CheckoutParts";
 import InvoiceDetailsFields from "../../components/billing/InvoiceDetailsFields";
-import { Note, Spinner } from "../../components/billing/ui";
+import { Note, Spinner, Assurances } from "../../components/billing/ui";
 import { BTN, PANEL, ICONS } from "../../components/billing/theme";
+import { CheckoutHeader } from "../../components/PaymentProgress";
 
 /**
  * Buying a plan, on a page of its own: /billing/checkout?plan=business_annual.
@@ -42,7 +43,7 @@ export default function Checkout() {
   if (!user) {
     body = waited ? (
       <div className="max-w-lg mx-auto text-center py-16">
-        <h1 className="font-display text-3xl font-bold text-white">Create an account to continue</h1>
+        <h1 className="text-3xl font-black uppercase tracking-tight text-white">Create an account to continue</h1>
         <p className="mt-2 text-gray-400">It takes a minute. You come straight back here to pay.</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link to={`/register?next=${encodeURIComponent(here)}`} className={BTN.primary}>
@@ -60,7 +61,7 @@ export default function Checkout() {
     body = (
       <Note tone="red" icon="alert" role="alert">
         Your account could not be loaded.{" "}
-        <button type="button" onClick={load} className="font-bold underline underline-offset-2">
+        <button type="button" onClick={load} className="font-black underline underline-offset-2">
           Try again
         </button>
       </Note>
@@ -72,52 +73,43 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0b10] text-gray-100 font-sans">
+    <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans selection:bg-red-600 selection:text-white">
       <Toaster position="top-right" />
-      <header className="border-b border-white/[0.07] bg-[#0c0d13]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-5">
-            <Link to="/dashboard" className="font-display text-[21px] font-bold tracking-tight text-white">
-              Pact<span className="text-rose-500">Doc</span>
-            </Link>
-            <span className="inline-flex items-center gap-1.5 text-[13px] text-gray-400">
-              <ICONS.lock className="w-3.5 h-3.5" /> Secure checkout
-            </span>
-          </div>
-          <Link to={user ? "/billing/plans" : "/pricing"} className="text-sm font-bold text-gray-300 hover:text-white">
-            ← Back to plans
-          </Link>
-        </div>
-      </header>
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-32 lg:pb-16">{body}</main>
+      <CheckoutHeader>
+        <Link to={user ? "/billing/plans" : "/pricing"} className="inline-flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-gray-300 hover:text-white">
+          <ICONS.back className="w-4 h-4" />
+          Back to plans
+        </Link>
+      </CheckoutHeader>
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-7 pb-32 lg:pb-14">{body}</main>
     </div>
   );
 }
 
 const Loading = () => (
   <div className="py-24 grid place-items-center" role="status" aria-label="Loading checkout">
-    <Spinner className="w-9 h-9" colour="#f43f5e" />
+    <Spinner className="w-10 h-10" />
   </div>
 );
 
 const Steps = () => (
-  <ol aria-label="Progress" className="flex flex-wrap items-center gap-2 text-[13px] text-gray-400">
-    <li className="inline-flex items-center gap-1.5">
-      <span className="w-5 h-5 grid place-items-center rounded-full bg-emerald-400 text-[#04130d] text-[11px] font-bold" aria-hidden="true">
-        ✓
+  <ol aria-label="Progress" className="flex flex-wrap items-center gap-2 text-[11px] font-black uppercase tracking-wider text-gray-500">
+    <li className="inline-flex items-center gap-2 text-gray-300">
+      <span className="w-6 h-6 grid place-items-center rounded-md border-2 border-black bg-emerald-500 text-black" aria-hidden="true">
+        <ICONS.check className="w-3.5 h-3.5" />
       </span>
       Choose plan
     </li>
-    <li className="w-7 h-px bg-white/20" aria-hidden="true" />
-    <li aria-current="step" className="inline-flex items-center gap-1.5 text-white font-bold">
-      <span className="w-5 h-5 grid place-items-center rounded-full bg-rose-600 text-white text-[11px] font-bold" aria-hidden="true">
+    <li className="w-8 h-0.5 bg-white/20" aria-hidden="true" />
+    <li aria-current="step" className="inline-flex items-center gap-2 text-white">
+      <span className="w-6 h-6 grid place-items-center rounded-md border-2 border-black bg-red-600 text-white text-xs shadow-[2px_2px_0px_0px_#facc15]" aria-hidden="true">
         2
       </span>
       Review &amp; pay
     </li>
-    <li className="w-7 h-px bg-white/20" aria-hidden="true" />
-    <li className="inline-flex items-center gap-1.5">
-      <span className="w-5 h-5 grid place-items-center rounded-full border border-white/25 text-[11px]" aria-hidden="true">
+    <li className="w-8 h-0.5 bg-white/20" aria-hidden="true" />
+    <li className="inline-flex items-center gap-2">
+      <span className="w-6 h-6 grid place-items-center rounded-md border-2 border-white/20 text-xs" aria-hidden="true">
         3
       </span>
       Done
@@ -157,7 +149,7 @@ function CheckoutFor({ planId, account, email, profile, setProfile }) {
   if (!record) {
     return (
       <div className="max-w-lg mx-auto text-center py-16">
-        <h1 className="font-display text-3xl font-bold text-white">That plan is not on sale</h1>
+        <h1 className="text-3xl font-black uppercase tracking-tight text-white">That plan is not on sale</h1>
         <p className="mt-2 text-gray-400">It may have changed since the link was made. Every plan on sale is on the plans page.</p>
         <Link to="/billing/plans" className={`${BTN.primary} mt-6`}>
           See plans
@@ -169,7 +161,7 @@ function CheckoutFor({ planId, account, email, profile, setProfile }) {
   if (setup.nothing) {
     return (
       <div className="max-w-lg mx-auto text-center py-16">
-        <h1 className="font-display text-3xl font-bold text-white">You are already on {record.name}</h1>
+        <h1 className="text-3xl font-black uppercase tracking-tight text-white">You are already on {record.name}</h1>
         <p className="mt-2 text-gray-400">It renews automatically on {day(mine.renewal.nextChargeOn)}. There is nothing to pay now.</p>
         <Link to="/billing" className={`${BTN.primary} mt-6`}>
           Go to Billing
@@ -218,14 +210,20 @@ function CheckoutFor({ planId, account, email, profile, setProfile }) {
   return (
     <div data-testid="plan-checkout">
       <Steps />
-      <h1 className="mt-5 font-display text-[34px] font-bold tracking-tight text-white">{title}</h1>
-      <p className="mt-1.5 text-gray-400">{quote.documents}. Prices include GST.</p>
+      <h1 className="mt-4 text-3xl sm:text-4xl font-black uppercase tracking-tight text-white">{title}</h1>
+      <p className="mt-1 text-sm font-medium text-gray-300">{quote.documents}. Prices include GST.</p>
 
-      <div className="mt-7 flex flex-wrap gap-7 items-start">
-        <div className="flex-[999_1_560px] min-w-0 grid gap-4">
+      <div className="mt-6 grid gap-7 lg:grid-cols-[minmax(0,1fr)_380px] items-start">
+        <div className="min-w-0 grid gap-5">
           {notice === "cancelled" && (
             <Note tone="gray" icon="info" role="status" testId="checkout-cancelled">
               <strong className="text-white">Payment not completed.</strong> Nothing was charged, and your choices are kept. Press pay to try again; in the Razorpay window you can also switch to UPI, another card or netbanking.
+            </Note>
+          )}
+
+          {setup.recovering && (
+            <Note tone="red" icon="alert" testId="checkout-recovering">
+              <strong className="text-white">Your automatic payment did not go through.</strong> Pay here to keep {plan.name}: with auto-renew you approve your UPI or card again and are charged today, or you pay for one {plan.interval}. Either takes the place of the payment that failed, so you are never charged twice.
             </Note>
           )}
 
@@ -241,11 +239,14 @@ function CheckoutFor({ planId, account, email, profile, setProfile }) {
 
           <section aria-labelledby="details-heading" className={`${PANEL} px-5 sm:px-6 py-5`}>
             <div className="flex items-center justify-between gap-3">
-              <h2 id="details-heading" className="text-base font-bold text-white">
+              <h2 id="details-heading" className="flex items-center gap-2.5 text-sm font-black uppercase tracking-wider text-white">
+                <span className="w-6 h-6 grid place-items-center rounded-md border-2 border-black bg-[#1e2235] text-gray-200" aria-hidden="true">
+                  <ICONS.receipt className="w-3.5 h-3.5" />
+                </span>
                 Invoice details
               </h2>
               {!editing && (
-                <button type="button" onClick={() => setEditing(true)} className={`${BTN.small} text-gray-300 hover:text-white hover:bg-white/5`}>
+                <button type="button" onClick={() => setEditing(true)} className={BTN.small}>
                   {hasDetails ? "Change" : "Add GST details"}
                 </button>
               )}
@@ -263,35 +264,28 @@ function CheckoutFor({ planId, account, email, profile, setProfile }) {
                 <p className="mt-3 text-[13px] text-gray-400">Saved when you pay, and printed on the tax invoice for this payment.</p>
               </div>
             ) : hasDetails ? (
-              <p className="mt-2 text-sm text-gray-300">
+              <p className="mt-2 text-sm font-bold text-gray-200">
                 {[shownProfile.legalName, shownProfile.gstin && `GSTIN ${shownProfile.gstin}`, stateName(shownProfile.gstin ? shownProfile.gstin.slice(0, 2) : shownProfile.stateCode)].filter(Boolean).join(" · ")}
               </p>
             ) : (
               <p className="mt-2 text-sm text-gray-400">Buying for a business? Add your GST number to claim input tax credit.</p>
             )}
-            <p className="mt-2 text-[13px] text-gray-400">Your tax invoice is emailed to {email || "you"} and kept under Billing › Invoices.</p>
+            <p className="mt-2 text-xs text-gray-400">Your tax invoice is emailed to {email || "you"} and kept under Billing › Invoices.</p>
           </section>
 
-          <ul className="flex flex-wrap gap-x-6 gap-y-2 px-1 text-[13px] text-gray-400">
-            {["Prices include GST", "No charge per signer", "Cancel auto-renew any time", "GST invoice for every payment"].map((fact) => (
-              <li key={fact} className="inline-flex items-center gap-1.5">
-                <ICONS.check className="w-3.5 h-3.5 text-emerald-400" />
-                {fact}
-              </li>
-            ))}
-          </ul>
+          <Assurances items={["Prices include GST", "No charge per signer", "Cancel auto-renew any time", "GST invoice for every payment"]} className="px-1" />
         </div>
 
-        <aside aria-label="Order summary" className="flex-[1_1_340px] min-w-0 lg:sticky lg:top-6">
+        <aside aria-label="Order summary" className="min-w-0 lg:sticky lg:top-24">
           <OrderSummary quote={quote} busy={busy} switching={setup.switching} onPay={pay} />
         </aside>
       </div>
 
       {/* On a phone the total and the button stay in view */}
-      <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#0c0d13]/95 backdrop-blur px-4 py-3 flex items-center gap-4">
+      <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t-2 border-white/20 bg-[#090a0f]/95 backdrop-blur px-4 py-3 flex items-center gap-4">
         <div className="min-w-0">
-          <p className="text-xs text-gray-400">Due today</p>
-          <p className="font-display text-xl font-bold text-white">{rupees(quote.today)}</p>
+          <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Due today</p>
+          <p className="text-xl font-black text-white tabular-nums">{rupees(quote.today)}</p>
         </div>
         <button type="button" onClick={pay} disabled={busy || !quote.ready || quote.available.length === 0} className={`${BTN.primary} flex-1`}>
           {payLabelOf(quote, { busy, switching: setup.switching })}

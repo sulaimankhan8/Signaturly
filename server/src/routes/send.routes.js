@@ -6,10 +6,13 @@ import {
   voidDocumentController,
   remindRecipientController,
   updateRecipientEmailController,
+  recentRecipientsController,
 } from "../controllers/send.controller.js";
 
 const router = Router();
 
+// Before the routes that take a document id, which would otherwise read this as one
+router.get("/recent-recipients", protect, recentRecipientsController);
 router.post("/:pdfId", protect, requireVerifiedEmail, sendDocumentController);
 router.get("/:pdfId", protect, getDocumentDetailsController);
 router.post("/:pdfId/void", protect, voidDocumentController);

@@ -1,46 +1,41 @@
-import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
-import { fetchWorkspacesApi } from "../api/workspace.api";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { loadWorkspaces } from "../store/workspaceActions";
 import { getActiveWorkspaceId, setActiveWorkspaceId } from "../utils/workspace";
 
 /**
  * Chooses which workspace the person is working in: their own documents or a team's.
  * Shown only to someone who belongs to more than one. Changing it reloads the page, so every
  * list on screen is read again for the workspace chosen.
+ *
+ * The list comes from the store, where it is remembered between pages and reloads
+ * (store/workspacesSlice.js), so the switcher is drawn with the navbar rather than popping in.
  */
 export default function WorkspaceSwitcher({ className = "" }) {
+  const dispatch = useDispatch();
   const signedIn = useSelector((state) => Boolean(state.auth.accessToken));
-  const [workspaces, setWorkspaces] = useState([]);
-  const [active, setActive] = useState(getActiveWorkspaceId());
+  const { list: workspaces, loaded } = useSelector((state) => state.workspaces);
 
   useEffect(() => {
-    if (!signedIn) return undefined;
-    let cancelled = false;
-    fetchWorkspacesApi()
-      .then((list) => {
-        if (cancelled || !Array.isArray(list)) return;
-        setWorkspaces(list);
-        // A remembered workspace the person has since left: go back to their own documents
-        const remembered = getActiveWorkspaceId();
-        if (remembered && !list.some((w) => String(w.id) === remembered)) {
-          setActiveWorkspaceId("");
-          setActive("");
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [signedIn]);
+    if (signedIn) dispatch(loadWorkspaces()).catch(() => {});
+  }, [signedIn, dispatch]);
 
-  if (!signedIn || workspaces.length < 2) return null;
+  // A remembered workspace the person has since left: go back to their own documents, as the
+  // server already does. Only once the list has been read again, not from what this device remembered.
+  useEffect(() => {
+    const remembered = getActiveWorkspaceId();
+    if (loaded && remembered && !workspaces.some((w) => w.id === remembered)) setActiveWorkspaceId("");
+  }, [loaded, workspaces]);
+
+  if (workspaces.length < 2) return null;
 
   const personal = workspaces.find((w) => w.personal);
-  const value = active && workspaces.some((w) => String(w.id) === active) ? active : String(personal?.id || "");
+  const active = getActiveWorkspaceId();
+  const value = active && workspaces.some((w) => w.id === active) ? active : personal?.id || "";
 
   const change = (event) => {
-    const chosen = workspaces.find((w) => String(w.id) === event.target.value);
-    setActiveWorkspaceId(chosen && !chosen.personal ? String(chosen.id) : "");
+    const chosen = workspaces.find((w) => w.id === event.target.value);
+    setActiveWorkspaceId(chosen && !chosen.personal ? chosen.id : "");
     window.location.reload();
   };
 
@@ -54,7 +49,7 @@ export default function WorkspaceSwitcher({ className = "" }) {
         className="max-w-[11rem] truncate px-2.5 py-1.5 bg-[#151722] border border-white/20 rounded-lg text-xs font-bold text-gray-200 focus:outline-none focus:border-red-500"
       >
         {workspaces.map((workspace) => (
-          <option key={workspace.id} value={String(workspace.id)}>
+          <option key={workspace.id} value={workspace.id}>
             {workspace.personal ? "My documents" : workspace.name}
             {workspace.status === "read_only" ? " (read-only)" : ""}
           </option>

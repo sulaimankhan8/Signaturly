@@ -19,8 +19,9 @@ const SIGNER_SCREENS = [
   "components/TypeSignature.jsx",
   "components/VerifiedESignBadge.jsx",
   "components/InitialsStudio.jsx",
-  "components/DraggableField.jsx",
-  "components/PdfViewer.jsx",
+  "components/signature/SignatureStudio.jsx",
+  "components/editor/SignerField.jsx",
+  "components/editor/DocumentCanvas.jsx",
 ];
 
 const LOCALES = { en, hi };

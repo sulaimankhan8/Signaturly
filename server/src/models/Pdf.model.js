@@ -81,9 +81,31 @@ const PdfSchema = new mongoose.Schema(
       default: false,
     },
 
+    // The editor's work before the document is signed or sent, saved as the sender goes so a
+    // refresh or a closed tab loses nothing: { mode, fields, recipients, settings, updatedAt }.
+    // Cleared when the document is sent or signed.
+    draft: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+
     message: {
       type: String,
       default: "",
+    },
+
+    // The sender's own subject line for the invitation email (paid plans); empty uses ours
+    emailSubject: {
+      type: String,
+      default: "",
+    },
+
+    // How often signers who have not signed are reminded by email (paid plans).
+    // "none" sends no automatic reminders; the sender can still remind by hand.
+    reminderCadence: {
+      type: String,
+      enum: ["none", "daily", "3days", "5days"],
+      default: "none",
     },
 
     expiresAt: {

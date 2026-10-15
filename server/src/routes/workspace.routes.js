@@ -7,6 +7,8 @@ import {
   getWorkspaceController,
   inviteMemberController,
   revokeInvitationController,
+  resendInvitationController,
+  remindTwoFactorController,
   describeInvitationController,
   acceptInvitationController,
   changeMemberRoleController,
@@ -38,6 +40,8 @@ router.patch("/:id", updateWorkspaceController);
 router.post("/:id/members", inviteMemberController);
 router.post("/:id/invitations", inviteMemberController);
 router.delete("/:id/invitations/:invitationId", revokeInvitationController);
+router.post("/:id/invitations/:invitationId/resend", resendInvitationController);
+router.post("/:id/members/:memberId/remind-two-factor", remindTwoFactorController);
 router.patch("/:id/members/:memberId", changeMemberRoleController);
 router.patch("/:id/branding", updateBrandingController);
 router.put("/:id/branding", updateBrandingController);

@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { Workspace } from "../models/Workspace.model.js";
+import { User } from "../models/User.model.js";
 import { ApiError } from "../utils/ApiError.js";
 
 /**
@@ -75,6 +76,39 @@ export const roleOf = (workspace, userId) => {
 const sameId = (a, b) => Boolean(a) && Boolean(b) && String(a?._id || a) === String(b?._id || b);
 
 /**
+ * Plan task P5-09: a team can require two-step sign-in. Someone without it may see the team and
+ * leave it, and do nothing else in it: no document, template, contact list, activity or setting.
+ *
+ * The person is `who`: as the request knows them ({ id, twoFactorEnabled, ssoWorkspaceId }), or
+ * only their id, in which case their account is read. A session started through the team's own
+ * single sign-on meets the rule, because the organisation's identity provider asks for the
+ * second step.
+ */
+export const twoFactorRequired = () =>
+  new ApiError(403, "TWO_FACTOR_REQUIRED: This workspace requires two-step sign-in. Switch it on in your settings to continue.");
+
+// Whether the person signs in to this workspace with a second step
+export const hasSecondStep = (workspace, who) => Boolean(who?.twoFactorEnabled) || sameId(who?.ssoWorkspaceId, workspace?._id || workspace?.id);
+
+export const meetsTwoFactorRule = (workspace, who) => !workspace?.policy?.requireTwoFactor || hasSecondStep(workspace, who);
+
+const twoFactorStateOf = async (userId) => {
+  const user = mongoose.isValidObjectId(userId) ? await User.findById(String(userId)).select("twoFactor.enabled ssoSessionWorkspaceId").lean() : null;
+  return { twoFactorEnabled: Boolean(user?.twoFactor?.enabled), ssoWorkspaceId: user?.ssoSessionWorkspaceId || null };
+};
+
+export const assertTwoFactorRule = async (workspace, who) => {
+  if (!workspace?.policy?.requireTwoFactor) return;
+  const person = typeof who?.twoFactorEnabled === "boolean" ? who : await twoFactorStateOf(who);
+  if (!meetsTwoFactorRule(workspace, person)) throw twoFactorRequired();
+};
+
+// The same, for the workspace a document or template belongs to
+export const assertTwoFactorRuleFor = async (record, who) => {
+  if (record?.workspaceId) await assertTwoFactorRule(await Workspace.findById(record.workspaceId).select("policy").lean(), who);
+};
+
+/**
  * Checks that a user may perform an action in a workspace, and returns their role.
  * Someone with no part in the workspace is told it does not exist, not that it is forbidden.
  */
@@ -115,6 +149,8 @@ export const assertRecordAccess = async (record, userId, action, { notFound = "D
 
   const allowed = roleCan(role, action) || (isCreator && CREATOR_ACTIONS.has(action) && roleCan(role, "document.create"));
   if (!allowed) throw new ApiError(403, "Your role in this workspace does not allow that");
+  // Checked here, by the record's own workspace, whichever workspace the app says it is working in
+  await assertTwoFactorRule(workspace, userId);
 
   if (workspace.status !== "active" && !READ_ACTIONS.has(action)) {
     throw new ApiError(403, "WORKSPACE_READ_ONLY: This workspace is read-only. Its owner needs to renew the plan.");

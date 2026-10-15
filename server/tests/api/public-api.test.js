@@ -153,6 +153,38 @@ describe("P6-09 API keys", () => {
     await Workspace.updateOne({ _id: workspaceId }, { $pull: { members: { userId: member.id } } });
     expect((await api().get("/api/v1/me").set(bearer(memberKey))).status).toBe(401);
   });
+
+  it("stops working in a team that requires two-step sign-in while its maker has not switched it on", async () => {
+    const owner = await developer();
+    const { workspaceId } = await teamFor(owner);
+    const admin = await createUser();
+    await Workspace.updateOne({ _id: workspaceId }, { $push: { members: { userId: admin.id, role: "admin" } } });
+    const asAdmin = { ...admin.auth, "X-Workspace-Id": workspaceId };
+    const key = await newKey(admin, { headers: asAdmin });
+    expect((await api().get("/api/v1/me").set(bearer(key))).status).toBe(200);
+
+    await Workspace.updateOne({ _id: workspaceId }, { "policy.requireTwoFactor": true });
+    const refused = await api().get("/api/v1/me").set(bearer(key));
+    expect(refused.status).toBe(403);
+    expect(refused.body.message).toMatch(/^TWO_FACTOR_REQUIRED/);
+    // Nor can another key be made, by a session the rule shuts out
+    expect((await api().post("/api/developer/keys").set(asAdmin).send({ name: "Another" })).status).toBe(403);
+
+    await User.updateOne({ _id: admin.id }, { "twoFactor.enabled": true });
+    expect((await api().get("/api/v1/me").set(bearer(key))).status).toBe(200);
+  });
+
+  it("cannot be made in such a team by someone who signed in through single sign-on alone", async () => {
+    const owner = await developer();
+    const { workspaceId } = await teamFor(owner, { policy: { requireTwoFactor: true } });
+    const admin = await createUser();
+    await Workspace.updateOne({ _id: workspaceId }, { $push: { members: { userId: admin.id, role: "admin" } } });
+    // Single sign-on lets the session in, but a key is not a sign-in
+    await User.updateOne({ _id: admin.id }, { ssoSessionWorkspaceId: workspaceId });
+    const res = await api().post("/api/developer/keys").set({ ...admin.auth, "X-Workspace-Id": workspaceId }).send({ name: "Billing system" });
+    expect(res.status).toBe(400);
+    expect(await ApiKey.countDocuments({ userId: admin.id })).toBe(0);
+  });
 });
 
 describe("P6-10 sending a document through the API", () => {
@@ -542,6 +574,42 @@ describe("P6-15 single sign-on", () => {
     vi.restoreAllMocks();
     provider({ verified: false });
     expect(failed((await signIn()).callback)).toBe(true);
+  });
+
+  it("starts a session that meets the team's two-step rule, until single sign-on is switched off", async () => {
+    provider();
+    const s = await configured();
+    await verifyAndEnable(s);
+    // The owner has two-step sign-in, as anyone who requires it must
+    await User.updateOne({ _id: s.owner.id }, { "twoFactor.enabled": true });
+    await Workspace.updateOne({ _id: s.workspaceId }, { "policy.requireTwoFactor": true });
+
+    const { callback } = await signIn();
+    expect(callback.status).toBe(302);
+    const user = await User.findOne({ email: "asha@corp.example" });
+    expect(String(user.ssoSessionWorkspaceId)).toBe(s.workspaceId);
+
+    const refreshed = await api().post("/api/auth/refresh-token").set("Cookie", callback.headers["set-cookie"]);
+    // Renewing the session keeps what started it
+    expect(String((await User.findById(user._id)).ssoSessionWorkspaceId)).toBe(s.workspaceId);
+    const inTeam = { Authorization: `Bearer ${refreshed.body.data.accessToken}`, "X-Workspace-Id": s.workspaceId };
+    expect((await api().get("/api/pdf/my-documents").set(inTeam)).status).toBe(200);
+
+    expect((await api().put(s.settings).set(s.owner.auth).send({ enabled: false })).status).toBe(200);
+    const refused = await api().get("/api/pdf/my-documents").set(inTeam);
+    expect(refused.status).toBe(403);
+    expect(refused.body.message).toMatch(/^TWO_FACTOR_REQUIRED/);
+  });
+
+  it("stops when the plan is no longer Enterprise, and says how to get in another way", async () => {
+    provider();
+    const s = await configured();
+    await verifyAndEnable(s);
+    await setPlan(s.owner.id, "business_monthly");
+
+    const { started } = await signIn();
+    expect(started.status).toBe(404);
+    expect(started.body.message).toMatch(/Forgot password/);
   });
 
   it("says the same thing for a domain it does not know as for none", async () => {

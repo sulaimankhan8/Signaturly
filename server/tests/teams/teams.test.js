@@ -504,6 +504,9 @@ describe("P5-09 two-step sign-in", () => {
   it("can be required by a team, without locking a member out of setting it up", async () => {
     const { owner, workspaceId } = await teamOf(3);
     const member = await join(workspaceId);
+    // Whoever requires it must have it, or their own rule would shut them out
+    expect((await api().patch(`/api/workspaces/${workspaceId}`).set(owner.auth).send({ policy: { requireTwoFactor: true } })).status).toBe(400);
+    await switchOn(owner);
     expect((await api().patch(`/api/workspaces/${workspaceId}`).set(owner.auth).send({ policy: { requireTwoFactor: true } })).status).toBe(200);
 
     const refused = await api().get("/api/pdf/my-documents").set(inTeam(member, workspaceId));
@@ -519,6 +522,66 @@ describe("P5-09 two-step sign-in", () => {
     expect((await api().post("/api/auth/2fa/begin").set(member.auth)).status).toBe(409);
     // The session that set it up carries on, now let in
     expect((await api().get("/api/pdf/my-documents").set(inTeam(member, workspaceId))).status).toBe(200);
+  });
+
+  it("keeps a member without it out of everything in the team, however it is reached, and lets them leave", async () => {
+    const { owner, workspaceId } = await teamOf(3);
+    await switchOn(owner);
+    const { pdfId } = await sendInTeam(owner, workspaceId);
+    const list = await api().post("/api/contacts/lists").set(inTeam(owner, workspaceId)).send({ name: "Residents", rows: [{ name: "Asha Rao", email: "asha@example.test" }] });
+    expect(list.status).toBe(201);
+    const member = await join(workspaceId);
+    expect((await api().patch(`/api/workspaces/${workspaceId}`).set(owner.auth).send({ policy: { requireTwoFactor: true } })).status).toBe(200);
+
+    const refusals = [
+      // The dashboard's background refresh, and the team's templates
+      ["sync", () => api().get("/api/pdf/sync/updates").set(inTeam(member, workspaceId))],
+      ["templates", () => api().get("/api/templates").set(inTeam(member, workspaceId))],
+      // Opened by id from the member's own documents, where the app sends no team
+      ["document", () => api().get(`/api/send/${pdfId}`).set(member.auth)],
+      ["audit trail", () => api().get(`/api/pdf/${pdfId}/audit`).set(member.auth)],
+      ["contact list", () => api().get(`/api/contacts/lists/${list.body.data.id}`).set(member.auth)],
+      ["activity", () => api().get(`/api/workspaces/${workspaceId}/activity`).set(member.auth)],
+    ];
+    for (const [what, call] of refusals) {
+      const res = await call();
+      expect(res.status, what).toBe(403);
+      expect(res.body.message, what).toMatch(/^TWO_FACTOR_REQUIRED/);
+    }
+
+    // The team's own page says why, and leaving stays open
+    const page = await api().get(`/api/workspaces/${workspaceId}`).set(member.auth);
+    expect(page.status).toBe(200);
+    expect(page.body.data).toMatchObject({ twoFactorReady: false, policy: { requireTwoFactor: true } });
+    expect((await api().delete(`/api/workspaces/${workspaceId}/members/${member.id}`).set(member.auth)).status).toBe(200);
+  });
+
+  it("counts a session started through the team's single sign-on, until the person signs in with a password", async () => {
+    const { owner, workspaceId } = await teamOf(3);
+    await switchOn(owner);
+    const member = await join(workspaceId);
+    await api().patch(`/api/workspaces/${workspaceId}`).set(owner.auth).send({ policy: { requireTwoFactor: true } });
+
+    await User.updateOne({ _id: member.id }, { ssoSessionWorkspaceId: workspaceId });
+    expect((await api().get("/api/pdf/my-documents").set(inTeam(member, workspaceId))).status).toBe(200);
+
+    expect((await login(member)).status).toBe(200);
+    expect((await User.findById(member.id)).ssoSessionWorkspaceId).toBeNull();
+    expect((await api().get("/api/pdf/my-documents").set(inTeam(member, workspaceId))).status).toBe(403);
+  });
+
+  it("cannot be switched off while a team requires it", async () => {
+    const { owner, workspaceId } = await teamOf(3);
+    const { recoveryCodes } = await switchOn(owner);
+    await api().patch(`/api/workspaces/${workspaceId}`).set(owner.auth).send({ policy: { requireTwoFactor: true } });
+
+    const refused = await api().post("/api/auth/2fa/disable").set(owner.auth).send({ code: recoveryCodes[0] });
+    expect(refused.status).toBe(409);
+    expect(refused.body.message).toContain("Lakeview Society");
+    expect((await User.findById(owner.id)).twoFactor.enabled).toBe(true);
+
+    await api().patch(`/api/workspaces/${workspaceId}`).set(owner.auth).send({ policy: { requireTwoFactor: false } });
+    expect((await api().post("/api/auth/2fa/disable").set(owner.auth).send({ code: recoveryCodes[0] })).status).toBe(200);
   });
 });
 
@@ -543,6 +606,37 @@ describe("P5-11 leaving, and a plan that lapses", () => {
     expect((await api().get("/api/workspaces").set(member.auth)).body.data.map((w) => String(w.id))).not.toContain(workspaceId);
     // The owner still has it
     expect((await api().get(`/api/send/${pdfId}`).set(inTeam(owner, workspaceId))).status).toBe(200);
+  });
+
+  it("keeps a member's work with the team when they close their account", async () => {
+    const { owner, workspaceId } = await teamOf(3);
+    const member = await join(workspaceId);
+    // One out for signature and a draft nobody else has seen: neither stops the account closing
+    const { pdfId } = await sendInTeam(member, workspaceId);
+    const draft = await api().post("/api/pdf/upload").set(inTeam(member, workspaceId)).attach("pdf", await makePdfBuffer(), { filename: "draft.pdf", contentType: "application/pdf" });
+
+    expect((await api().post("/api/user/delete-account").set(member.auth).send({ password: PASSWORD })).status).toBe(200);
+
+    for (const id of [pdfId, String(draft.body.data.id)]) {
+      const doc = await Pdf.findById(id);
+      expect(String(doc.userId), id).toBe(owner.id);
+      expect(doc.deletedAt, id).toBeFalsy();
+    }
+    expect((await Workspace.findById(workspaceId)).members).toHaveLength(0);
+    expect((await api().get(`/api/send/${pdfId}`).set(inTeam(owner, workspaceId))).status).toBe(200);
+  });
+
+  it("will not close an owner's account while other people work in their team", async () => {
+    const { owner, workspaceId } = await teamOf(3);
+    const member = await join(workspaceId);
+    const refused = await api().post("/api/user/delete-account").set(owner.auth).send({ password: PASSWORD });
+    expect(refused.status).toBe(409);
+    expect(refused.body.message).toContain("Lakeview Society");
+    expect((await User.findById(owner.id)).deletedAt).toBeNull();
+
+    await api().delete(`/api/workspaces/${workspaceId}/members/${member.id}`).set(owner.auth);
+    expect((await api().post("/api/user/delete-account").set(owner.auth).send({ password: PASSWORD })).status).toBe(200);
+    expect((await Workspace.findById(workspaceId)).status).toBe("archived");
   });
 
   it("lets a member leave, and does not let the owner be removed", async () => {

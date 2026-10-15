@@ -87,7 +87,8 @@ export const createCheckoutSession = async ({ userId, plan, kind = "plan", item,
   if (kind === "plan") {
     const current = await getOrCreateSubscription(userId);
     move = moveTo(current, what, price.seats);
-    if (renewsNow(current) && sameOffer(current.plan, what)) {
+    // Except when its automatic payment failed: then one period paid now takes over from it
+    if (renewsNow(current) && current.status === "active" && sameOffer(current.plan, what)) {
       throw new ApiError(409, "Your plan already renews automatically. Turn off auto-renew first if you want to change how you pay.");
     }
     if (!move.ways.includes("once")) {

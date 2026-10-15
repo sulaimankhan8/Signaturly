@@ -60,25 +60,29 @@ await assertRecordAccess(pdf, userId, "document.remind");
   };
 };
 
-// Automated background reminder job (runs periodically via cron)
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Days between reminders for each choice the sender can make
+const CADENCE_DAYS = { daily: 1, "3days": 3, "5days": 5 };
+
+// Automated background reminder job (runs periodically via cron). Only documents whose sender
+// chose reminders are reminded, at the interval they chose.
 export const processAutomatedReminders = async () => {
   try {
-    const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
     const activePdfs = await Pdf.find({
       status: { $in: ["pending", "partially_signed"] },
+      reminderCadence: { $in: Object.keys(CADENCE_DAYS) },
       $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
     });
 
     for (const pdf of activePdfs) {
+      const due = new Date(Date.now() - CADENCE_DAYS[pdf.reminderCadence] * DAY_MS);
       const pendingRecipients = await Recipient.find({
         pdfId: pdf._id,
         status: { $in: ["sent", "viewed"] },
-        createdAt: { $lt: twoDaysAgo },
+        createdAt: { $lt: due },
         $or: [
           { lastRemindedAt: null },
-          { lastRemindedAt: { $lt: oneDayAgo } },
+          { lastRemindedAt: { $lt: due } },
         ],
       });
 
@@ -94,7 +98,7 @@ export const processAutomatedReminders = async () => {
               status: { $in: ["sent", "viewed"] },
               $or: [
                 { lastRemindedAt: null },
-                { lastRemindedAt: { $lt: oneDayAgo } },
+                { lastRemindedAt: { $lt: due } },
               ],
             },
             {

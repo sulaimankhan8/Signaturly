@@ -1,7 +1,7 @@
 import { Subscription } from "../models/Subscription.model.js";
 import { Payment } from "../models/Payment.model.js";
 import { ProviderPlan } from "../models/ProviderPlan.model.js";
-import { upgradeUserPlan, addExtraDocuments } from "./subscription.service.js";
+import { upgradeUserPlan, addExtraDocuments, graceEndFor } from "./subscription.service.js";
 import { creditWallet } from "./wallet.service.js";
 import { issueInvoiceForPayment } from "./invoice.service.js";
 import { quotaOf, acceptedPricesOf, seatAdditionPrice, isTopUpPack, packsOf, sameOffer, isPlan, PLANS, TOPUP_PACKS } from "../config/plans.js";
@@ -20,8 +20,6 @@ const NOTHING_SCHEDULED = { scheduledPlan: null, scheduledSeats: null, scheduled
  * asks the provider about renewals nobody reported. All three may speak of the same payment,
  * so each function applies a payment once, however many times it hears of it.
  */
-
-const GRACE_MS = 3 * 24 * 60 * 60 * 1000;
 
 // Tells the customer by email. The job is queued and sent apart from the payment: an email
 // that cannot be sent must never undo, or hold up, what was paid for.
@@ -246,7 +244,8 @@ export const applyRenewal = async ({ provider, providerSubscriptionId, userId, p
 };
 
 /**
- * A charge failed. The customer keeps access for a short grace period while the provider retries.
+ * A charge failed. The customer keeps access for a grace period (subscription.service.js
+ * GRACE_DAYS) while the provider retries, is told, and can pay another way from Billing.
  */
 export const applyPaymentFailure = async ({ provider, providerSubscriptionId, userId, payment }) => {
   const sub = await findSubscription({ provider, providerSubscriptionId, userId });
@@ -254,7 +253,7 @@ export const applyPaymentFailure = async ({ provider, providerSubscriptionId, us
 
   sub.status = "past_due";
   if (!sub.gracePeriodEnd || sub.gracePeriodEnd < new Date()) {
-    sub.gracePeriodEnd = new Date(Date.now() + GRACE_MS);
+    sub.gracePeriodEnd = graceEndFor(sub);
   }
   await sub.save();
 
@@ -265,11 +264,26 @@ export const applyPaymentFailure = async ({ provider, providerSubscriptionId, us
 };
 
 /**
- * The customer cancelled. With `atPeriodEnd` they keep what they paid for until the period ends.
+ * The subscription ended. With `atPeriodEnd` the customer keeps what they paid for until the
+ * period ends; nothing is refunded and nothing more is charged.
+ *
+ * `reason` "completed" is a subscription that has taken every payment its approval covered
+ * (autoRenew.service.js PERIODS): the customer did not turn anything off, and is asked to approve
+ * auto-renew again rather than told they stopped it.
  */
-export const applyCancellation = async ({ provider, providerSubscriptionId, userId, atPeriodEnd = false }) => {
+export const applyCancellation = async ({ provider, providerSubscriptionId, userId, atPeriodEnd = false, reason = "cancelled" }) => {
   const sub = await findSubscription({ provider, providerSubscriptionId, userId });
   if (!sub) return null;
+
+  // Already moved to Free (its grace ran out, and the subscription was ended for that): only the
+  // link to the provider is let go, so the plan it ended on stays known
+  if (sub.plan === "free") {
+    sub.autoRenew = false;
+    sub.renewalAmountInr = null;
+    if (provider === "razorpay") sub.razorpaySubscriptionId = null;
+    await sub.save();
+    return sub;
+  }
 
   // Whichever way it ends, nothing renews by itself any more, and no move to another plan is waiting
   const wasRenewing = Boolean(sub.autoRenew);
@@ -290,7 +304,7 @@ export const applyCancellation = async ({ provider, providerSubscriptionId, user
     sub.gracePeriodEnd = null;
   }
   await sub.save();
-  if (wasRenewing) await tell("auto_renew_off", { userId: String(sub.userId) });
+  if (wasRenewing) await tell(reason === "completed" ? "mandate_ended" : "auto_renew_off", { userId: String(sub.userId) });
   return sub;
 };
 
@@ -594,7 +608,7 @@ export const handleRazorpayEvent = async (body, knownPlan) => {
     case "subscription.cancelled":
     case "subscription.completed":
       if (!subscription) return;
-      await applyCancellation({ provider: "razorpay", providerSubscriptionId: subscription.id, atPeriodEnd: true });
+      await applyCancellation({ provider: "razorpay", providerSubscriptionId: subscription.id, atPeriodEnd: true, reason: body.event === "subscription.completed" ? "completed" : "cancelled" });
       return;
 
     default:

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 import Navbar from "../../components/Navbar";
 import useBillingAccount from "../../hooks/useBillingAccount";
@@ -12,8 +12,8 @@ import { Note, Spinner } from "../../components/billing/ui";
 import { BTN } from "../../components/billing/theme";
 
 /**
- * Billing, for a signed-in account: one heading, four tabs, and the account read once for all
- * of them.
+ * Billing, for a signed-in account: four sections, chosen from the Billing menu in the navbar
+ * (components/Navbar.jsx), and the account read once for all of them.
  *   Overview       how the plan stands, this month's documents, wallet, the latest invoices
  *   Plans          every plan, to move to another or to the plan's other price
  *   Add-ons        extra documents and wallet credit, each one payment
@@ -24,13 +24,6 @@ import { BTN } from "../../components/billing/theme";
  * Links from before the tabs (/billing#topups, /billing?plan=pro_annual, ...) are still in
  * emails and bookmarks, and are sent on to where they meant.
  */
-
-const TABS = [
-  ["/billing", "Overview", true],
-  ["/billing/plans", "Plans", false],
-  ["/billing/add-ons", "Extra documents & wallet", false],
-  ["/billing/invoices", "Invoices", false],
-];
 
 export default function BillingLayout() {
   const billing = useBillingAccount();
@@ -77,7 +70,10 @@ export default function BillingLayout() {
 
   const stopRenewing = async () => {
     const until = mine?.renewal.nextChargeOn;
-    if (!window.confirm(`Turn off auto-renew?\n\nNothing more will be charged. Your plan stays as it is until ${day(until)} and then moves to Free, unless you buy more time.`)) return;
+    const ask = mine?.renewal.overdue
+      ? "Turn off auto-renew?\n\nYour last automatic payment did not go through, so your plan moves to Free now. To keep it, pay instead from the Overview."
+      : `Turn off auto-renew?\n\nNothing more will be charged and nothing is refunded. Your plan stays as it is until ${day(until)} and then moves to Free, unless you buy more time.`;
+    if (!window.confirm(ask)) return;
     try {
       setBusy("renewal");
       const res = await stopAutoRenewApi();
@@ -110,39 +106,19 @@ export default function BillingLayout() {
   const here = `${location.pathname}${location.search}${location.hash}`;
 
   return (
-    <div className="min-h-screen bg-[#0a0b10] text-gray-100 font-sans">
+    <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans selection:bg-red-600 selection:text-white">
       <Toaster position="top-right" />
       <Navbar />
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-9 pb-16">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="font-display text-[34px] font-bold tracking-tight text-white">Billing</h1>
-            <p className="mt-1.5 text-[15px] text-gray-400">Your plan, usage, add-ons and invoices. Prices are in rupees and include GST.</p>
-          </div>
-          <Link to="/pricing" className={`${BTN.secondary} hidden sm:inline-flex`}>
-            See public pricing
-          </Link>
-        </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12">
+        {/* The sections are chosen from the Billing menu in the navbar; the heading is there for screen readers */}
+        <h1 className="sr-only">Billing</h1>
 
-        <nav aria-label="Billing sections" className="mt-6 flex gap-7 border-b border-white/[0.08] overflow-x-auto">
-          {TABS.map(([to, label, end]) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              className={({ isActive }) => `py-3.5 whitespace-nowrap text-sm font-bold border-b-2 transition-colors ${isActive ? "text-white border-rose-500" : "text-gray-400 border-transparent hover:text-white"}`}
-            >
-              {label}
-            </NavLink>
-          ))}
-        </nav>
-
-        <div className="mt-7">
+        <div>
           {!user ? (
             waited ? (
               <div className="max-w-lg mx-auto text-center py-16">
-                <h2 className="font-display text-2xl font-bold text-white">Sign in to see your billing</h2>
+                <h2 className="text-2xl font-black uppercase tracking-tight text-white">Sign in to see your billing</h2>
                 <p className="mt-2 text-gray-400">Your plan, invoices and wallet are shown once you are signed in. Prices for everyone are on the pricing page.</p>
                 <div className="mt-6 flex flex-wrap justify-center gap-3">
                   <Link to={`/login?next=${encodeURIComponent(here)}`} className={BTN.primary}>
@@ -160,7 +136,7 @@ export default function BillingLayout() {
             <Note tone="red" icon="alert" role="alert">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span>Your billing details could not be loaded.</span>
-                <button type="button" onClick={load} className={BTN.small + " bg-white/10 hover:bg-white/15 text-white"}>
+                <button type="button" onClick={load} className={BTN.small}>
                   Try again
                 </button>
               </div>
@@ -185,6 +161,6 @@ export default function BillingLayout() {
 
 const Loading = () => (
   <div className="py-24 grid place-items-center" role="status" aria-label="Loading your billing">
-    <Spinner className="w-9 h-9" colour="#f43f5e" />
+    <Spinner className="w-10 h-10" />
   </div>
 );

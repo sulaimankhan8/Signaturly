@@ -2,6 +2,15 @@ import { startCheckoutApi, devPayApi, confirmCheckoutApi } from "../api/billing.
 
 // Money as the app shows it: Rs. 1,25,000
 export const rupees = (amount) => `₹${new Intl.NumberFormat("en-IN").format(amount)}`;
+/**
+ * Auto-renew that starts later (an upgrade paid for by unused time, a plan that waits for paid
+ * time to end) charges nothing for the plan today, but Razorpay checks the UPI mandate or card
+ * with a small payment that it refunds by itself, and says so on its own screen. Ours says it
+ * first, beside "Due today", so the customer is not surprised by it.
+ */
+export const SETUP_CHECK_INR = 5;
+export const SETUP_CHECK = `Razorpay takes a refundable ₹${SETUP_CHECK_INR} to set up auto-renew. It comes back to you by itself.`;
+
 export const rupeesFromPaise = (paise) => `₹${new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(paise / 100)}`;
 
 // What the page shown after paying has to check, kept for this tab only on the way there

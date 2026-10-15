@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { seed, recipientState, en, fill, pageCanvas } from "./helpers.js";
 
 test.describe("signing on a desktop", () => {
-  test("a signer types a signature in the side panel and signs from the header", async ({ page }) => {
+  test("a signer types a signature and signs from the header", async ({ page }) => {
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
 
@@ -15,17 +15,17 @@ test.describe("signing on a desktop", () => {
     await expect(page.getByRole("heading", { name: en.sidebar.studioTitle })).toBeVisible();
     await expect(page.getByText(fill(en.sidebar.fieldsTitle, { count: 3 }))).toBeVisible();
 
-    await page.getByTestId("field-text").getByText(en.field.enterText).click();
+    // Fields are filled in right on the page
     await page.getByTestId("field-text").locator("input").fill("Mumbai");
     await page.getByTestId("field-text").locator("input").blur();
 
-    // Type a signature in the side panel
-    await page.getByRole("button", { name: en.sig.tabType, exact: true }).click();
+    // The signature field opens the signature dialog; type a signature there
+    await page.getByTestId("field-signature").getByRole("button").click();
+    await page.getByRole("tab", { name: en.sig.tabType, exact: true }).click();
     await page.getByPlaceholder(en.typed.placeholder).fill(doc.signerName);
     await page.getByRole("button", { name: en.typed.use }).click();
 
-    // It is placed in the signature field on page 2
-    await page.getByRole("button", { name: en.pager.next }).click();
+    // It is placed in the signature field on page 2, which opening the dialog scrolled to
     await expect(page.getByTestId("field-signature").locator("img")).toBeVisible();
 
     await page.getByRole("checkbox").check();
@@ -55,6 +55,6 @@ test.describe("signing on a desktop", () => {
   test("a link that is not valid says so and shows no document", async ({ page }) => {
     await page.goto("/sign/not-a-real-link");
     await expect(page.getByRole("heading", { name: en.error.title })).toBeVisible();
-    await expect(pageCanvas(page)).toHaveCount(0);
+    await expect(page.locator(".react-pdf__Page__canvas")).toHaveCount(0);
   });
 });

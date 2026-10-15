@@ -31,3 +31,9 @@ export const fetchEsignAvailabilityForSenderApi = async () => {
   const res = await API.get("/esign/availability");
   return res.data?.data;
 };
+
+// People the sender has sent to before, to suggest as they type: [{ name, email, phone }]
+export const fetchRecentRecipientsApi = async () => {
+  const res = await API.get("/send/recent-recipients");
+  return res.data?.data || [];
+};

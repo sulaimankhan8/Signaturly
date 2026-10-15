@@ -25,9 +25,9 @@ test.describe("plans and billing", () => {
     // charged once a year beside it and the monthly price struck through
     await expect(page.getByRole("button", { name: /Yearly/ })).toContainText("2 months free");
     await expect(page.getByTestId("plan-pro")).toContainText("₹249");
-    await expect(page.getByTestId("plan-pro")).toContainText("Billed yearly · ₹2,990 a year");
+    await expect(page.getByTestId("plan-pro")).toContainText("Billed ₹2,990, once a year");
     await expect(page.getByTestId("plan-business")).toContainText("₹416");
-    await expect(page.getByTestId("plan-business")).toContainText("₹4,990 a seat a year");
+    await expect(page.getByTestId("plan-business")).toContainText("Billed ₹4,990 a seat, once a year");
     await page.getByRole("button", { name: "Monthly" }).click();
     await expect(page.getByTestId("plan-pro")).toContainText("₹299");
     await expect(page.getByTestId("plan-pro")).toContainText("Billed monthly");

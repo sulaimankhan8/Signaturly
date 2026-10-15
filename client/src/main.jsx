@@ -2,7 +2,7 @@ import ReactDOM from "react-dom/client";
 import { Provider } from "react-redux";
 import { store } from "./store/store";
 import App, { preloadPageFor } from "./App";
-import "react-resizable/css/styles.css";
+import "./fonts";
 import "./index.css";
 import "./i18n";
 import { Analytics } from "@vercel/analytics/react";

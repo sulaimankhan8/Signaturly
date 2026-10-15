@@ -3,7 +3,7 @@ import { ContactList, BulkBatch } from "../models/ContactList.model.js";
 import { Template } from "../models/Template.model.js";
 import { Workspace } from "../models/Workspace.model.js";
 import { ApiError } from "../utils/ApiError.js";
-import { assertWorkspaceAccess, assertRecordAccess, roleCan, belongsTo } from "./authorize.service.js";
+import { assertWorkspaceAccess, assertRecordAccess, assertTwoFactorRule, roleCan, belongsTo } from "./authorize.service.js";
 import { reserveQuota, releaseQuota, getOrCreateSubscription } from "./subscription.service.js";
 import { limitOf } from "./entitlements.service.js";
 import { instantiateDocumentFromTemplate } from "./template.service.js";
@@ -18,9 +18,12 @@ import { enqueueJob, registerJobHandler } from "../jobs/queue.js";
 const MAX_CONTACTS = 2000;
 const isId = (value) => mongoose.isValidObjectId(String(value));
 
+// A list or batch opened by its id is checked against its own workspace, whichever one the
+// request says it is working in
 const workspaceFor = async (workspaceId, userId, action) => {
   const workspace = await Workspace.findById(isId(workspaceId) ? String(workspaceId) : null).lean();
   assertWorkspaceAccess(workspace, userId, action);
+  await assertTwoFactorRule(workspace, userId);
   return workspace;
 };
 

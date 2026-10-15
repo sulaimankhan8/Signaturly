@@ -61,6 +61,11 @@ export const getMyApiKeysController = asyncHandler(async (req, res) => {
 
 export const createApiKeyController = asyncHandler(async (req, res) => {
   assertMayManage(req);
+  // A key works in such a team only for someone with two-step sign-in of their own
+  // (middlewares/apiKey.middleware.js); signing in through single sign-on is not enough for a key
+  if (req.workspace.requireTwoFactor && !req.user.twoFactorEnabled) {
+    throw new ApiError(400, "This workspace requires two-step sign-in. Switch it on for your own account before making a key.");
+  }
   const { name, permissions, mode } = req.body || {};
 
   if (typeof name !== "string" || !name.trim()) {

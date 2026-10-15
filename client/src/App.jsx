@@ -35,6 +35,7 @@ const Dashboard = page(() => import("./pages/Dashboard"));
 const PdfEditor = page(() => import("./pages/PdfEditor"));
 const SendDocument = page(() => import("./pages/SendDocument"));
 const AssignFields = page(() => import("./pages/AssignFields"));
+const ReviewSend = page(() => import("./pages/ReviewSend"));
 const SigningPage = page(() => import("./pages/SigningPage"));
 const SignatureRemover = page(() => import("./pages/RemoveBg"));
 const Templates = page(() => import("./pages/Templates"));
@@ -143,6 +144,7 @@ export default function App() {
           <Route path="/editor/:pdfId" element={<PdfEditor />} />
           <Route path="/send/:pdfId" element={<SendDocument />} />
           <Route path="/assign/:pdfId" element={<AssignFields />} />
+          <Route path="/review/:pdfId" element={<ReviewSend />} />
           <Route path="/sign/:token" element={<SigningPage />} />
           <Route path="/verify" element={<PublicVerify />} />
           {/* Isolated Font Testing Suite (Accessible by direct URL only) */}

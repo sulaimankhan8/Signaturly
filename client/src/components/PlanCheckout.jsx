@@ -47,13 +47,13 @@ export default function PlanCheckout({ open, plans, planId, ways = ["auto", "onc
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md" role="dialog" aria-modal="true" aria-label={`Get ${plan.name}`} data-testid="plan-checkout">
       {/* The choices scroll; what is charged and the button to pay stay in view beneath them */}
-      <div className="bg-[#12141c] border border-white/[0.12] rounded-t-[22px] sm:rounded-[22px] max-w-lg w-full max-h-[92vh] flex flex-col shadow-2xl">
+      <div className="bg-[#13151f] border-2 border-white/20 rounded-t-2xl sm:rounded-2xl max-w-lg w-full max-h-[92vh] flex flex-col shadow-[6px_6px_0px_0px_#000]">
         <div className="flex items-start justify-between gap-4 px-6 pt-6 pb-4">
           <div>
-            <h2 className="font-display text-xl font-bold text-white">{paidUntil ? plan.name : `Get ${plan.name}`}</h2>
+            <h2 className="text-xl font-black uppercase tracking-tight text-white">{paidUntil ? plan.name : `Get ${plan.name}`}</h2>
             <p className="mt-1 text-sm text-gray-400">{quote.documents}. Prices include GST.</p>
           </div>
-          <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className="w-9 h-9 grid place-items-center rounded-lg text-gray-400 hover:text-white hover:bg-white/5">
+          <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className="w-9 h-9 shrink-0 grid place-items-center rounded-lg border-2 border-white/15 text-gray-400 hover:text-white hover:bg-white/10">
             <ICONS.close className="w-4 h-4" />
           </button>
         </div>
@@ -73,7 +73,7 @@ export default function PlanCheckout({ open, plans, planId, ways = ["auto", "onc
           <CheckoutChoices quote={quote} busy={busy} chooseSeats={chooseSeats} />
         </div>
 
-        <div className="px-6 pt-4 pb-6 border-t border-white/10">
+        <div className="px-6 pt-4 pb-6 border-t-2 border-white/15 bg-[#0f1118] rounded-b-2xl">
           <OrderSummary quote={quote} busy={busy} switching={switching} onPay={pay} framed={false} />
         </div>
       </div>

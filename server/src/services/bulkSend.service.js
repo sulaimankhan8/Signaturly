@@ -12,6 +12,7 @@ import { readFile, saveFile } from "./storage.service.js";
 import { eventBus, EventTypes } from "../events/index.js";
 import { ApiError } from "../utils/ApiError.js";
 import { assertRecordAccess } from "./authorize.service.js";
+import { normalizeFieldList } from "./fieldRules.service.js";
 
 const MAX_BULK_RECIPIENTS = 500;
 
@@ -108,22 +109,16 @@ export const processBulkSendFromTemplate = async ({
       });
 
       // 3. Map template fields to standard percentage field schema
-      const mappedFields = (template.fields || []).map((tf) => ({
-        id: tf.id || `f_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-        type: tf.type || "signature",
-        page: Number(tf.page) || 1,
-        xPercent: tf.xPercent !== undefined ? Number(tf.xPercent) : (Number(tf.x) / 100 || 0),
-        yPercent: tf.yPercent !== undefined ? Number(tf.yPercent) : (Number(tf.y) / 100 || 0),
-        widthPercent: tf.widthPercent !== undefined ? Number(tf.widthPercent) : (Number(tf.width) / 100 || 0.2),
-        heightPercent: tf.heightPercent !== undefined ? Number(tf.heightPercent) : (Number(tf.height) / 100 || 0.05),
-        fontSizePercent: tf.fontSizePercent ? Number(tf.fontSizePercent) : undefined,
-        label: tf.label || "",
-        required: tf.required !== false,
-        recipientId: recipient._id.toString(),
-        recipientEmail: recipient.email,
-        recipientName: recipient.name,
-        recipientColor: recipient.color,
-      }));
+      // Checked and cleaned like any document's fields; every one belongs to this row's signer
+      const mappedFields = normalizeFieldList(template.fields || [], { pageCount: template.pageCount || 1, values: "layout" }).map(
+        ({ roleColor, recipientPhone, ...field }) => ({
+          ...field,
+          recipientId: recipient._id.toString(),
+          recipientEmail: recipient.email,
+          recipientName: recipient.name,
+          recipientColor: recipient.color,
+        })
+      );
 
       pdf.fields = mappedFields;
       pdf.recipients = [recipient._id];

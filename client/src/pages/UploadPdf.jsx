@@ -1,11 +1,20 @@
-import { uploadPdfApi, uploadJoinedPdfsApi } from "../api/pdf.api";
-
-// Up to this many PDFs can be joined into one document
-const MAX_FILES = 10;
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import toast, { Toaster } from "react-hot-toast";
 import Navbar from "../components/Navbar";
+import { uploadPdfApi, uploadJoinedPdfsApi } from "../api/pdf.api";
+
+// Up to this many PDFs can be joined into one document
+const MAX_FILES = 10;
+// The largest file the server takes
+const MAX_BYTES = 25 * 1024 * 1024;
+
+// What happens after the upload, as in every signing product: who signs decides the next screen
+const NEXT_STEPS = [
+  { id: "me", title: "Only me", hint: "Place your signature and finish now.", path: (id) => `/editor/${id}` },
+  { id: "both", title: "Me & others", hint: "You sign too, with the people you add.", path: (id) => `/send/${id}?me=1` },
+  { id: "others", title: "Only others", hint: "Send it to the people who need to sign.", path: (id) => `/send/${id}` },
+];
 
 export default function UploadPdf() {
   // One PDF, or several that will be joined in this order and signed as one document
@@ -13,9 +22,12 @@ export default function UploadPdf() {
   const file = files[0] || null;
 
   const addFiles = (chosen) => {
-    const pdfs = Array.from(chosen || []).filter((f) => f.type === "application/pdf");
+    const all = Array.from(chosen || []);
+    const tooBig = all.filter((f) => f.size > MAX_BYTES);
+    if (tooBig.length > 0) toast.error(`${tooBig[0].name} is larger than 25 MB`);
+    const pdfs = all.filter((f) => f.type === "application/pdf" && f.size <= MAX_BYTES);
     if (pdfs.length === 0) {
-      toast.error("Please select a valid PDF file");
+      if (tooBig.length === 0) toast.error("Please select a valid PDF file");
       return;
     }
     setFiles((current) => {
@@ -36,6 +48,8 @@ export default function UploadPdf() {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  // The uploaded document, while the sender chooses who signs it
+  const [uploaded, setUploaded] = useState(null);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
@@ -87,25 +101,13 @@ export default function UploadPdf() {
     setUploadProgress(0);
 
     try {
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 150);
+      // The bar shows the bytes actually sent; the last step is the server reading the file
+      const onProgress = (share) => setUploadProgress(Math.min(95, Math.round(share * 95)));
+      const data = files.length > 1 ? await uploadJoinedPdfsApi(files, onProgress) : await uploadPdfApi(file, onProgress);
 
-      const data = files.length > 1 ? await uploadJoinedPdfsApi(files) : await uploadPdfApi(file);
-
-      clearInterval(progressInterval);
       setUploadProgress(100);
-      toast.success("PDF uploaded successfully!");
-
-      setTimeout(() => {
-        navigate(`/editor/${data.id}`);
-      }, 400);
+      setIsUploading(false);
+      setUploaded(data);
     } catch (error) {
       console.error("Upload error:", error);
       toast.error(error.response?.data?.message || "Upload failed. Please try again.");
@@ -113,6 +115,39 @@ export default function UploadPdf() {
       setUploadProgress(0);
     }
   };
+
+  if (uploaded) {
+    return (
+      <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans">
+        <Toaster position="top-right" />
+        <Navbar />
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="bg-[#13151f] border-2 border-white/20 rounded-3xl p-6 sm:p-10 shadow-[6px_6px_0px_0px_#ef4444] space-y-6">
+            <div>
+              <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-emerald-400 text-black border-2 border-black rounded inline-block mb-2">Uploaded</span>
+              <h2 className="text-2xl sm:text-3xl font-black uppercase text-white tracking-tight">Who needs to sign?</h2>
+              <p className="text-gray-300 text-sm mt-1 truncate">{uploaded.originalFileName || file?.name}</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {NEXT_STEPS.map((step, index) => (
+                <button
+                  key={step.id}
+                  type="button"
+                  autoFocus={index === 0}
+                  onClick={() => navigate(step.path(uploaded.id))}
+                  className="text-left p-5 rounded-2xl border-2 border-black bg-[#1e2235] hover:bg-[#282d47] shadow-[4px_4px_0px_0px_#000] hover:shadow-[5px_5px_0px_0px_#facc15] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-yellow-400"
+                >
+                  <span className="block text-lg font-black uppercase text-white">{step.title}</span>
+                  <span className="block text-xs text-gray-300 mt-1">{step.hint}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-500">The document is saved in your documents either way, and you can change your mind later.</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans selection:bg-red-600 selection:text-white">
@@ -242,7 +277,7 @@ export default function UploadPdf() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                   </svg>
-                  <span>{files.length > 1 ? "Join, Upload & Open in Editor →" : "Upload & Open in Editor →"}</span>
+                  <span>{files.length > 1 ? "Join & Upload →" : "Upload →"}</span>
                 </button>
               )}
             </div>

@@ -105,7 +105,9 @@ export const standingOf = (account, plans, offers, now = new Date()) => {
   const renewing = renewal.mode === "auto";
   // The account's plan at its other price, where that is on sale: the same plan, paid for differently
   const otherPrice = myOffer && currentPlan ? (myOffer.yearly?.id === planId ? myOffer.plan : myOffer.yearly) : null;
-  const canSwitchPeriod = Boolean(otherPrice?.purchasable) && renewal.mode !== "none" && (renewing ? otherPrice.billing?.subscription !== false : true);
+  // Only the move to yearly is offered: a yearly customer is never invited back to monthly (it
+  // can still be bought from the plan's monthly price at checkout, if ever wanted)
+  const canSwitchPeriod = Boolean(otherPrice?.purchasable) && otherPrice === myOffer.yearly && renewal.mode !== "none" && (renewing ? otherPrice.billing?.subscription !== false : true);
   const switchSaves = otherPrice && otherPrice === myOffer.yearly ? savingSaid(savingOn(myOffer)) : "";
 
   // Moving to another plan while one is running: it starts today and takes the place of the present one
@@ -202,7 +204,10 @@ export const checkoutSetupFor = (mine, offers, record) => {
 
   const same = Boolean(mine.myOffer) && offer === mine.myOffer;
   if (same && record.id === mine.planId) {
-    // More time, or auto-renew, on the plan and price the account already has
+    // More time, or auto-renew, on the plan and price the account already has. One whose
+    // automatic payment failed is paid for again: a new approval charged today, or one period,
+    // either of which takes the place of the payment that failed (`recovering`)
+    if (mine.renewing && mine.renewal.overdue) return { plans: [record], ways: ["auto", "once"], paidUntil: null, replacing: null, switching: false, same, nothing: false, recovering: true };
     if (mine.renewing) return { plans: [record], ways: [], paidUntil: mine.paidUntil, replacing: null, switching: false, same, nothing: true };
     const ways = [mine.renewal.canStart && "auto", mine.renewal.canAddPeriod && "once"].filter(Boolean);
     return { plans: [record], ways: ways.length ? ways : ["auto", "once"], paidUntil: mine.renewal.overdue ? null : mine.renewal.endsOn, replacing: null, switching: false, same, nothing: false };

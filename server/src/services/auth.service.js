@@ -51,7 +51,9 @@ export const verifyEmailToken = async (token) => {
 };
 
 // Stores only a hash of the refresh token, replacing any earlier one (rotation)
-export const issueSession = async (user) => {
+// `ssoWorkspaceId` is the team whose single sign-on started the session, null for a session
+// started with a password, and left out when a session is renewed, which keeps what it was
+export const issueSession = async (user, { ssoWorkspaceId } = {}) => {
   // Covers every way in: password, single sign-on and renewing a session
   if (user.suspendedAt) {
     throw new ApiError(403, "ACCOUNT_SUSPENDED: This account has been suspended. Write to support if you think this is a mistake.");
@@ -67,6 +69,7 @@ export const issueSession = async (user) => {
         refreshTokenHash: sha256Hex(refreshToken),
         previousRefreshTokenHash: user.refreshTokenHash || null,
         refreshRotatedAt: new Date(),
+        ...(ssoWorkspaceId === undefined ? {} : { ssoSessionWorkspaceId: ssoWorkspaceId }),
       },
     }
   );
@@ -100,6 +103,6 @@ export const loginUser = async ({ email, password, code }) => {
     if (!(await verifySecondStep(user._id, code))) throw new ApiError(401, "TWO_FACTOR_CODE_WRONG: That code is not right.");
   }
 
-  const { accessToken, refreshToken } = await issueSession(user);
+  const { accessToken, refreshToken } = await issueSession(user, { ssoWorkspaceId: null });
   return { user, accessToken, refreshToken };
 };

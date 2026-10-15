@@ -29,7 +29,7 @@ router.post(
 router.get("/callback", loginLimiter, async (req, res) => {
   try {
     const { user, workspaceId } = await finishSso({ code: req.query.code, state: req.query.state, cookieNonce: req.cookies?.ssoState });
-    const { refreshToken } = await issueSession(user);
+    const { refreshToken } = await issueSession(user, { ssoWorkspaceId: workspaceId });
     res.clearCookie("ssoState", { path: "/" });
     res.cookie("refreshToken", refreshToken, cookie(REFRESH_COOKIE_MAX_AGE_MS));
     res.redirect(`${env.appUrl}/sso/done?workspace=${workspaceId}`);

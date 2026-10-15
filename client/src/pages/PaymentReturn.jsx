@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Confetti from "../components/Confetti";
-import PaymentProgress, { PaymentShell, panel, Mark, Step, Bought } from "../components/PaymentProgress";
+import PaymentProgress, { PaymentShell, panel, Mark, Step, Bought, STEPS } from "../components/PaymentProgress";
 import { downloadInvoice } from "../utils/invoices";
-import { ICONS, BTN } from "../components/billing/theme";
+import { ICONS, BTN, EYEBROW } from "../components/billing/theme";
+import { Note } from "../components/billing/ui";
 import { confirmCheckoutApi, checkoutStatusApi } from "../api/billing.api";
-import { readPaymentReturn, clearPaymentReturn, rupees, rupeesFromPaise, PAYMENT_SHOWN } from "../utils/checkout";
+import { readPaymentReturn, clearPaymentReturn, rupees, rupeesFromPaise, PAYMENT_SHOWN, SETUP_CHECK_INR } from "../utils/checkout";
 import { day } from "../utils/billing";
 
 /**
@@ -35,10 +36,18 @@ const LATE_EVERY_MS = 10000;
 const LATE_TRIES = 18;
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const Fact = ({ label, children }) => (
-  <div className="flex items-baseline justify-between gap-4 py-2.5 border-b border-white/[0.05] last:border-0">
+// The card is in two halves on a laptop, so it fits on one screen: what happened and what to do
+// next on the left, the receipt (or where the payment stands) on the right
+const WIDE = "max-w-[940px] overflow-hidden";
+const SPLIT = "grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]";
+const SIDE = "p-6 sm:p-8 flex flex-col";
+const RECEIPT = "p-6 sm:p-8 bg-[#0f1118] border-t-2 md:border-t-0 md:border-l-2 border-dashed border-white/15 flex flex-col";
+const TITLE = "mt-6 text-3xl sm:text-4xl leading-[1.05] font-black uppercase tracking-tight text-white";
+
+const Fact = ({ label, mono = false, children }) => (
+  <div className="flex items-baseline justify-between gap-4 py-2.5 border-b border-white/[0.07] last:border-0">
     <dt className="text-sm text-gray-400 shrink-0">{label}</dt>
-    <dd className="text-sm font-bold text-white text-right min-w-0 break-words">{children}</dd>
+    <dd className={`text-right min-w-0 break-all text-white ${mono ? "font-mono text-xs font-bold" : "text-sm font-black"}`}>{children}</dd>
   </div>
 );
 
@@ -55,11 +64,12 @@ const Reference = ({ paymentId }) => {
     }
   };
   return (
-    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pl-4 pr-3 py-2.5 rounded-xl bg-[#0d0e14] border border-white/[0.07]">
-      <span className="text-[13px] text-gray-400 min-w-0">
-        Payment reference <span className="ml-1.5 font-mono text-gray-100 break-all">{paymentId}</span>
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pl-4 pr-3 py-2.5 rounded-xl bg-[#090a0f] border-2 border-white/15">
+      <span className="text-xs text-gray-400 min-w-0">
+        <span className="block text-[10px] font-black uppercase tracking-wider">Payment reference</span>
+        <span className="font-mono font-bold text-gray-100 break-all">{paymentId}</span>
       </span>
-      <button type="button" onClick={copy} className={`${BTN.small} border border-white/[0.14] bg-white/5 hover:bg-white/10 text-gray-100`}>
+      <button type="button" onClick={copy} className={BTN.small}>
         <ICONS.copy className="w-3.5 h-3.5" />
         {copied ? "Copied" : "Copy"}
       </button>
@@ -207,145 +217,191 @@ export default function PaymentReturn() {
       {stage === "done" && (
         <>
           <Confetti />
-          <section className={`${panel} border-emerald-400/35 shadow-[0_30px_80px_-40px_rgba(52,211,153,0.45)] relative z-50`} role="status">
-            <Mark tone="green">
-              <ICONS.check className="w-9 h-9" />
-            </Mark>
-            <h1 className="mt-6 text-center font-display text-[30px] font-bold tracking-tight text-white">{doneTitle}</h1>
-            <p className="mt-2 mx-auto max-w-[460px] text-center text-gray-300">{doneLead}</p>
+          <section className={`${panel} ${WIDE} border-emerald-500 shadow-[8px_8px_0px_0px_#22c55e] relative z-50`} role="status">
+            <div className={SPLIT}>
+              <div className={SIDE}>
+                <Mark tone="green">
+                  <ICONS.check className="w-8 h-8" />
+                </Mark>
+                <h1 className={TITLE}>{doneTitle}</h1>
+                <p className="mt-3 text-gray-300 leading-relaxed">{doneLead}</p>
 
-            <ul aria-label="What happened" className="mt-5 flex flex-wrap justify-center gap-x-5 gap-y-2 text-[13px] text-gray-400">
-              {[info.nothingToday ? "Approved at Razorpay" : "Paid at Razorpay", "Checked it is genuine", info.nothingToday ? "Auto-renew turned on" : "Added to your account"].map((said) => (
-                <li key={said} className="inline-flex items-center gap-1.5">
-                  <ICONS.check className="w-3.5 h-3.5 text-emerald-400" />
-                  {said}
-                </li>
-              ))}
-            </ul>
+                <ol aria-label="What happened" className={`mt-5 ${STEPS}`}>
+                  {[info.nothingToday ? "Approved at Razorpay" : "Paid at Razorpay", "Checked it is genuine", info.nothingToday ? "Auto-renew turned on" : "Added to your account"].map((said) => (
+                    <Step key={said} state="done">
+                      {said}
+                    </Step>
+                  ))}
+                </ol>
 
-            <div className="mt-6 rounded-[14px] bg-[#0d0e14] border border-white/[0.07] overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-white/[0.07]">
-                <h2 className="text-sm font-bold text-white">Receipt</h2>
-                {invoice?.id && (
-                  <button type="button" onClick={() => downloadInvoice(invoice)} className="inline-flex items-center gap-1.5 text-[13px] font-bold text-rose-300 hover:text-rose-200">
-                    <ICONS.download className="w-4 h-4" />
-                    Download {invoice.kind === "tax_invoice" ? "tax invoice" : "receipt"}
-                  </button>
-                )}
+                <div className="mt-6 flex flex-wrap gap-3">
+                  {backTo && (
+                    <Link to={backTo} className={BTN.primary}>
+                      Back to what you were doing
+                    </Link>
+                  )}
+                  {teamNext && (
+                    <Link to="/workspaces" className={BTN.primary}>
+                      <ICONS.users className="w-4 h-4" />
+                      Set up your team
+                    </Link>
+                  )}
+                  {boughtPlan && !backTo && !teamNext && (
+                    <Link to="/upload" className={BTN.primary}>
+                      <ICONS.send className="w-4 h-4" />
+                      Send a document
+                    </Link>
+                  )}
+                  <Link to="/billing" className={backTo || teamNext || boughtPlan ? BTN.secondary : BTN.primary}>
+                    Go to Billing
+                  </Link>
+                  {boughtDocuments && !backTo && (
+                    <Link to="/dashboard" className={BTN.secondary}>
+                      Dashboard
+                    </Link>
+                  )}
+                </div>
               </div>
-              <dl className="px-4 py-1">
-                <Fact label={info.nothingToday ? "For" : "Paid for"}>{invoice?.description || info.description}</Fact>
-                {!info.nothingToday && amount && <Fact label="Amount">{amount}</Fact>}
-                {invoice?.number && <Fact label={invoice.kind === "tax_invoice" ? "Invoice" : "Receipt"}>{invoice.number}</Fact>}
-                {boughtPlan && result?.plan?.name && (
-                  <Fact label="Your plan">
-                    {result.plan.name}
-                    {result.plan.seats ? ` · ${result.plan.seats} seat${result.plan.seats === 1 ? "" : "s"}` : ""}
-                  </Fact>
-                )}
-                {boughtPlan && renewal?.mode === "auto" && (
-                  <Fact label="Renews">
-                    {day(renewal.nextChargeOn)} · {rupees(renewal.amountInr)}
-                  </Fact>
-                )}
-                {boughtPlan && renewal?.mode === "once" && <Fact label="Paid until">{day(renewal.endsOn)}</Fact>}
-                {result?.usage?.extraDocuments > 0 && <Fact label="Extra documents in hand">{result.usage.extraDocuments}</Fact>}
-              </dl>
-            </div>
 
-            <div className="mt-6 flex flex-wrap justify-center gap-2.5">
-              {backTo && (
-                <Link to={backTo} className={BTN.primary}>
-                  Back to what you were doing
-                </Link>
-              )}
-              {teamNext && (
-                <Link to="/workspaces" className={BTN.primary}>
-                  <ICONS.users className="w-4 h-4" />
-                  Set up your team
-                </Link>
-              )}
-              {boughtPlan && !backTo && !teamNext && (
-                <Link to="/upload" className={BTN.primary}>
-                  <ICONS.send className="w-4 h-4" />
-                  Send a document
-                </Link>
-              )}
-              <Link to="/billing" className={backTo || teamNext || boughtPlan ? BTN.secondary : BTN.primary}>
-                Go to Billing
-              </Link>
-              {boughtDocuments && !backTo && (
-                <Link to="/dashboard" className={BTN.secondary}>
-                  Dashboard
-                </Link>
-              )}
+              <aside aria-labelledby="receipt-heading" className={RECEIPT}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 id="receipt-heading" className={`${EYEBROW} inline-flex items-center gap-2`}>
+                    <ICONS.receipt className="w-4 h-4 text-gray-400" />
+                    Receipt
+                  </h2>
+                  {invoice?.id && (
+                    <button type="button" onClick={() => downloadInvoice(invoice)} className={BTN.small}>
+                      <ICONS.download className="w-3.5 h-3.5 text-red-400" />
+                      Download {invoice.kind === "tax_invoice" ? "tax invoice" : "receipt"}
+                    </button>
+                  )}
+                </div>
+
+                {/* The amount, stamped, as a paper receipt would have it */}
+                <div className="mt-5 flex items-end justify-between gap-3 pb-4 border-b-2 border-dashed border-white/15">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">{info.nothingToday ? "Charged today" : "Amount paid"}</p>
+                    <p className="text-4xl leading-tight font-black text-white tabular-nums">{info.nothingToday ? rupees(0) : amount}</p>
+                    {info.nothingToday && !info.simulated && <p className="mt-1 text-xs text-gray-400">The ₹{SETUP_CHECK_INR} Razorpay took to set up auto-renew is refunded by itself.</p>}
+                  </div>
+                  <span className="mb-1.5 -rotate-6 px-2.5 py-0.5 rounded-md border-[3px] border-emerald-400 text-emerald-400 text-sm font-black uppercase tracking-[0.2em] select-none" aria-hidden="true">
+                    {info.nothingToday ? "Approved" : "Paid"}
+                  </span>
+                </div>
+
+                <dl>
+                  <Fact label={info.nothingToday ? "For" : "Paid for"}>{invoice?.description || info.description}</Fact>
+                  {invoice?.number && (
+                    <Fact label={invoice.kind === "tax_invoice" ? "Invoice" : "Receipt"} mono>
+                      {invoice.number}
+                    </Fact>
+                  )}
+                  {boughtPlan && result?.plan?.name && (
+                    <Fact label="Your plan">
+                      {result.plan.name}
+                      {result.plan.seats ? ` · ${result.plan.seats} seat${result.plan.seats === 1 ? "" : "s"}` : ""}
+                    </Fact>
+                  )}
+                  {boughtPlan && renewal?.mode === "auto" && (
+                    <Fact label="Renews">
+                      {day(renewal.nextChargeOn)} · {rupees(renewal.amountInr)}
+                    </Fact>
+                  )}
+                  {boughtPlan && renewal?.mode === "once" && <Fact label="Paid until">{day(renewal.endsOn)}</Fact>}
+                  {result?.usage?.extraDocuments > 0 && <Fact label="Extra documents in hand">{result.usage.extraDocuments}</Fact>}
+                  {paymentId && (
+                    <Fact label="Payment reference" mono>
+                      {paymentId}
+                    </Fact>
+                  )}
+                </dl>
+                {invoice && (
+                  <p className="mt-auto pt-4 flex items-start gap-2 text-xs text-gray-400">
+                    <ICONS.shieldCheck className="w-4 h-4 shrink-0 text-emerald-400" />
+                    A copy of the {invoice.kind === "tax_invoice" ? "invoice" : "receipt"} is on its way to your email, and kept under Billing › Invoices.
+                  </p>
+                )}
+              </aside>
             </div>
-            {invoice && <p className="mt-4 text-center text-[13px] text-gray-400">A copy of the {invoice.kind === "tax_invoice" ? "invoice" : "receipt"} is on its way to your email, and kept under Billing › Invoices.</p>}
           </section>
         </>
       )}
 
       {stage === "pending" && (
-        <section className={`${panel} border-amber-400/35 shadow-[0_30px_80px_-40px_rgba(251,191,36,0.4)]`} role="status">
-          <Mark tone="amber">
-            <ICONS.clock className="w-9 h-9" />
-          </Mark>
-          <h1 className="mt-6 text-center font-display text-[28px] font-bold tracking-tight text-white">Paid, still confirming</h1>
-          <p className="mt-2 mx-auto max-w-[460px] text-center text-gray-300">Your payment went through, but the final confirmation has not reached us yet. This usually takes a minute or two.</p>
-          <div className="mt-5 flex gap-3 px-4 py-3.5 rounded-xl bg-amber-400/[0.08] border border-amber-400/30 text-sm text-amber-50">
-            <ICONS.shield className="w-[18px] h-[18px] shrink-0 mt-0.5 text-amber-300" />
-            <span>You do not need to pay again. It is added to your account by itself as soon as the confirmation arrives, and you will get an email then.</span>
+        <section className={`${panel} ${WIDE} border-yellow-400 shadow-[8px_8px_0px_0px_#facc15]`} role="status">
+          <div className={SPLIT}>
+            <div className={SIDE}>
+              <Mark tone="amber">
+                <ICONS.clock className="w-8 h-8" />
+              </Mark>
+              <h1 className={TITLE}>Paid, still confirming</h1>
+              <p className="mt-3 text-gray-300 leading-relaxed">Your payment went through, but the final confirmation has not reached us yet. This usually takes a minute or two.</p>
+              <Note tone="amber" icon="shield" className="mt-5">
+                You do not need to pay again. It is added to your account by itself as soon as the confirmation arrives, and you will get an email then.
+              </Note>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button type="button" onClick={() => setRound((n) => n + 1)} className={BTN.primary}>
+                  Check again
+                </button>
+                <Link to="/billing" className={BTN.secondary}>
+                  Go to Billing
+                </Link>
+              </div>
+              <p className="mt-4 text-xs text-gray-400">Still checking by itself. You can leave this page.</p>
+            </div>
+
+            <aside aria-label="Where the payment stands" className={RECEIPT}>
+              <h2 className={EYEBROW}>Where it stands</h2>
+              <ol className={`mt-3 ${STEPS}`}>
+                <Step state="done">{info.nothingToday ? "Approved at Razorpay" : "Paid at Razorpay"}</Step>
+                <Step state="done">Checked it is genuine</Step>
+                <Step state="doing" status="Waiting">
+                  Waiting for the final confirmation
+                </Step>
+              </ol>
+              <Bought description={info.description} amountInr={info.nothingToday ? null : info.amountInr} />
+              <Reference paymentId={paymentId} />
+            </aside>
           </div>
-          <ol className="mt-5 px-4 py-1 rounded-[14px] bg-[#0d0e14] border border-white/[0.07]">
-            <Step state="done">{info.nothingToday ? "Approved at Razorpay" : "Paid at Razorpay"}</Step>
-            <Step state="done">Checked it is genuine</Step>
-            <Step state="doing" spin="#fbbf24" status="Waiting">
-              Waiting for the final confirmation
-            </Step>
-          </ol>
-          <Bought description={info.description} amountInr={info.nothingToday ? null : info.amountInr} />
-          <Reference paymentId={paymentId} />
-          <div className="mt-6 flex flex-wrap justify-center gap-2.5">
-            <button type="button" onClick={() => setRound((n) => n + 1)} className={BTN.primary}>
-              Check again
-            </button>
-            <Link to="/billing" className={BTN.secondary}>
-              Go to Billing
-            </Link>
-          </div>
-          <p className="mt-4 text-center text-[13px] text-gray-400">Still checking by itself. You can leave this page.</p>
         </section>
       )}
 
       {stage === "failed" && (
-        <section className={`${panel} border-rose-500/40 shadow-[0_30px_80px_-40px_rgba(244,63,94,0.45)]`} role="alert">
-          <Mark tone="red">
-            <ICONS.alert className="w-9 h-9" />
-          </Mark>
-          <h1 className="mt-6 text-center font-display text-[28px] font-bold tracking-tight text-white">We could not confirm this payment</h1>
-          <p className="mt-2 mx-auto max-w-[460px] text-center text-gray-300">{problem} Nothing was added to your account.</p>
-          <div className="mt-5 flex gap-3 px-4 py-3.5 rounded-xl bg-rose-500/[0.08] border border-rose-500/30 text-sm text-rose-50">
-            <ICONS.shield className="w-[18px] h-[18px] shrink-0 mt-0.5 text-rose-300" />
-            <span>If money left your bank, it is matched to your account when the bank reports it, or returned to you. You can check your Billing page in a few minutes.</span>
+        <section className={`${panel} ${WIDE} border-red-500 shadow-[8px_8px_0px_0px_#ef4444]`} role="alert">
+          <div className={SPLIT}>
+            <div className={SIDE}>
+              <Mark tone="red">
+                <ICONS.alert className="w-8 h-8" />
+              </Mark>
+              <h1 className={TITLE}>We could not confirm this payment</h1>
+              <p className="mt-3 text-gray-300 leading-relaxed">{problem} Nothing was added to your account.</p>
+              <Note tone="red" icon="shield" className="mt-5">
+                If money left your bank, it is matched to your account when the bank reports it, or returned to you. You can check your Billing page in a few minutes.
+              </Note>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link to={retryAt} className={BTN.primary}>
+                  Try again
+                </Link>
+                <a href={`mailto:support@pactdoc.com?subject=${encodeURIComponent(`Payment ${paymentId || "not confirmed"}`)}`} className={BTN.secondary}>
+                  Contact support
+                </a>
+              </div>
+              <p className="mt-4 text-xs text-gray-400">Quote the payment reference if you write to us.</p>
+            </div>
+
+            <aside aria-label="Where the payment stands" className={RECEIPT}>
+              <h2 className={EYEBROW}>Where it stands</h2>
+              <ol className={`mt-3 ${STEPS}`}>
+                <Step state="done">Payment made at Razorpay</Step>
+                <Step state="failed" status="Failed">
+                  Did not match this order
+                </Step>
+                <Step state="waiting">Add it to your account</Step>
+              </ol>
+              <Bought description={info.description} amountInr={info.amountInr} />
+              <Reference paymentId={paymentId} />
+            </aside>
           </div>
-          <ol className="mt-5 px-4 py-1 rounded-[14px] bg-[#0d0e14] border border-white/[0.07]">
-            <Step state="done">Payment made at Razorpay</Step>
-            <Step state="failed" status="Failed">
-              Did not match this order
-            </Step>
-            <Step state="waiting">Add it to your account</Step>
-          </ol>
-          <Bought description={info.description} amountInr={info.amountInr} />
-          <Reference paymentId={paymentId} />
-          <div className="mt-6 flex flex-wrap justify-center gap-2.5">
-            <Link to={retryAt} className={BTN.primary}>
-              Try again
-            </Link>
-            <a href={`mailto:support@pactdoc.com?subject=${encodeURIComponent(`Payment ${paymentId || "not confirmed"}`)}`} className={BTN.secondary}>
-              Contact support
-            </a>
-          </div>
-          <p className="mt-4 text-center text-[13px] text-gray-400">Quote the payment reference if you write to us.</p>
         </section>
       )}
     </PaymentShell>

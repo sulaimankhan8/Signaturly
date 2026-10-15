@@ -8,6 +8,13 @@ import { eventBus, EventTypes } from "../events/index.js";
 import { notifyUserDocumentUpdate } from "./sse.service.js";
 import { normalizePhone } from "./messaging/index.js";
 import { prepareAadhaarSigners } from "./esign/esign.service.js";
+import { normalizeFieldList } from "./fieldRules.service.js";
+import { billingUserIdOf } from "./branding.service.js";
+import { getOrCreateSubscription } from "./subscription.service.js";
+import { tierOf } from "./entitlements.service.js";
+
+// How often signers can be reminded automatically
+export const REMINDER_CADENCES = ["none", "daily", "3days", "5days"];
 
 export const sendDocumentToRecipients = async ({
   pdfId,
@@ -17,6 +24,8 @@ export const sendDocumentToRecipients = async ({
   message = "",
   expiresAt = null,
   signingOrder = false,
+  emailSubject = "",
+  reminderCadence = "none",
   ipAddress = "",
   userAgent = "",
 }) => {
@@ -37,6 +46,16 @@ export const sendDocumentToRecipients = async ({
     throw new ApiError(400, "The signing deadline must be a future date");
   }
 
+  // A subject line of the sender's own and automatic reminders come with the paid plans
+  const subject = typeof emailSubject === "string" ? emailSubject.replace(/\s+/g, " ").trim().slice(0, 200) : "";
+  const cadence = REMINDER_CADENCES.includes(reminderCadence) ? reminderCadence : "none";
+  if (subject || cadence !== "none") {
+    const subscription = await getOrCreateSubscription(await billingUserIdOf(pdf));
+    if ((tierOf(subscription) || "free") === "free") {
+      throw new ApiError(403, "UPGRADE_REQUIRED: Your own email subject and automatic reminders are on the Pro plan and above.");
+    }
+  }
+
   const sender = await User.findById(userId);
 
   // Where anyone signs with Aadhaar eSign, those signers go last and the document is signed
@@ -45,71 +64,26 @@ export const sendDocumentToRecipients = async ({
   recipientsData = aadhaar.recipientsData;
   if (aadhaar.count > 0) signingOrder = true;
 
-  // 1. Create recipient records
+  // 1. Check the fields and work out whose each one is before anything is stored
+  const layout = normalizeFieldList(fieldsData, { pageCount: pdf.pageCount, values: "layout" });
+  const ownerIndex = matchFieldsToRecipients(layout, recipientsData);
+
+  // 2. Create recipient records, in the order they were given
   const recipients = await createRecipientsForDoc({
     pdfId,
     recipientsData,
   });
 
-  // 2. Link each field to the exact recipient._id
-  const normalizedFields = fieldsData.map((rawField) => {
-    const f = (rawField && typeof rawField.toObject === "function")
-      ? rawField.toObject()
-      : (rawField && rawField._doc ? { ...rawField._doc } : { ...rawField });
-
-    let matchedRecipient = null;
-
-    if (!matchedRecipient && typeof f.recipientEmail === "string" && f.recipientEmail) {
-      matchedRecipient = recipients.find(
-        (r) => r.email && r.email.toLowerCase() === f.recipientEmail.toLowerCase()
-      );
-    }
-
-    // Signers reached by phone have no email to match on
-    if (!matchedRecipient && typeof f.recipientPhone === "string" && f.recipientPhone) {
-      const phone = normalizePhone(f.recipientPhone);
-      matchedRecipient = recipients.find((r) => r.phone && r.phone === phone);
-    }
-
-    if (!matchedRecipient && f.recipientName) {
-      matchedRecipient = recipients.find(
-        (r) => r.name.toLowerCase() === f.recipientName.toLowerCase()
-      );
-    }
-
-    if (!matchedRecipient && f.roleId) {
-      const roleNum = parseInt(String(f.roleId).replace(/\D/g, ""), 10);
-      if (!isNaN(roleNum)) {
-        matchedRecipient = recipients.find(
-          (r) => r.signingOrder === roleNum
-        );
-      }
-      if (!matchedRecipient && f.roleName) {
-        matchedRecipient = recipients.find(
-          (r) => r.name.toLowerCase() === f.roleName.toLowerCase()
-        );
-      }
-    }
-
+  const normalizedFields = layout.map((field, i) => {
+    const owner = recipients[ownerIndex[i]];
+    // Names the caller used to find the owner are replaced by the owner's own record
+    const { roleColor, recipientPhone, ...rest } = field;
     return {
-      id: f.id || f._id?.toString() || `field-${Math.random().toString(36).substr(2, 9)}`,
-      type: f.type || "signature",
-      page: Number(f.page) || 1,
-      xPercent: Number(f.xPercent) || 0,
-      yPercent: Number(f.yPercent) || 0,
-      widthPercent: Number(f.widthPercent) || 0.2,
-      heightPercent: Number(f.heightPercent) || 0.05,
-      fontSizePercent: f.fontSizePercent ? Number(f.fontSizePercent) : undefined,
-      label: f.label || "",
-      required: f.required !== false,
-      value: f.value || "",
-      signatureUrl: f.signatureUrl || "",
-      roleId: f.roleId || undefined,
-      roleName: f.roleName || undefined,
-      recipientId: matchedRecipient ? matchedRecipient._id.toString() : (f.recipientId || recipients[0]?._id?.toString()),
-      recipientEmail: matchedRecipient ? matchedRecipient.email : (f.recipientEmail || recipients[0]?.email),
-      recipientName: matchedRecipient ? matchedRecipient.name : (f.recipientName || recipients[0]?.name),
-      recipientColor: matchedRecipient ? matchedRecipient.color : (f.recipientColor || "#3b82f6"),
+      ...rest,
+      recipientId: owner._id.toString(),
+      recipientEmail: owner.email,
+      recipientName: owner.name,
+      recipientColor: owner.color,
     };
   });
 
@@ -117,9 +91,13 @@ export const sendDocumentToRecipients = async ({
   pdf.recipients = recipients.map((r) => r._id);
   pdf.fields = normalizedFields;
   pdf.message = message;
+  pdf.emailSubject = subject;
+  pdf.reminderCadence = cadence;
   pdf.expiresAt = expiresAt ? new Date(expiresAt) : null;
   pdf.signingOrder = Boolean(signingOrder);
   pdf.status = "pending";
+  // The editor's working copy has been sent; nothing is left to restore
+  pdf.draft = null;
   await pdf.save();
 
   // 4. Mark active recipient statuses
@@ -163,12 +141,59 @@ export const sendDocumentToRecipients = async ({
     status: pdf.status,
   });
 
+  // A sender who is also a signer, and whose turn it is now, can sign straight away from the app
+  const senderEmail = (sender?.email || "").toLowerCase();
+  const senderSigner = senderEmail
+    ? activeRecipientsToNotify.find((r) => r.role !== "viewer" && r.email && r.email === senderEmail)
+    : null;
+
   return {
     pdfId: pdf._id,
     status: pdf.status,
     recipientsCount: recipients.length,
     signingOrder: pdf.signingOrder,
+    signNowToken: senderSigner ? senderSigner.token : null,
   };
+};
+
+/**
+ * Finds, for each field, the index of the recipient it belongs to. A field names its owner by:
+ *   recipientId  the id the editor gave the recipient before sending
+ *   roleId       the template role the recipient fills
+ *   recipientEmail / recipientPhone, or a recipientName that only one recipient has (the API)
+ * A field that matches nobody, or belongs to someone who only views, is refused rather than
+ * handed to another signer.
+ */
+export const matchFieldsToRecipients = (fields, recipientsData) => {
+  const list = Array.isArray(recipientsData) ? recipientsData : [];
+  const lower = (value) => (typeof value === "string" ? value.trim().toLowerCase() : "");
+
+  const indexWhere = (test) => list.findIndex((r) => r && test(r));
+  const onlyIndexWhere = (test) => {
+    const matches = list.map((r, i) => (r && test(r) ? i : -1)).filter((i) => i >= 0);
+    return matches.length === 1 ? matches[0] : -1;
+  };
+
+  return fields.map((field) => {
+    let index = -1;
+
+    if (field.recipientId) index = indexWhere((r) => r.id != null && String(r.id) === field.recipientId);
+    if (index < 0 && field.roleId) index = indexWhere((r) => r.roleId != null && String(r.roleId) === field.roleId);
+    if (index < 0 && field.recipientEmail) index = indexWhere((r) => lower(r.email) === lower(field.recipientEmail));
+    if (index < 0 && field.recipientPhone) {
+      const phone = normalizePhone(field.recipientPhone);
+      index = indexWhere((r) => r.phone && normalizePhone(String(r.phone)) === phone);
+    }
+    if (index < 0 && field.recipientName) index = onlyIndexWhere((r) => lower(r.name) === lower(field.recipientName));
+
+    if (index < 0) {
+      throw new ApiError(400, `The ${field.type} field on page ${field.page} is not assigned to any recipient`);
+    }
+    if (list[index].role === "viewer") {
+      throw new ApiError(400, `${list[index].name || "A viewer"} only views the document and cannot be given fields`);
+    }
+    return index;
+  });
 };
 
 export const voidDocument = async ({ pdfId, userId, ipAddress, userAgent }) => {

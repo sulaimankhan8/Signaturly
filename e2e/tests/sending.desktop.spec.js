@@ -24,9 +24,12 @@ test.describe("sending a document", () => {
     await page.getByRole("button", { name: /Next: Place Form Fields/ }).click();
     await page.waitForURL(`**/assign/${doc.pdfId}`);
 
-    // Place a signature field. A sender can move it (only signers have fields locked).
+    // Place a signature field: pick it in the palette, then click where it goes on the page.
+    // A sender can move it (only signers have fields locked).
     await expect(pageCanvas(page)).toBeVisible();
+    const firstPage = page.locator('[data-document-page="1"]');
     await page.getByRole("button", { name: /^Signature/ }).first().click();
+    await firstPage.click({ position: { x: 160, y: 140 } });
     const field = page.getByTestId("field-signature");
     await expect(field).toBeVisible();
 
@@ -39,11 +42,30 @@ test.describe("sending a document", () => {
     expect(after.x - before.x).toBeGreaterThan(60);
     expect(after.y - before.y).toBeGreaterThan(60);
 
-    // A date field is left empty for the signer: it takes the day they sign, not the day it was sent
-    await page.getByRole("button", { name: /Date Field/ }).click();
-    await expect(page.getByTestId("field-date")).toBeVisible();
-    expect(await page.getByTestId("field-date").locator("input").inputValue()).toBe("");
+    // The work is saved as it goes; this waits for the save that holds the date field placed next
+    const savedWithDate = page.waitForResponse(
+      (response) =>
+        response.url().includes(`/pdf/${doc.pdfId}/draft`) &&
+        response.request().method() === "PUT" &&
+        response.ok() &&
+        (response.request().postDataJSON()?.fields || []).some((f) => f.type === "date")
+    );
 
+    // A date field is left empty for the signer: it takes the day they sign, not the day it was sent
+    await page.getByRole("button", { name: /Date signed/ }).click();
+    await firstPage.click({ position: { x: 160, y: 420 } });
+    await expect(page.getByTestId("field-date")).toBeVisible();
+    await expect(page.getByTestId("field-date")).toContainText("Date signed");
+
+    // A refresh loses nothing
+    await savedWithDate;
+    await page.reload();
+    await expect(page.getByTestId("field-signature")).toBeVisible();
+    await expect(page.getByTestId("field-date")).toBeVisible();
+
+    // Review, then send
+    await page.getByRole("button", { name: /Next: Review/ }).click();
+    await page.waitForURL(`**/review/${doc.pdfId}`);
     await page.getByRole("button", { name: /Send for Signing/ }).click();
     await page.waitForURL("**/dashboard");
 

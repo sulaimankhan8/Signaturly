@@ -1,40 +1,39 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
-import { formatFieldDate } from "../utils/fieldDate";
+import { LIGHT, INKS } from "./signature/lightTheme";
+import { ensureFont, fitFont } from "./signature/canvasTools";
+
+const WIDTH = 650;
+const HEIGHT = 200;
+const FONT = "Dancing Script";
 
 /**
- * A signature drawn as a stamp: the signer's name in a script typeface with the date.
- * The wording on the stamp becomes part of the document, so it says only what is true of every
- * signature made here: that it was made electronically, and when.
+ * A signature drawn as a stamp: the signer's name in a script typeface inside a frame.
+ *
+ * The stamp carries no date. A signature can be reused, and a date drawn into it would go
+ * stale; when the document was signed is written in its date fields and its signing record,
+ * by the server's clock.
  */
 export default function VerifiedESignBadge({ onConfirm, defaultName = "" }) {
   const { t } = useTranslation();
   const [name, setName] = useState(defaultName || "");
   const [styleType, setStyleType] = useState("modern-badge"); // modern-badge | formal-stamp | cursive-badge
-  const [color, setColor] = useState("#0f172a");
+  const [color, setColor] = useState(INKS[0].value);
   const [previewUrl, setPreviewUrl] = useState("");
 
-  useEffect(() => {
-    if (defaultName && defaultName.trim()) {
-      setName(defaultName.trim());
-    }
-  }, [defaultName]);
-
-  const generateBadgeDataUrl = (signerName = name, style = styleType, strokeColor = color) => {
+  const draw = async (signerName = name, style = styleType, ink = color) => {
     const text = signerName.trim();
     if (!text) return "";
+    await ensureFont(FONT, { weight: "700" });
+
     const canvas = document.createElement("canvas");
-    canvas.width = 650;
-    canvas.height = 200;
+    canvas.width = WIDTH;
+    canvas.height = HEIGHT;
     const ctx = canvas.getContext("2d");
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const dateStr = formatFieldDate();
+    const script = (size) => `700 ${size}px "${FONT}", cursive`;
 
     if (style === "modern-badge") {
-      // 1. Card with an accent bar
       ctx.fillStyle = "rgba(248, 250, 252, 0.98)";
       ctx.strokeStyle = "#cbd5e1";
       ctx.lineWidth = 3;
@@ -43,95 +42,89 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "" }) {
       ctx.fill();
       ctx.stroke();
 
-      // Left accent bar
       ctx.fillStyle = "#dc2626";
       ctx.beginPath();
       ctx.roundRect(10, 10, 14, 180, [16, 0, 0, 16]);
       ctx.fill();
 
-      // Header
       ctx.font = "bold 15px sans-serif";
       ctx.fillStyle = "#64748b";
       ctx.textAlign = "left";
       ctx.fillText("ELECTRONICALLY SIGNED", 40, 42);
 
-      // Cursive Signature
-      ctx.font = "bold 52px 'Dancing Script', 'Brush Script MT', cursive, sans-serif";
-      ctx.fillStyle = strokeColor;
-      ctx.fillText(text, 40, 108);
+      fitFont(ctx, text, script, 56, 580);
+      ctx.fillStyle = ink;
+      ctx.fillText(text, 40, 112);
 
-      // Metadata Footer
       ctx.font = "13px monospace";
       ctx.fillStyle = "#475569";
-      ctx.fillText(`Electronic signature • ${dateStr}`, 40, 155);
-
+      ctx.fillText("Electronic signature", 40, 160);
     } else if (style === "formal-stamp") {
-      // 2. Double-border stamp
       ctx.fillStyle = "rgba(255, 255, 255, 0.98)";
       ctx.beginPath();
       ctx.roundRect(8, 8, 634, 184, 14);
       ctx.fill();
 
-      ctx.strokeStyle = strokeColor;
+      ctx.strokeStyle = ink;
       ctx.lineWidth = 3.5;
       ctx.beginPath();
       ctx.roundRect(12, 12, 626, 176, 12);
       ctx.stroke();
-
-      ctx.strokeStyle = strokeColor;
       ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.roundRect(18, 18, 614, 164, 8);
       ctx.stroke();
 
       ctx.font = "bold 16px sans-serif";
-      ctx.fillStyle = strokeColor;
+      ctx.fillStyle = ink;
       ctx.textAlign = "center";
-      ctx.fillText("ELECTRONICALLY SIGNED", 325, 48);
+      ctx.fillText("ELECTRONICALLY SIGNED", 325, 50);
 
-      ctx.font = "bold 48px 'Dancing Script', cursive, sans-serif";
-      ctx.fillText(text, 325, 110);
+      fitFont(ctx, text, script, 52, 560);
+      ctx.fillText(text, 325, 116);
 
       ctx.font = "bold 13px sans-serif";
       ctx.fillStyle = "#475569";
-      ctx.fillText(`Electronic signature • ${dateStr}`, 325, 155);
-
+      ctx.fillText("Electronic signature", 325, 160);
     } else {
-      // 3. Name over a signature line
       ctx.fillStyle = "rgba(255, 255, 255, 0.98)";
       ctx.beginPath();
       ctx.roundRect(8, 8, 634, 184, 14);
       ctx.fill();
 
       ctx.textAlign = "left";
-      ctx.font = "bold 58px 'Dancing Script', 'Great Vibes', cursive, sans-serif";
-      ctx.fillStyle = strokeColor;
-      ctx.fillText(text, 40, 95);
+      fitFont(ctx, text, script, 62, 560);
+      ctx.fillStyle = ink;
+      ctx.fillText(text, 40, 98);
 
-      // Signature line
       ctx.strokeStyle = "#94a3b8";
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(40, 120);
-      ctx.lineTo(600, 120);
+      ctx.moveTo(40, 124);
+      ctx.lineTo(600, 124);
       ctx.stroke();
 
       ctx.font = "bold 13px sans-serif";
       ctx.fillStyle = "#475569";
-      ctx.fillText(`Electronic signature of ${text} • ${dateStr}`, 40, 152);
+      const footer = `Electronic signature of ${text}`;
+      fitFont(ctx, footer, (size) => `bold ${size}px sans-serif`, 13, 560, 9);
+      ctx.fillText(footer, 40, 156);
     }
 
     return canvas.toDataURL("image/png");
   };
 
-  // Update preview whenever name, style, or color changes
   useEffect(() => {
-    const url = generateBadgeDataUrl(name, styleType, color);
-    setPreviewUrl(url);
+    let current = true;
+    draw(name, styleType, color).then((url) => current && setPreviewUrl(url));
+    return () => {
+      current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, styleType, color]);
 
-  const handleConfirm = () => {
-    const dataUrl = generateBadgeDataUrl(name, styleType, color);
+  const handleConfirm = async () => {
+    const dataUrl = await draw(name, styleType, color);
     if (!dataUrl) {
       toast.error(t("typed.needName"));
       return;
@@ -141,76 +134,55 @@ export default function VerifiedESignBadge({ onConfirm, defaultName = "" }) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div>
-        <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1">
+        <label className={LIGHT.label} htmlFor="stamp-name">
           {t("stamp.nameLabel")}
         </label>
         <input
+          id="stamp-name"
           type="text"
           value={name}
+          maxLength={80}
           onChange={(e) => setName(e.target.value)}
           placeholder={t("stamp.namePlaceholder")}
-          className="w-full px-3.5 py-2.5 bg-[#08090d] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-red-500 text-xs font-medium"
+          className={LIGHT.input}
         />
       </div>
 
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex bg-[#08090d] p-1 rounded-xl border border-white/10 flex-1">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className={`${LIGHT.tabs} flex-1 min-w-[220px]`} role="radiogroup" aria-label={t("typed.style")}>
           {[
             { id: "modern-badge", labelKey: "stamp.styleCard" },
             { id: "formal-stamp", labelKey: "stamp.styleStamp" },
             { id: "cursive-badge", labelKey: "stamp.styleLine" },
           ].map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setStyleType(s.id)}
-              className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
-                styleType === s.id
-                  ? "bg-red-600 text-white shadow border border-red-500/40"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
+            <button key={s.id} type="button" role="radio" aria-checked={styleType === s.id} onClick={() => setStyleType(s.id)} className={LIGHT.tab(styleType === s.id)}>
               {t(s.labelKey)}
             </button>
           ))}
         </div>
-
-        <div className="flex items-center space-x-1 bg-black/40 p-1.5 rounded-xl border border-white/10">
-          {[
-            { val: "#0f172a", bg: "bg-slate-900" },
-            { val: "#1e40af", bg: "bg-blue-800" },
-            { val: "#991b1b", bg: "bg-red-800" },
-          ].map((c) => (
+        <div className="flex items-center gap-2" role="radiogroup" aria-label={t("pad.ink")}>
+          {INKS.map((ink) => (
             <button
-              key={c.val}
+              key={ink.value}
               type="button"
-              onClick={() => setColor(c.val)}
-              className={`w-5 h-5 rounded-md ${c.bg} border transition-all ${
-                color === c.val ? "scale-110 border-white ring-2 ring-white/30" : "border-transparent opacity-70"
-              }`}
+              role="radio"
+              aria-checked={color === ink.value}
+              onClick={() => setColor(ink.value)}
+              className={LIGHT.swatch(color === ink.value)}
+              style={{ background: ink.value }}
+              aria-label={t(`pad.color.${ink.key}`)}
             />
           ))}
         </div>
       </div>
 
-      {/* Live WYSIWYG Badge Preview */}
-      <div className="border border-white/10 rounded-2xl p-2 bg-slate-950/80 flex items-center justify-center min-h-[105px] overflow-hidden shadow-inner">
-        {previewUrl && (
-          <img
-            src={previewUrl}
-            alt={t("stamp.previewAlt")}
-            className="max-h-[95px] w-auto object-contain rounded-lg shadow-sm"
-          />
-        )}
+      <div className="border-2 border-black rounded-2xl p-2 bg-[#f3efe6] flex items-center justify-center min-h-[110px] overflow-hidden">
+        {previewUrl ? <img src={previewUrl} alt={t("stamp.previewAlt")} className="max-h-[100px] w-auto object-contain" /> : <span className="text-xs text-gray-500">{t("typed.preview")}</span>}
       </div>
 
-      <button
-        type="button"
-        onClick={handleConfirm}
-        className="w-full py-2.5 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-red-950/50 border border-red-500/30"
-      >
+      <button type="button" onClick={handleConfirm} disabled={!name.trim()} className={`${LIGHT.primary} w-full`}>
         {t("stamp.adopt")}
       </button>
     </div>

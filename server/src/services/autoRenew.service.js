@@ -5,7 +5,7 @@ import { User } from "../models/User.model.js";
 import { PLANS, isPlan, periodMsOf, seatsOf, sellsAs, priceOf, sameOffer } from "../config/plans.js";
 import { env } from "../config/env.js";
 import { ApiError } from "../utils/ApiError.js";
-import { getOrCreateSubscription } from "./subscription.service.js";
+import { getOrCreateSubscription, RENEWAL_WAIT_MS } from "./subscription.service.js";
 import { assertSeatsCoverTeams } from "./workspace.service.js";
 import { applyPurchase, applyRenewal, applyAutoRenewApproved, applyCancellation, applyPaymentFailure } from "./billingEvents.service.js";
 import { moveTo } from "./planChange.service.js";
@@ -61,8 +61,10 @@ export const renewalOf = (sub, now = new Date()) => {
   const running = Boolean(plan?.interval && sub.plan !== "free" && ["active", "past_due"].includes(sub.status) && sub.currentPeriodEnd);
   if (!running) return { mode: "none", interval: null, endsOn: null, nextChargeOn: null, amountInr: null, overdue: false, canStart: false, canStop: false, canAddPeriod: false, scheduled: null };
 
-  // The period has run out and the account is in its few days of grace
-  const overdue = sub.status === "past_due" || sub.currentPeriodEnd <= now;
+  // The period has run out and the account is in its grace. An automatic charge is not overdue
+  // until it has failed, or nothing has been heard of it for a while (subscription.service.js)
+  const ended = sub.currentPeriodEnd <= now;
+  const overdue = sub.status === "past_due" || (ended && (!renewsNow(sub) || now.getTime() > sub.currentPeriodEnd.getTime() + RENEWAL_WAIT_MS));
   if (renewsNow(sub)) {
     // A move to a cheaper plan waiting for the paid time to end: what it is, and when
     const next = isPlan(sub.scheduledPlan) ? PLANS[sub.scheduledPlan] : null;
@@ -149,7 +151,8 @@ const subscriptionFor = async ({ userId, planId, askedSeats, addOn }) => {
   if (!canAutoRenew(planId)) throw new ApiError(400, "That plan cannot be bought as a subscription");
 
   const sub = await getOrCreateSubscription(userId);
-  if (renewsNow(sub) && sub.plan === planId) throw new ApiError(409, "Your plan already renews automatically at this price.");
+  // An automatic payment that failed can be made again: the new approval takes the place of the failed one
+  if (renewsNow(sub) && sub.status === "active" && sub.plan === planId) throw new ApiError(409, "Your plan already renews automatically at this price.");
 
   const plan = PLANS[planId];
   const seats = seatsFor(sub, planId, askedSeats);
@@ -307,6 +310,19 @@ export const stopAutoRenew = async (userId) => {
   return applyCancellation({ provider: "razorpay", providerSubscriptionId: subscriptionId, userId, atPeriodEnd: true });
 };
 
+/**
+ * Ends at Razorpay the subscription of an account that has moved to Free because its payment
+ * never came (subscription.service.js), so that no retry can charge it after we have said it is
+ * on Free. Run as a job; throws when Razorpay cannot be reached, so the job is tried again.
+ */
+export const endLapsedSubscription = async ({ userId, subscriptionId }) => {
+  if (!subscriptionId || isSimulated(subscriptionId) || !razorpayConfigured()) return;
+  const remote = await readSubscription(subscriptionId);
+  // Only a subscription of this very account is ended
+  if (String(remote.notes?.userId || "") !== String(userId)) return;
+  if (!["cancelled", "completed", "expired"].includes(remote.status)) await cancelSubscription(subscriptionId, { atPeriodEnd: false });
+};
+
 // ----- catching what was missed -----
 
 // Brings one account in line with what Razorpay says about its subscription
@@ -335,7 +351,7 @@ const reconcileOne = async (sub) => {
     return "overdue";
   }
   if (["cancelled", "completed", "expired"].includes(remote.status)) {
-    await applyCancellation({ provider: "razorpay", providerSubscriptionId: subscriptionId, atPeriodEnd: true });
+    await applyCancellation({ provider: "razorpay", providerSubscriptionId: subscriptionId, atPeriodEnd: true, reason: remote.status === "completed" ? "completed" : "cancelled" });
     return "ended";
   }
   return "waiting";

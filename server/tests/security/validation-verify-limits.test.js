@@ -209,9 +209,10 @@ describe("M3 plan limits hold under parallel sends", () => {
 describe("M5 reminders are sent once per window", () => {
   it("does not remind the same signer twice in a row", async () => {
     const sender = await createUser();
-    const { recipients } = await sendDocument(sender, [{ name: "Slow", email: "slow@example.test" }]);
-    // Reminders start two days after sending
-    await Recipient.collection.updateOne({ _id: recipients[0]._id }, { $set: { createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } });
+    const { pdfId, recipients } = await sendDocument(sender, [{ name: "Slow", email: "slow@example.test" }]);
+    // The sender asked for reminders every three days; the first is due three days after sending
+    await Pdf.updateOne({ _id: pdfId }, { $set: { reminderCadence: "3days" } });
+    await Recipient.collection.updateOne({ _id: recipients[0]._id }, { $set: { createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000) } });
     emailOutbox.length = 0;
 
     await processAutomatedReminders();

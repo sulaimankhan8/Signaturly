@@ -37,15 +37,14 @@ test.describe("signing on a phone", () => {
     expect(Math.abs(after.x - before.x)).toBeLessThan(2);
     expect(Math.abs(after.y - before.y)).toBeLessThan(2);
 
-    // Type into the text field
-    await textField.getByText(en.field.enterText).tap();
+    // Type into the text field, right on the page
     await textField.locator("input").fill("Pune");
     await textField.locator("input").blur();
-    await expect(textField).toContainText("Pune");
+    await expect(textField.locator("input")).toHaveValue("Pune");
 
-    // The date field already holds today's date, with the month as a word
-    const typed = await page.getByTestId("field-date").locator("input").inputValue();
-    expect(typed).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // The date field shows the date of signing, with the month as a word, and cannot be changed
+    await expect(page.getByTestId("field-date")).toHaveText(/^\d{2} [A-Z][a-z]{2,3} \d{4}$/);
+    await expect(page.getByTestId("field-date").locator("input")).toHaveCount(0);
 
     // "Next field" takes the signer to the signature on page 2
     await bar.getByRole("button", { name: fill(en.nav.next, { count: 1 }) }).tap();
@@ -53,8 +52,8 @@ test.describe("signing on a phone", () => {
     await expect(pageCanvas(page)).toBeVisible();
 
     // Tapping the signature field opens the signature sheet; draw with a finger
-    await page.getByTestId("field-signature").tap();
-    await page.getByRole("button", { name: en.sig.tabDraw, exact: true }).tap();
+    await page.getByTestId("field-signature").getByRole("button").tap();
+    await page.getByRole("tab", { name: en.sig.tabDraw, exact: true }).tap();
     const pad = page.locator("canvas.touch-none");
     await expect(pad).toBeVisible();
     expect(await inkOn(pad)).toBe(0);
@@ -115,15 +114,14 @@ test.describe("signing on a phone", () => {
     };
     await expectNoEnglish();
 
-    await page.getByTestId("field-text").getByText(hi.field.enterText).tap();
     await page.getByTestId("field-text").locator("input").fill("पुणे");
     await page.getByTestId("field-text").locator("input").blur();
 
-    await page.getByTestId("field-signature").tap();
+    await page.getByTestId("field-signature").getByRole("button").tap();
     await expect(page.getByRole("heading", { name: hi.sidebar.studioTitle })).toBeVisible();
     await expectNoEnglish();
 
-    await page.getByRole("button", { name: hi.sig.tabDraw, exact: true }).tap();
+    await page.getByRole("tab", { name: hi.sig.tabDraw, exact: true }).tap();
     await expectNoEnglish();
     await drawWithFinger(page, page.locator("canvas.touch-none"));
     await page.getByRole("button", { name: hi.pad.attach }).tap();

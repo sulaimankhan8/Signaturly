@@ -13,6 +13,8 @@ export const updateWorkspaceBrandingApi = async (workspaceId, body) => data(awai
 
 export const inviteWorkspaceMemberApi = async (workspaceId, body) => data(await API.post(`/workspaces/${workspaceId}/invitations`, body));
 export const revokeInvitationApi = async (workspaceId, invitationId) => data(await API.delete(`/workspaces/${workspaceId}/invitations/${invitationId}`));
+export const resendInvitationApi = async (workspaceId, invitationId) => data(await API.post(`/workspaces/${workspaceId}/invitations/${invitationId}/resend`));
+export const remindTwoFactorApi = async (workspaceId, memberId) => data(await API.post(`/workspaces/${workspaceId}/members/${memberId}/remind-two-factor`));
 export const changeMemberRoleApi = async (workspaceId, memberId, role) => data(await API.patch(`/workspaces/${workspaceId}/members/${memberId}`, { role }));
 export const removeWorkspaceMemberApi = async (workspaceId, memberId) => data(await API.delete(`/workspaces/${workspaceId}/members/${memberId}`));
 

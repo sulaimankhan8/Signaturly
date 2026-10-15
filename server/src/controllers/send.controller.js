@@ -8,15 +8,12 @@ import { Recipient } from "../models/Recipient.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { reserveQuota, releaseQuota } from "../services/subscription.service.js";
 import { assertRecordAccess } from "../services/authorize.service.js";
-import { assertTwoFactorPolicy } from "../services/workspace.service.js";
 import { billingUserIdOf } from "../services/branding.service.js";
 import mongoose from "mongoose";
 
 export const sendDocumentController = asyncHandler(async (req, res) => {
   const { pdfId } = req.params;
-  const { recipients, fields, message, expiresAt, signingOrder } = req.body;
-
-  assertTwoFactorPolicy(req);
+  const { recipients, fields, message, expiresAt, signingOrder, emailSubject, reminderCadence } = req.body;
 
   // Count the document against the plan that pays for the workspace the document is in, whichever
   // workspace the sender happens to be looking at; give it back if the send fails.
@@ -36,6 +33,8 @@ export const sendDocumentController = asyncHandler(async (req, res) => {
       message: typeof message === "string" ? message.slice(0, 2000) : "",
       expiresAt,
       signingOrder,
+      emailSubject,
+      reminderCadence,
       ipAddress: req.ip || req.socket?.remoteAddress,
       userAgent: req.headers["user-agent"],
     });
@@ -100,4 +99,29 @@ export const updateRecipientEmailController = asyncHandler(async (req, res) => {
   });
 
   res.status(200).json(new ApiResponse(result, "Recipient email updated and signing link re-dispatched successfully"));
+});
+
+// People the sender has sent documents to before, newest first, to offer as they type a recipient
+export const recentRecipientsController = asyncHandler(async (req, res) => {
+  const documents = await Pdf.find({ userId: req.user.id, deletedAt: null, "recipients.0": { $exists: true } })
+    .sort({ createdAt: -1 })
+    .limit(60)
+    .select("_id");
+
+  const people = await Recipient.find({ pdfId: { $in: documents.map((d) => d._id) } })
+    .sort({ createdAt: -1 })
+    .select("name email phone -_id")
+    .lean();
+
+  const seen = new Set();
+  const recent = [];
+  for (const person of people) {
+    const key = (person.email || person.phone || "").toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    recent.push({ name: person.name, email: person.email || "", phone: person.phone || "" });
+    if (recent.length >= 30) break;
+  }
+
+  res.status(200).json(new ApiResponse(recent, "Recent recipients"));
 });

@@ -60,6 +60,15 @@ const templateSchema = new mongoose.Schema(
         fontSizePercent: { type: Number },
         label: { type: String },
         required: { type: Boolean, default: true },
+        // Text: a hint shown in the empty field, what it accepts, and words the sender fills in
+        placeholder: { type: String },
+        format: { type: String },
+        value: { type: String },
+        readOnly: { type: Boolean },
+        // Dropdown: the choices
+        options: { type: [String], default: undefined },
+        // Radio: the options that answer one question share a group
+        groupId: { type: String },
       },
     ],
     usageCount: {

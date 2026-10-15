@@ -11,11 +11,13 @@ export default function Plans() {
   const { user, catalogue, mine, held, goCheckout, stopRenewing } = useBilling();
 
   return (
-    <div className="grid gap-14">
+    <div className="grid gap-12">
       <div>
-        <div className="text-center max-w-2xl mx-auto mb-10">
-          <h2 className="font-display text-3xl font-bold tracking-tight text-white">Pick the plan that fits how much you send</h2>
-          <p className="mt-2 text-gray-400 leading-relaxed">A document is one PDF sent for signature, however many people sign it. No charge per signer. Prices include GST.</p>
+        <div className="text-center max-w-4xl mx-auto mb-6">
+          <h2 className="text-2xl sm:text-[34px] sm:leading-tight font-black uppercase tracking-tight text-white">
+            Pick the plan that fits <span className="text-yellow-400">how much you send</span>
+          </h2>
+          <p className="mt-2.5 text-sm sm:text-[15px] text-gray-400 leading-relaxed">A document is one PDF sent for signature, however many people sign it. No charge per signer. Prices include GST.</p>
         </div>
         <PricingCards
           catalogue={catalogue}

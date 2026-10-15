@@ -113,7 +113,7 @@ export const UpgradeModal = ({ isOpen, onClose, onUpgraded, reason, feature = nu
       type="button"
       onClick={() => setChoosingPlan(true)}
       disabled={Boolean(busy)}
-      className={`w-full flex justify-between items-center gap-3 min-h-[52px] px-4 rounded-xl text-sm font-bold text-left disabled:opacity-40 transition-colors ${first ? `${look.solid} hover:brightness-110 text-white` : "bg-white/[0.05] hover:bg-white/10 border border-white/10 text-gray-100"}`}
+      className={`w-full flex justify-between items-center gap-3 min-h-[52px] px-4 rounded-xl border-2 text-sm font-black text-left disabled:opacity-40 transition-all ${first ? `${look.solid} border-black shadow-[3px_3px_0px_0px_#000] hover:brightness-110 hover:-translate-y-0.5` : "bg-[#1e2235] hover:bg-[#282d47] border-white/20 text-gray-100"}`}
     >
       <span>
         {outOfDocuments ? "Move to " : ""}
@@ -128,15 +128,15 @@ export const UpgradeModal = ({ isOpen, onClose, onUpgraded, reason, feature = nu
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" role="dialog" aria-modal="true" aria-label={outOfDocuments ? "Out of documents" : "Upgrade"} data-testid={outOfDocuments ? "out-of-documents" : undefined}>
-      <div className="bg-[#12141c] border border-white/[0.12] rounded-[22px] max-w-md w-full p-6 grid gap-4 shadow-2xl">
+      <div className={`bg-[#13151f] border-2 border-white/20 rounded-2xl max-w-md w-full p-6 grid gap-4 ${outOfDocuments ? "shadow-[6px_6px_0px_0px_#facc15]" : "shadow-[6px_6px_0px_0px_#a855f7]"}`}>
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className={`w-10 h-10 grid place-items-center rounded-xl ${outOfDocuments ? "bg-amber-400/15 text-amber-300" : "bg-violet-400/15 text-violet-300"}`} aria-hidden="true">
+            <span className={`w-10 h-10 shrink-0 grid place-items-center rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_#000] ${outOfDocuments ? "bg-yellow-400 text-black" : "bg-purple-600 text-white"}`} aria-hidden="true">
               {outOfDocuments ? <ICONS.doc className="w-5 h-5" /> : <ICONS.bolt className="w-5 h-5" />}
             </span>
-            <h2 className="font-display text-lg font-bold text-white">{outOfDocuments ? "You have used this month's documents" : `This needs ${target ? `the ${target.name} plan` : "a bigger plan"}`}</h2>
+            <h2 className="text-lg font-black leading-snug text-white">{outOfDocuments ? "You have used this month's documents" : `This needs ${target ? `the ${target.name} plan` : "a bigger plan"}`}</h2>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 grid place-items-center rounded-lg text-gray-400 hover:text-white hover:bg-white/5">
+          <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 shrink-0 grid place-items-center rounded-lg border-2 border-white/15 text-gray-400 hover:text-white hover:bg-white/10">
             <ICONS.close className="w-4 h-4" />
           </button>
         </div>
@@ -152,8 +152,8 @@ export const UpgradeModal = ({ isOpen, onClose, onUpgraded, reason, feature = nu
                 type="button"
                 onClick={() => buy("topup", pack.id)}
                 disabled={Boolean(busy)}
-                className={`w-full flex justify-between items-center gap-3 min-h-[52px] px-4 rounded-xl text-sm font-bold disabled:opacity-40 transition-colors ${
-                  outOfDocuments && index === 0 ? "bg-rose-600 hover:bg-rose-500 text-white" : "bg-white/[0.05] hover:bg-white/10 border border-white/10 text-gray-100"
+                className={`w-full flex justify-between items-center gap-3 min-h-[52px] px-4 rounded-xl border-2 text-sm font-black disabled:opacity-40 transition-all ${
+                  outOfDocuments && index === 0 ? "bg-red-600 hover:bg-red-500 text-white border-black shadow-[3px_3px_0px_0px_#facc15] hover:-translate-y-0.5" : "bg-[#1e2235] hover:bg-[#282d47] border-white/20 text-gray-100"
                 }`}
               >
                 <span>{pack.documents} extra documents, one payment</span>
@@ -172,7 +172,7 @@ export const UpgradeModal = ({ isOpen, onClose, onUpgraded, reason, feature = nu
             if (onClose) onClose();
             navigate("/billing/plans");
           }}
-          className="justify-self-start text-sm text-gray-400 underline underline-offset-2 hover:text-white"
+          className="justify-self-start text-xs font-black uppercase tracking-wider text-gray-400 underline underline-offset-2 hover:text-white"
         >
           Compare all plans
         </button>

@@ -8,6 +8,7 @@ import { saveFile, readFile, fileExists } from "./storage.service.js";
 import { assertRecordAccess, recordsIn } from "./authorize.service.js";
 import { PDFDocument } from "pdf-lib";
 import { watermarkTestDocument } from "./pdfUpload.service.js";
+import { normalizeFieldList } from "./fieldRules.service.js";
 
 export const createTemplate = async ({
   userId,
@@ -45,6 +46,10 @@ export const createTemplate = async ({
     throw new ApiError(400, "A PDF file or source PDF reference is required");
   }
 
+  const templateRoles = roles.length > 0 ? roles : [
+    { id: "role-1", name: "Signer 1", color: "#3b82f6", signingOrder: 1 },
+  ];
+
   const template = await Template.create({
     userId,
     workspaceId,
@@ -53,13 +58,23 @@ export const createTemplate = async ({
     sourcePdfPath,
     originalFileName,
     pageCount,
-    roles: roles.length > 0 ? roles : [
-      { id: "role-1", name: "Signer 1", color: "#3b82f6", signingOrder: 1 },
-    ],
-    fields,
+    roles: templateRoles,
+    fields: templateFields(fields, templateRoles, pageCount),
   });
 
   return template;
+};
+
+/**
+ * A template's fields, checked like any document's, each belonging to one of the template's roles.
+ */
+const templateFields = (fields, roles, pageCount) => {
+  const byId = new Map((roles || []).map((role) => [String(role.id), role]));
+  return normalizeFieldList(fields || [], { pageCount, values: "layout" }).map((field) => {
+    const role = byId.get(String(field.roleId || ""));
+    if (!role) throw new ApiError(400, `The ${field.type} field on page ${field.page} is not given to any role`);
+    return { ...field, roleId: String(role.id), roleName: role.name, roleColor: role.color || "#3b82f6" };
+  });
 };
 
 // The templates of the workspace the request is working in: a team's shared library, or the user's own
@@ -82,7 +97,9 @@ export const updateTemplate = async (templateId, userId, updates) => {
   if (updates.name) template.name = updates.name.trim();
   if (updates.description !== undefined) template.description = updates.description;
   if (updates.roles) template.roles = updates.roles;
-  if (updates.fields) template.fields = updates.fields;
+  if (updates.fields || updates.roles) {
+    template.fields = templateFields(updates.fields || template.fields, template.roles, template.pageCount);
+  }
 
   await template.save();
   return template;
@@ -156,6 +173,8 @@ export const instantiateDocumentFromTemplate = async ({
         role: "signer",
         color: role.color,
         signingOrder: role.signingOrder || 1,
+        // The role's fields go to this person
+        roleId: String(role.id),
       };
       recipientsData.push(recipientObj);
     }
@@ -165,12 +184,19 @@ export const instantiateDocumentFromTemplate = async ({
     throw new ApiError(400, "Please assign at least one signer to a template role");
   }
 
+  // A role nobody was named for is left out, with its fields
+  const filledRoles = new Set(recipientsData.map((r) => r.roleId));
+  for (const field of template.fields) {
+    instantiatedFields.push(typeof field.toObject === "function" ? field.toObject() : { ...field });
+  }
+  const fieldsData = instantiatedFields.filter((field) => filledRoles.has(String(field.roleId)));
+
   // 4. Send document to recipients
   const sendResult = await sendDocumentToRecipients({
     pdfId: newPdf._id,
     userId,
     recipientsData,
-    fieldsData: template.fields,
+    fieldsData,
     signingOrder,
     message,
     expiresAt,

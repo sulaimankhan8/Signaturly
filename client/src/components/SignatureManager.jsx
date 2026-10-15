@@ -1,230 +1,184 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { useTranslation } from "react-i18next";
 import SignaturePad from "./SignaturePad";
 import TypeSignature from "./TypeSignature";
 import VerifiedESignBadge from "./VerifiedESignBadge";
 import InitialsStudio from "./InitialsStudio";
-import toast from "react-hot-toast";
-import { useTranslation } from "react-i18next";
+import SignatureWorker from "../workers/signature.worker.js?worker";
+import { LIGHT } from "./signature/lightTheme";
+import { fitImage } from "./signature/canvasTools";
 
-export default function SignatureManager({
-  onUploaded,
-  onInitialsUploaded = () => {},
-  defaultSignatureUrl = "",
-  defaultInitialsUrl = "",
-  signerName = "",
-  storageKey = "default",
-}) {
+/**
+ * Making a signature, initials or a company stamp.
+ *
+ * kinds      which of "signature", "initials" and "stamp" this person needs
+ * kind       which one to start on
+ * current    what they already have: { signature, initials, stamp } as image data URLs
+ * onAdopt(kind, dataUrl)  called with the new image ("" when it is cleared)
+ *
+ * Nothing is kept in the browser: a signer's signature lasts for their visit, and an account
+ * holder's is saved with their account (see useSavedSignature).
+ */
+export default function SignatureManager({ kinds = ["signature", "initials"], kind = "signature", current = {}, onAdopt, signerName = "" }) {
   const { t } = useTranslation();
-  const [managerMode, setManagerMode] = useState("signature"); // signature | initials
-  const [sigTab, setSigTab] = useState("esign"); // esign | draw | type | upload
-  const [signatureUrl, setSignatureUrl] = useState(defaultSignatureUrl);
-  const [initialsUrl, setInitialsUrl] = useState(defaultInitialsUrl);
-
-  const sigStorageKey = `pactdoc_sig_${storageKey}`;
-  const initStorageKey = `pactdoc_init_${storageKey}`;
-
-  // Sync state when default props change
-  useEffect(() => {
-    setSignatureUrl(defaultSignatureUrl || "");
-  }, [defaultSignatureUrl]);
+  const [section, setSection] = useState(kinds.includes(kind) ? kind : kinds[0]);
+  const [sigTab, setSigTab] = useState("type"); // type | draw | esign | upload
 
   useEffect(() => {
-    setInitialsUrl(defaultInitialsUrl || "");
-  }, [defaultInitialsUrl]);
+    if (kinds.includes(kind)) setSection(kind);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind]);
 
-  const handleSignatureCapture = (dataUrl) => {
-    setSignatureUrl(dataUrl);
-    onUploaded(dataUrl);
-    try {
-      localStorage.setItem(sigStorageKey, dataUrl);
-    } catch (e) {}
-  };
-
-  const handleInitialsCapture = (dataUrl) => {
-    setInitialsUrl(dataUrl);
-    onInitialsUploaded(dataUrl);
-    try {
-      localStorage.setItem(initStorageKey, dataUrl);
-    } catch (e) {}
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error(t("sig.invalidImage"));
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const dataUrl = evt.target.result;
-      if (managerMode === "signature") {
-        handleSignatureCapture(dataUrl);
-      } else {
-        handleInitialsCapture(dataUrl);
-      }
-      toast.success(t("sig.uploaded"));
-    };
-    reader.readAsDataURL(file);
-  };
+  const sectionLabel = { signature: t("sig.fullSignature"), initials: t("sig.initials"), stamp: t("sig.stamp") };
+  const adopt = (dataUrl) => onAdopt(section, dataUrl);
 
   return (
     <div className="space-y-4">
-      {/* Top Toggle: Full Signature vs Initials */}
-      <div className="flex bg-[#08090d] p-1 rounded-2xl border border-white/10 shadow-inner">
-        <button
-          type="button"
-          onClick={() => setManagerMode("signature")}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-            managerMode === "signature"
-              ? "bg-gradient-to-r from-red-600 to-red-800 text-white shadow-md border border-red-500/30"
-              : "text-gray-400 hover:text-white"
-          }`}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-          </svg>
-          {t("sig.fullSignature")}
-        </button>
+      {kinds.length > 1 && (
+        <div className={LIGHT.tabs} role="tablist" aria-label={t("sidebar.studioTitle")}>
+          {kinds.map((id) => (
+            <button key={id} type="button" role="tab" aria-selected={section === id} onClick={() => setSection(id)} className={LIGHT.tab(section === id)}>
+              {sectionLabel[id]}
+              {current[id] ? " ✓" : ""}
+            </button>
+          ))}
+        </div>
+      )}
 
-        <button
-          type="button"
-          onClick={() => setManagerMode("initials")}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
-            managerMode === "initials"
-              ? "bg-gradient-to-r from-red-600 to-red-800 text-white shadow-md border border-red-500/30"
-              : "text-gray-400 hover:text-white"
-          }`}
-        >
-          {t("sig.initials")}
-        </button>
-      </div>
-
-      {managerMode === "signature" ? (
+      {section === "signature" && (
         <div className="space-y-4">
-          {/* Subtabs for Signature */}
-          <div className="flex bg-[#08090d] p-1 rounded-xl border border-white/10">
+          <div className={LIGHT.tabs} role="tablist" aria-label={t("sig.fullSignature")}>
             {[
-              { id: "esign", labelKey: "sig.tabStamp" },
-              { id: "draw", labelKey: "sig.tabDraw" },
               { id: "type", labelKey: "sig.tabType" },
+              { id: "draw", labelKey: "sig.tabDraw" },
+              { id: "esign", labelKey: "sig.tabStamp" },
               { id: "upload", labelKey: "sig.tabUpload" },
             ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setSigTab(tab.id)}
-                className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
-                  sigTab === tab.id
-                    ? "bg-white/15 text-white shadow border border-white/20"
-                    : "text-gray-400 hover:text-white"
-                }`}
-              >
+              <button key={tab.id} type="button" role="tab" aria-selected={sigTab === tab.id} onClick={() => setSigTab(tab.id)} className={LIGHT.tab(sigTab === tab.id)}>
                 {t(tab.labelKey)}
               </button>
             ))}
           </div>
 
-          {sigTab === "esign" && (
-            <VerifiedESignBadge
-              defaultName={signerName}
-              onConfirm={handleSignatureCapture}
-            />
-          )}
-
-          {sigTab === "draw" && (
-            <SignaturePad onConfirm={handleSignatureCapture} />
-          )}
-
-          {sigTab === "type" && (
-            <TypeSignature
-              defaultText={signerName}
-              onConfirm={handleSignatureCapture}
-            />
-          )}
-
-          {sigTab === "upload" && (
-            <div className="space-y-3">
-              <label className="border-2 border-dashed border-white/10 hover:border-red-500/50 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-colors bg-[#08090d]/60">
-                <svg className="w-8 h-8 text-red-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span className="text-xs font-bold text-white">{t("sig.uploadTitle")}</span>
-                <span className="text-[10px] text-gray-400 mt-0.5">{t("sig.uploadHint")}</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
-            </div>
-          )}
-
-          {/* Signature Preview */}
-          {signatureUrl && (
-            <div className="p-3 bg-[#08090d] border border-emerald-800/40 rounded-xl space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  {t("sig.active")}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSignatureUrl("");
-                    onUploaded("");
-                  }}
-                  className="text-gray-400 hover:text-red-400 text-[11px]"
-                >
-                  {t("sig.clear")}
-                </button>
-              </div>
-              <div className="bg-white p-2 rounded-lg flex items-center justify-center max-h-16 overflow-hidden">
-                <img src={signatureUrl} alt={t("sig.active")} className="max-h-12 object-contain" />
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <InitialsStudio
-            defaultName={signerName}
-            onConfirm={handleInitialsCapture}
-          />
-
-          {/* Initials Preview */}
-          {initialsUrl && (
-            <div className="p-3 bg-[#08090d] border border-emerald-800/40 rounded-xl space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-emerald-400 font-bold flex items-center gap-1.5">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  {t("sig.activeInitials")}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInitialsUrl("");
-                    onInitialsUploaded("");
-                  }}
-                  className="text-gray-400 hover:text-red-400 text-[11px]"
-                >
-                  {t("sig.clear")}
-                </button>
-              </div>
-              <div className="bg-white p-2 rounded-lg flex items-center justify-center max-h-16 overflow-hidden">
-                <img src={initialsUrl} alt={t("sig.activeInitials")} className="max-h-12 object-contain" />
-              </div>
-            </div>
-          )}
+          {sigTab === "type" && <TypeSignature defaultText={signerName} onConfirm={adopt} />}
+          {sigTab === "draw" && <SignaturePad onConfirm={adopt} />}
+          {sigTab === "esign" && <VerifiedESignBadge defaultName={signerName} onConfirm={adopt} />}
+          {sigTab === "upload" && <ImageUpload onConfirm={adopt} removeBackgroundByDefault />}
         </div>
       )}
+
+      {section === "initials" && <InitialsStudio defaultName={signerName} onConfirm={adopt} />}
+
+      {section === "stamp" && (
+        <div className="space-y-2">
+          <p className="text-xs text-gray-700">{t("sig.stampHint")}</p>
+          <ImageUpload onConfirm={adopt} removeBackgroundByDefault={false} />
+        </div>
+      )}
+
+      {current[section] && (
+        <div className="p-3 bg-emerald-50 border-2 border-black rounded-xl space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-black uppercase tracking-wider text-emerald-800">
+              {section === "initials" ? t("sig.activeInitials") : section === "stamp" ? t("sig.activeStamp") : t("sig.active")}
+            </span>
+            <button type="button" onClick={() => onAdopt(section, "")} className={LIGHT.quiet}>
+              {t("sig.clear")}
+            </button>
+          </div>
+          <div className="bg-white border-2 border-black/10 p-2 rounded-lg flex items-center justify-center">
+            <img src={current[section]} alt={sectionLabel[section]} className="max-h-14 object-contain" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A picture of a signature or seal. A photo of ink on paper can have the paper taken out, so
+ * only the ink is placed on the document.
+ */
+function ImageUpload({ onConfirm, removeBackgroundByDefault }) {
+  const { t } = useTranslation();
+  const [removeBackground, setRemoveBackground] = useState(removeBackgroundByDefault);
+  const [busy, setBusy] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef(null);
+
+  const withoutPaper = (bitmap) =>
+    new Promise((resolve, reject) => {
+      if (typeof Worker === "undefined" || typeof OffscreenCanvas === "undefined") {
+        resolve(null);
+        return;
+      }
+      const worker = new SignatureWorker();
+      worker.onmessage = (event) => {
+        worker.terminate();
+        resolve(event.data);
+      };
+      worker.onerror = (err) => {
+        worker.terminate();
+        reject(err);
+      };
+      worker.postMessage({ imageBitmap: bitmap, strength: 1.2 }, [bitmap]);
+    });
+
+  const take = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error(t("sig.invalidImage"));
+      return;
+    }
+    setBusy(true);
+    try {
+      let image = file;
+      if (removeBackground) {
+        const cleaned = await withoutPaper(await createImageBitmap(file));
+        if (cleaned) image = cleaned;
+      }
+      onConfirm(await fitImage(image));
+      toast.success(t("sig.uploaded"));
+    } catch {
+      toast.error(t("sig.invalidImage"));
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <label
+        className={`border-2 border-dashed border-black rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-colors ${
+          dragging ? "bg-yellow-100" : "bg-white hover:bg-yellow-50"
+        }`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          take(e.dataTransfer.files?.[0]);
+        }}
+      >
+        {busy ? (
+          <span className="w-8 h-8 border-4 border-black/10 border-t-red-600 rounded-full animate-spin" role="status" aria-label={t("toast.working")} />
+        ) : (
+          <>
+            <span className="text-xs font-black uppercase tracking-wider text-black">{t("sig.uploadTitle")}</span>
+            <span className="text-[11px] text-gray-600 mt-1">{t("sig.uploadHint")}</span>
+          </>
+        )}
+        <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => take(e.target.files?.[0])} className="sr-only" />
+      </label>
+      <label className="flex items-center gap-2 text-xs font-bold text-gray-800 cursor-pointer select-none">
+        <input type="checkbox" checked={removeBackground} onChange={(e) => setRemoveBackground(e.target.checked)} className="w-4 h-4 accent-red-600" />
+        {t("sig.removeBackground")}
+      </label>
     </div>
   );
 }

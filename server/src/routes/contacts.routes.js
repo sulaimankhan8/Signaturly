@@ -15,7 +15,6 @@ import {
   listBulkBatches,
   retryBulkBatch,
 } from "../services/contactList.service.js";
-import { assertTwoFactorPolicy } from "../services/workspace.service.js";
 
 // Saved lists of people, and sending one template to a whole list (plan task P5-07).
 // Lists belong to the workspace the request is working in; roles are checked in the service.
@@ -78,7 +77,6 @@ router.post(
   requireVerifiedEmail,
   requireFeature("bulkSend"),
   asyncHandler(async (req, res) => {
-    assertTwoFactorPolicy(req);
     const batch = await startBulkSend({
       user: req.user,
       workspace: req.workspace,

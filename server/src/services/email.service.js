@@ -111,7 +111,8 @@ export const sendSigningRequestEmail = async ({ recipient, pdf, sender, customMe
 
   return sendEmail({
     to: recipient.email,
-    subject: t(language, "request.subject", params),
+    // The sender's own subject line where they set one (a paid plan feature)
+    subject: pdf.emailSubject || t(language, "request.subject", params),
     html: emailWrapper(content, t(language, "request.heading"), language, { showBadge, brand }),
     text: t(language, "request.text", params),
   });
@@ -275,6 +276,22 @@ export const sendWorkspaceInvitationEmail = async ({ email, workspaceName, invit
     subject: `${inviterName} invited you to ${workspaceName} on ${env.appName}`,
     html: emailWrapper(content, "Workspace invitation"),
     text: `${inviterName} invited you to join "${workspaceName}" on ${env.appName}. Accept here: ${link}`,
+  });
+};
+
+export const sendTwoFactorReminderEmail = async ({ email, name, workspaceName, askedBy, link }) => {
+  const content = `
+    ${heading("Please switch on two-step sign-in")}
+    ${paragraph(`Hello ${name || email}, ${askedBy} asks everyone in "${workspaceName}" to use two-step sign-in, so a stolen password alone can't open the team's documents.`)}
+    ${paragraph("It takes about a minute with an authenticator app on your phone.")}
+    ${button(link, "Set it up")}
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: `${workspaceName}: please switch on two-step sign-in`,
+    html: emailWrapper(content, "Two-step sign-in"),
+    text: `${askedBy} asks everyone in "${workspaceName}" to switch on two-step sign-in. Set it up here: ${link}`,
   });
 };
 

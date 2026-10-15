@@ -62,6 +62,7 @@ app.use("/api/send", signatureBody);
 app.use("/api/templates", signatureBody);
 app.use("/api/esign", signatureBody);
 app.use("/api/v1", signatureBody);
+app.use("/api/user/signature", signatureBody);
 
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: false, limit: "2mb" }));

@@ -1,32 +1,39 @@
 /**
- * The values the billing pages are styled with: buttons, panels, inputs, the tint of each
- * metric or plan, and the icons. Kept apart from the components (./ui.jsx) that use them.
+ * The values the billing pages are styled with: buttons, panels, inputs, the colour of each
+ * metric, and the icons. Kept apart from the components (./ui.jsx) that use them.
+ *
+ * The look is the rest of the app's (the dashboard, the navbar): thick borders, hard offset
+ * shadows, black-weight uppercase labels, and red, yellow, blue, green and purple as accents.
  */
 
-const BUTTON = "inline-flex items-center justify-center gap-2 min-h-[44px] px-[18px] rounded-[10px] text-sm font-bold transition-colors text-center disabled:opacity-40 disabled:pointer-events-none";
+// A button rises toward its shadow on hover and presses into it on click
+const PRESS = "hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 motion-reduce:transform-none";
+const BUTTON = "inline-flex items-center justify-center gap-2 min-h-[44px] px-5 rounded-xl border-2 text-xs font-black uppercase tracking-wider transition-all text-center disabled:opacity-40 disabled:pointer-events-none";
 
 export const BTN = {
-  primary: `${BUTTON} bg-rose-600 hover:bg-rose-500 text-white`,
-  secondary: `${BUTTON} bg-white/[0.06] hover:bg-white/[0.11] border border-white/[0.14] text-gray-100`,
-  ghost: `${BUTTON} bg-transparent hover:bg-white/[0.06] text-gray-300 hover:text-white`,
-  violet: `${BUTTON} bg-violet-600 hover:bg-violet-500 text-white`,
-  blue: `${BUTTON} bg-blue-600 hover:bg-blue-500 text-white`,
-  small: "inline-flex items-center justify-center gap-1.5 min-h-[36px] px-3 rounded-lg text-[13px] font-bold transition-colors disabled:opacity-40 disabled:pointer-events-none",
+  primary: `${BUTTON} ${PRESS} bg-red-600 hover:bg-red-500 text-white border-black shadow-[3px_3px_0px_0px_#facc15] hover:shadow-[4px_4px_0px_0px_#ffffff]`,
+  secondary: `${BUTTON} ${PRESS} bg-[#1e2235] hover:bg-[#282d47] text-white border-white/20 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#ffffff]`,
+  ghost: `${BUTTON} bg-transparent border-transparent hover:bg-white/10 text-gray-300 hover:text-white`,
+  yellow: `${BUTTON} ${PRESS} bg-yellow-400 hover:bg-yellow-300 text-black border-black shadow-[3px_3px_0px_0px_#ef4444] hover:shadow-[4px_4px_0px_0px_#ef4444]`,
+  violet: `${BUTTON} ${PRESS} bg-purple-600 hover:bg-purple-500 text-white border-black shadow-[3px_3px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#ffffff]`,
+  blue: `${BUTTON} ${PRESS} bg-blue-600 hover:bg-blue-500 text-white border-black shadow-[3px_3px_0px_0px_#000] hover:shadow-[4px_4px_0px_0px_#ffffff]`,
+  small: "inline-flex items-center justify-center gap-1.5 min-h-[36px] px-3 rounded-lg border-2 border-white/20 bg-[#1e2235] hover:bg-[#282d47] text-white text-[11px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#ffffff] transition-all disabled:opacity-40 disabled:pointer-events-none",
 };
 
-export const PANEL = "bg-[#12141c] border border-white/[0.08] rounded-2xl";
-export const INPUT = "w-full min-h-[44px] px-3 bg-[#0d0e14] border border-white/[0.14] rounded-[10px] text-white text-sm placeholder-gray-500 focus:outline-none focus:border-rose-500";
-export const LABEL = "block text-xs font-bold text-gray-400 mb-1.5";
-export const FIGURE = "font-display font-bold text-white tracking-tight";
+export const PANEL = "bg-[#13151f] border-2 border-white/20 rounded-2xl shadow-[4px_4px_0px_0px_#000]";
+export const INPUT = "w-full min-h-[44px] px-3 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white text-sm font-bold placeholder-gray-500 focus:outline-none focus:border-yellow-400 transition-colors disabled:opacity-60";
+export const LABEL = "block text-[11px] font-black uppercase tracking-wider text-gray-300 mb-1.5";
+export const FIGURE = "font-black text-white tracking-tight tabular-nums";
+// The small uppercase line above a figure or a group
+export const EYEBROW = "text-[11px] font-black uppercase tracking-wider text-gray-300";
 
-// The tinted panel of one metric or plan: its colour, softly, behind and around it
-export const TINTS = {
-  emerald: { panel: "bg-gradient-to-b from-emerald-400/10 to-emerald-400/[0.02] border border-emerald-400/25", text: "text-emerald-200", icon: "text-emerald-300", chip: "bg-emerald-400/[0.12] text-emerald-300" },
-  amber: { panel: "bg-gradient-to-b from-amber-400/10 to-amber-400/[0.02] border border-amber-400/30", text: "text-amber-200", icon: "text-amber-300", chip: "bg-amber-400/[0.14] text-amber-300" },
-  sky: { panel: "bg-gradient-to-b from-sky-400/10 to-sky-400/[0.02] border border-sky-400/25", text: "text-sky-200", icon: "text-sky-300", chip: "bg-sky-400/[0.13] text-sky-300" },
-  violet: { panel: "bg-gradient-to-b from-violet-400/[0.11] to-violet-400/[0.02] border border-violet-400/25", text: "text-violet-200", icon: "text-violet-300", chip: "bg-violet-400/[0.14] text-violet-300" },
-  rose: { panel: "bg-gradient-to-b from-rose-500/10 to-rose-500/[0.02] border border-rose-500/30", text: "text-rose-200", icon: "text-rose-300", chip: "bg-rose-500/[0.14] text-rose-300" },
-  gray: { panel: "bg-[#12141c] border border-white/[0.08]", text: "text-gray-200", icon: "text-gray-300", chip: "bg-white/[0.07] text-gray-300" },
+// One metric's colour, as the dashboard's stat cards wear it: a hard shadow and a solid icon chip
+export const ACCENTS = {
+  green: { shadow: "shadow-[4px_4px_0px_0px_#22c55e]", chip: "bg-emerald-500 text-black", text: "text-emerald-400", link: "text-emerald-400 hover:text-emerald-300" },
+  yellow: { shadow: "shadow-[4px_4px_0px_0px_#facc15]", chip: "bg-yellow-400 text-black", text: "text-yellow-400", link: "text-yellow-400 hover:text-yellow-300" },
+  blue: { shadow: "shadow-[4px_4px_0px_0px_#3b82f6]", chip: "bg-blue-600 text-white", text: "text-blue-400", link: "text-blue-400 hover:text-blue-300" },
+  purple: { shadow: "shadow-[4px_4px_0px_0px_#a855f7]", chip: "bg-purple-600 text-white", text: "text-purple-400", link: "text-purple-400 hover:text-purple-300" },
+  red: { shadow: "shadow-[4px_4px_0px_0px_#ef4444]", chip: "bg-red-600 text-white", text: "text-red-400", link: "text-red-400 hover:text-red-300" },
 };
 
 // ----- icons: stroke drawings that take the colour of the text around them -----
@@ -53,6 +60,8 @@ export const ICONS = {
       <path d="M14 2v6h6" />
     </>
   ),
+  // The navbar's mark: a page with two lines on it
+  brand: icon(<path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />, 2.5),
   plus: icon(<path d="M12 5v14M5 12h14" />),
   wallet: icon(
     <>
@@ -112,6 +121,12 @@ export const ICONS = {
     </>
   ),
   shield: icon(<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />),
+  shieldCheck: icon(
+    <>
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      <path d="M9 12l2 2 4-4" />
+    </>
+  ),
   send: icon(
     <>
       <path d="M22 2L11 13" />
@@ -127,6 +142,7 @@ export const ICONS = {
   ),
   close: icon(<path d="M6 6l12 12M18 6L6 18" />),
   arrow: icon(<path d="M5 12h14M13 6l6 6-6 6" />),
+  back: icon(<path d="M19 12H5M11 18l-6-6 6-6" />),
   copy: icon(
     <>
       <rect x="9" y="9" width="13" height="13" rx="2" />
@@ -134,4 +150,11 @@ export const ICONS = {
     </>
   ),
   bolt: icon(<path d="M13 10V3L4 14h7v7l9-11h-7z" />, 2.5),
+  receipt: icon(
+    <>
+      <path d="M4 2v20l3-2 3 2 2-2 2 2 3-2 3 2V2l-3 2-3-2-2 2-2-2-3 2z" />
+      <path d="M8 9h8M8 13h8" />
+    </>
+  ),
+  infinity: icon(<path d="M18.18 8.82a4.5 4.5 0 1 1 0 6.36L12 9l-6.18 6.18a4.5 4.5 0 1 1 0-6.36L12 15z" />),
 };

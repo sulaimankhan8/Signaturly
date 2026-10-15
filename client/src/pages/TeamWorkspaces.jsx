@@ -1,17 +1,30 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { Link, useSearchParams } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import toast, { Toaster } from "react-hot-toast";
 import Navbar from "../components/Navbar";
 import ConfirmModal from "../components/ConfirmModal";
+import ContactSales from "../components/ContactSales";
+import PlanCheckout from "../components/PlanCheckout";
+import { BTN, PANEL, ICONS } from "../components/billing/theme";
+import { Note, Spinner } from "../components/billing/ui";
+import { TeamHeader, TeamNav } from "../components/team/TeamChrome";
+import TeamOverview from "../components/team/TeamOverview";
+import TeamPeople from "../components/team/TeamPeople";
+import TeamBranding from "../components/team/TeamBranding";
+import TeamSecurity from "../components/team/TeamSecurity";
+import TeamActivity from "../components/team/TeamActivity";
+import NoTeam, { CreateTeamForm } from "../components/team/NoTeam";
+import { loadWorkspaces } from "../store/workspaceActions";
 import {
-  fetchWorkspacesApi,
   createWorkspaceApi,
   fetchWorkspaceApi,
   fetchWorkspaceActivityApi,
   updateWorkspaceApi,
   inviteWorkspaceMemberApi,
   revokeInvitationApi,
+  resendInvitationApi,
+  remindTwoFactorApi,
   changeMemberRoleApi,
   removeWorkspaceMemberApi,
   fetchSsoSettingsApi,
@@ -19,176 +32,167 @@ import {
   verifySsoDomainsApi,
 } from "../api/workspace.api";
 import { fetchUserSubscription } from "../api/billing.api";
-import { payFor, rupees } from "../utils/checkout";
-import PlanCheckout from "../components/PlanCheckout";
-import { getActiveWorkspaceId, setActiveWorkspaceId, ROLE_LABELS, ROLE_HELP } from "../utils/workspace";
+import { payFor } from "../utils/checkout";
+import { offersOf, offerOf, savingOn } from "../utils/plans";
+import { getActiveWorkspaceId, setActiveWorkspaceId } from "../utils/workspace";
+import { messageOf } from "../utils/team";
 
 /**
  * Team workspaces (plan tasks P5-04 to P5-09, P5-11, P6-12, P6-15): who is in a team and what
  * each may do, how its documents look to signers, the rules it sets for its members, and what
- * has happened in it lately.
+ * has happened in it lately. Each part is a page of its own, chosen with `?tab=`; the parts
+ * are in components/team/, and everything they change goes through here.
  */
 
-const card = "bg-[#12141c] border border-white/10 rounded-2xl p-6";
-const inputClass = "w-full px-3 py-2.5 bg-[#08090d] border border-white/15 rounded-xl text-white text-sm placeholder-gray-500 focus:outline-none focus:border-red-500";
-const primary = "px-4 py-2.5 bg-red-600 hover:bg-red-500 disabled:opacity-40 text-white rounded-xl text-xs font-bold";
-const quiet = "px-3 py-2 bg-white/5 hover:bg-white/10 disabled:opacity-40 border border-white/10 rounded-xl text-xs font-bold text-gray-200";
-const when = (value) => (value ? new Date(value).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "");
-const messageOf = (err, fallback) => (err.response?.data?.message || fallback).replace(/^[A-Z_]+:\s*/, "");
-
-const EVENT_WORDS = {
-  created: "uploaded",
-  sent: "sent for signature",
-  viewed: "opened",
-  identity_verified: "passed the identity check on",
-  signed: "signed",
-  completed: "completed",
-  sealed: "sealed",
-  declined: "declined",
-  voided: "voided",
-  downloaded: "downloaded",
-  expired: "expired",
-  reminder_sent: "sent a reminder for",
-  automated_reminder: "was reminded about",
-  recipient_updated: "updated a signer on",
-  deleted: "deleted",
-  esign_started: "started Aadhaar eSign on",
-  esign_verified: "completed Aadhaar eSign on",
-  esign_failed: "did not complete Aadhaar eSign on",
-  retention_deleted: "was removed under the retention rule:",
-};
-
-const TABS = [
-  ["members", "Members"],
-  ["branding", "Branding"],
-  ["rules", "Rules"],
-  ["activity", "Activity"],
-  ["sso", "Single sign-on"],
-];
+const TABS = ["overview", "people", "branding", "security", "activity"];
 
 export default function TeamWorkspaces() {
+  const dispatch = useDispatch();
   const me = useSelector((state) => state.auth.user);
+  const [params, setParams] = useSearchParams();
+  const tab = TABS.includes(params.get("tab")) ? params.get("tab") : "overview";
+
   const [workspaces, setWorkspaces] = useState(null);
+  const [subscription, setSubscription] = useState(null);
   const [selectedId, setSelectedId] = useState("");
   const [details, setDetails] = useState(null);
-  const [subscription, setSubscription] = useState(null);
-  // How many seats the checkout step for the Business plan opens with, while it is open
-  const [buyingSeats, setBuyingSeats] = useState(0);
-  const [tab, setTab] = useState("members");
-  const [busy, setBusy] = useState("");
-  const [newName, setNewName] = useState("");
-  const [invite, setInvite] = useState({ email: "", role: "member" });
-  const [removing, setRemoving] = useState(null);
-  const [brand, setBrand] = useState({ companyName: "", primaryColor: "#4f46e5", logoUrl: "", emailFooterText: "" });
-  const [rules, setRules] = useState({ requireTwoFactor: false, retentionDays: "", origins: "" });
+  const [failed, setFailed] = useState(false);
   const [activity, setActivity] = useState(null);
   const [sso, setSso] = useState(null);
-  const [ssoForm, setSsoForm] = useState({ issuer: "", clientId: "", clientSecret: "", emailDomains: "" });
+  const [busy, setBusy] = useState("");
+  const [removing, setRemoving] = useState(null);
+  const [creating, setCreating] = useState(false);
+  const [askingSales, setAskingSales] = useState(false);
+  // How many seats the checkout step for the Business plan opens with, while it is open
+  const [buyingSeats, setBuyingSeats] = useState(0);
 
   const teams = (workspaces || []).filter((w) => !w.personal);
-  const canManage = ["owner", "admin"].includes(details?.role);
+  // The team requires two-step sign-in and the person does not have it: they can see the team and
+  // leave it, and the server refuses everything else until they set it up
+  const locked = Boolean(details?.policy?.requireTwoFactor && !details?.twoFactorReady);
+  const canManage = ["owner", "admin"].includes(details?.role) && !locked;
   const isOwner = details?.role === "owner";
-  const plan = subscription?.catalogue?.plans?.find((p) => p.id === subscription?.subscription?.plan);
+  const plans = subscription?.catalogue?.plans || [];
+  const plan = plans.find((p) => p.id === subscription?.subscription?.plan);
   const mayCreate = Boolean(subscription?.entitlements?.features?.workspaces ?? ["business", "enterprise"].includes(plan?.tier));
-  const businessPlan = subscription?.catalogue?.plans?.find((p) => p.perSeat && p.purchasable);
+  const businessPlan = plans.find((p) => p.perSeat && p.purchasable);
+  const enterprisePlan = plans.find((p) => p.tier === "enterprise" && !p.yearlyOf);
+
+  // The Business price as the no-team page shows it: by the month, billed yearly where it can be
+  const businessOffer = businessPlan ? offerOf(offersOf(plans), businessPlan.id) : null;
+  const saving = businessOffer ? savingOn(businessOffer) : null;
+  const businessPrice = businessPlan ? { perMonth: saving ? saving.perMonthInr : businessPlan.priceInr, monthly: businessPlan.priceInr, yearly: Boolean(saving) } : null;
+
+  const setTab = (id) => setParams((old) => {
+    const next = new URLSearchParams(old);
+    if (id === "overview") next.delete("tab");
+    else next.set("tab", id);
+    return next;
+  });
 
   const loadDetails = useCallback(async (id) => {
-    if (!id) return setDetails(null);
+    if (!id) return;
     try {
-      const workspace = await fetchWorkspaceApi(id);
-      setDetails(workspace);
-      setBrand({
-        companyName: workspace.branding?.companyName || "",
-        primaryColor: workspace.branding?.primaryColor || "#4f46e5",
-        logoUrl: workspace.branding?.logoUrl || "",
-        emailFooterText: workspace.branding?.emailFooterText || "",
-      });
-      setRules({
-        requireTwoFactor: Boolean(workspace.policy?.requireTwoFactor),
-        retentionDays: workspace.policy?.retentionDays ?? "",
-        origins: (workspace.allowedFrameOrigins || []).join("\n"),
-      });
+      setDetails(await fetchWorkspaceApi(id));
+      setFailed(false);
     } catch (err) {
-      toast.error(messageOf(err, "The workspace could not be loaded"));
-      setDetails(null);
+      toast.error(messageOf(err, "The team could not be loaded"));
+      setFailed(true);
     }
   }, []);
 
+  // Read afresh through the store, so the navbar's switcher shows a team made or left here at once
   const loadAll = useCallback(async () => {
-    const [list, sub] = await Promise.all([fetchWorkspacesApi().catch(() => []), fetchUserSubscription().catch(() => null)]);
+    const [list, sub] = await Promise.all([dispatch(loadWorkspaces({ force: true })).catch(() => []), fetchUserSubscription().catch(() => null)]);
     setWorkspaces(list || []);
     setSubscription(sub);
     const teamList = (list || []).filter((w) => !w.personal);
-    const active = getActiveWorkspaceId();
-    const first = teamList.find((w) => String(w.id) === active) || teamList[0];
-    setSelectedId((current) => current || (first ? String(first.id) : ""));
-  }, []);
+    const first = teamList.find((w) => String(w.id) === getActiveWorkspaceId()) || teamList[0];
+    setSelectedId((current) => (current && teamList.some((w) => String(w.id) === current) ? current : first ? String(first.id) : ""));
+  }, [dispatch]);
 
   useEffect(() => {
     loadAll();
   }, [loadAll]);
 
   useEffect(() => {
-    setActivity(null);
-    setSso(null);
     loadDetails(selectedId);
   }, [selectedId, loadDetails]);
 
+  // The feed is read when a page that shows it is opened; single sign-on when the owner opens Security
   useEffect(() => {
-    if (!selectedId) return;
-    if (tab === "activity" && activity === null) {
-      fetchWorkspaceActivityApi(selectedId).then(setActivity).catch(() => setActivity([]));
+    if (!selectedId || details?.id === undefined || String(details.id) !== selectedId || locked) return;
+    if ((tab === "overview" || tab === "activity") && activity === null) {
+      fetchWorkspaceActivityApi(selectedId)
+        .then(setActivity)
+        .catch(() => setActivity([]));
     }
-    if (tab === "sso" && sso === null && isOwner) {
+    if (tab === "security" && isOwner && sso === null) {
       fetchSsoSettingsApi(selectedId)
-        .then((settings) => {
-          setSso(settings);
-          setSsoForm({ issuer: settings.issuer, clientId: settings.clientId, clientSecret: "", emailDomains: settings.emailDomains.join(", ") });
-        })
-        .catch((err) => setSso({ unavailable: messageOf(err, "Single sign-on is not available for this workspace") }));
+        .then(setSso)
+        .catch((err) => setSso({ unavailable: messageOf(err, "Single sign-on is part of the Enterprise plan.") }));
     }
-  }, [tab, selectedId, activity, sso, isOwner]);
+  }, [tab, selectedId, details, activity, sso, isOwner, locked]);
 
-  // Runs one action, shows what happened, and reads the workspace again
+  const pick = (id) => {
+    if (id === selectedId) return;
+    setActivity(null);
+    setSso(null);
+    setDetails(null);
+    setSelectedId(id);
+  };
+
+  // Runs one action, says what happened, and reads the team again. True when it worked.
   const run = async (name, work, done) => {
     setBusy(name);
     try {
       await work();
       if (done) toast.success(done);
       await loadDetails(selectedId);
+      return true;
     } catch (err) {
       toast.error(messageOf(err, "That did not work. Please try again."));
+      return false;
     } finally {
       setBusy("");
     }
   };
 
-  const create = async (event) => {
-    event.preventDefault();
-    if (!newName.trim()) return;
+  const create = async (name) => {
     setBusy("create");
     try {
-      const workspace = await createWorkspaceApi({ name: newName.trim() });
-      setNewName("");
-      toast.success(`${workspace.name} is ready`);
+      const workspace = await createWorkspaceApi({ name });
+      toast.success(`${workspace.name} is ready. Invite your team.`);
+      setCreating(false);
       await loadAll();
-      setSelectedId(String(workspace.id));
+      pick(String(workspace.id));
+      setTab("people");
     } catch (err) {
-      toast.error(messageOf(err, "The workspace could not be created"));
+      toast.error(messageOf(err, "The team could not be created"));
     } finally {
       setBusy("");
     }
   };
 
-  const workIn = (workspace) => {
-    setActiveWorkspaceId(String(workspace.id));
+  const workIn = () => {
+    setActiveWorkspaceId(String(details.id));
     window.location.assign("/dashboard");
   };
 
-  const buySeats = async (count) => {
+  // Goes to the invite form and puts the cursor in it
+  const openInvite = () => {
+    setTab("people");
+    setTimeout(() => {
+      const field = document.getElementById("invite-emails");
+      field?.scrollIntoView({ block: "center", behavior: "smooth" });
+      field?.focus({ preventScroll: true });
+    }, 50);
+  };
+
+  const addSeat = async () => {
     setBusy("seats");
     try {
-      const result = await payFor("seats", String(count), { stay: true });
+      const result = await payFor("seats", "1", { stay: true });
       if (result !== "cancelled") {
         toast.success(result === "processing" ? "Payment received. The seat appears in a moment." : "Seat added");
         await loadDetails(selectedId);
@@ -200,47 +204,35 @@ export default function TeamWorkspaces() {
     }
   };
 
-  // How many seats, and how to pay for them (renewing or once), are both asked in the checkout step
-  const buyBusiness = () => setBuyingSeats(3);
-
-  const pickLogo = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (!["image/png", "image/jpeg"].includes(file.type) || file.size > 150 * 1024) {
-      toast.error("Choose a PNG or JPEG under 150 KB");
-      return;
+  // Sends each invitation in turn. Returns the addresses that could not be invited, to try again.
+  const invite = async (emails, role) => {
+    setBusy("invite");
+    const failures = [];
+    for (const email of emails) {
+      try {
+        await inviteWorkspaceMemberApi(selectedId, { email, role });
+      } catch (err) {
+        failures.push([email, messageOf(err, "could not be invited")]);
+      }
     }
-    const reader = new FileReader();
-    reader.onload = () => setBrand((b) => ({ ...b, logoUrl: String(reader.result) }));
-    reader.readAsDataURL(file);
+    const sent = emails.length - failures.length;
+    if (sent) toast.success(sent === 1 ? "Invitation sent" : `${sent} invitations sent`);
+    for (const [email, message] of failures) toast.error(`${email}: ${message}`);
+    await loadDetails(selectedId);
+    setBusy("");
+    return failures.map(([email]) => email);
   };
 
-  const saveRules = () =>
-    run(
-      "rules",
-      () =>
-        updateWorkspaceApi(selectedId, {
-          policy: { requireTwoFactor: rules.requireTwoFactor, retentionDays: rules.retentionDays === "" ? null : Number(rules.retentionDays) },
-          allowedFrameOrigins: rules.origins.split(/\s+/).map((s) => s.trim()).filter(Boolean),
-        }),
-      "Rules saved"
-    );
-
-  const saveSso = async (enabled) => {
+  const saveSso = async (body) => {
     setBusy("sso");
     try {
-      const body = {
-        issuer: ssoForm.issuer.trim(),
-        clientId: ssoForm.clientId.trim(),
-        emailDomains: ssoForm.emailDomains.split(/[\s,]+/).filter(Boolean),
-        ...(ssoForm.clientSecret ? { clientSecret: ssoForm.clientSecret } : {}),
-        ...(enabled === undefined ? {} : { enabled }),
-      };
       setSso(await saveSsoSettingsApi(selectedId, body));
-      setSsoForm((form) => ({ ...form, clientSecret: "" }));
       toast.success("Single sign-on settings saved");
+      await loadDetails(selectedId);
+      return true;
     } catch (err) {
       toast.error(messageOf(err, "The settings could not be saved"));
+      return false;
     } finally {
       setBusy("");
     }
@@ -251,9 +243,8 @@ export default function TeamWorkspaces() {
     try {
       const settings = await verifySsoDomainsApi(selectedId);
       setSso(settings);
-      toast[settings.verifiedDomains.length ? "success" : "error"](
-        settings.verifiedDomains.length ? `Verified: ${settings.verifiedDomains.join(", ")}` : "The record was not found yet. DNS changes can take a while to appear."
-      );
+      if (settings.verifiedDomains.length) toast.success(`Verified: ${settings.verifiedDomains.join(", ")}`);
+      else toast.error("The record was not found yet. DNS changes can take a while to appear.");
     } catch (err) {
       toast.error(messageOf(err, "The domains could not be checked"));
     } finally {
@@ -261,386 +252,152 @@ export default function TeamWorkspaces() {
     }
   };
 
+  const section = details && {
+    overview: (
+      <TeamOverview
+        team={details}
+        usage={isOwner ? subscription?.usage : null}
+        activity={activity}
+        locked={locked}
+        canManage={canManage}
+        isOwner={isOwner}
+        enterprise={plan?.tier === "enterprise"}
+        onTab={setTab}
+        onInvite={openInvite}
+        onTalkToSales={() => setAskingSales(true)}
+      />
+    ),
+    people: (
+      <TeamPeople
+        team={details}
+        me={me}
+        canManage={canManage}
+        isOwner={isOwner}
+        busy={busy}
+        onRole={(member, role) => run("role", () => changeMemberRoleApi(selectedId, member.userId, role), "Role updated")}
+        onRemove={setRemoving}
+        onResend={(invitation) => run(`resend-${invitation.id}`, () => resendInvitationApi(selectedId, invitation.id), `Invitation sent again to ${invitation.email}`)}
+        onRevoke={(invitation) => run(`revoke-${invitation.id}`, () => revokeInvitationApi(selectedId, invitation.id), "Invitation withdrawn")}
+        onInvite={invite}
+        onAddSeat={addSeat}
+        onInviteClick={openInvite}
+      />
+    ),
+    branding: <TeamBranding team={details} canManage={canManage} busy={busy} onSave={(branding) => run("brand", () => updateWorkspaceApi(selectedId, { branding }), "Branding saved")} />,
+    security: (
+      <TeamSecurity
+        team={details}
+        me={me}
+        canManage={canManage}
+        isOwner={isOwner}
+        locked={locked}
+        busy={busy}
+        sso={sso}
+        onSave={(changes, done) => run("rules", () => updateWorkspaceApi(selectedId, changes), done)}
+        onRemind={(member) => run(`remind-${member.userId}`, () => remindTwoFactorApi(selectedId, member.userId), `Reminder sent to ${member.name || member.email}`)}
+        onSaveSso={saveSso}
+        onCheckDomains={checkDomains}
+        onTalkToSales={() => setAskingSales(true)}
+      />
+    ),
+    activity: <TeamActivity team={details} activity={activity} locked={locked} />,
+  }[tab];
+
   return (
     <div className="min-h-screen bg-[#08090d] text-gray-100">
       <Toaster position="top-right" />
       <Navbar />
-      <main className="max-w-6xl mx-auto px-4 py-8 space-y-6">
-        <header>
-          <h1 className="text-2xl font-black text-white">Team workspaces</h1>
-          <p className="text-sm text-gray-400 mt-1">A team shares documents, templates and one plan. Each person keeps their own sign-in.</p>
-        </header>
-
+      <main className="max-w-[1320px] mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {workspaces === null ? (
-          <div className="w-8 h-8 border-4 border-white/10 border-t-red-600 rounded-full animate-spin" />
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[18rem_1fr] gap-6">
-            {/* The teams this person is in, and starting a new one */}
-            <aside className="space-y-4">
-              <section className={card} data-testid="team-list">
-                <h2 className="text-sm font-bold text-white">Your teams</h2>
-                {teams.length === 0 && <p className="text-xs text-gray-400 mt-2">You are not in a team yet.</p>}
-                <ul className="mt-3 space-y-2">
-                  {teams.map((workspace) => (
-                    <li key={workspace.id}>
-                      <button
-                        onClick={() => setSelectedId(String(workspace.id))}
-                        className={`w-full text-left px-3 py-2.5 rounded-xl border text-sm ${
-                          String(workspace.id) === selectedId ? "bg-red-600/15 border-red-500/50 text-white" : "bg-white/5 border-white/10 text-gray-300 hover:bg-white/10"
-                        }`}
-                      >
-                        <span className="font-bold block truncate">{workspace.name}</span>
-                        <span className="text-[11px] text-gray-400">
-                          {ROLE_LABELS[workspace.role] || workspace.role}
-                          {workspace.status === "read_only" ? " · read-only" : ""}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-
-              <section className={card}>
-                <h2 className="text-sm font-bold text-white">Start a team</h2>
-                {mayCreate ? (
-                  <form onSubmit={create} className="mt-3 space-y-2">
-                    <input className={inputClass} placeholder="Team name" value={newName} maxLength={80} onChange={(e) => setNewName(e.target.value)} />
-                    <button className={primary} disabled={busy === "create" || !newName.trim()}>
-                      Create team
-                    </button>
-                  </form>
-                ) : (
-                  <div className="mt-2 space-y-3">
-                    <p className="text-xs text-gray-400">Teams are part of the Business plan, which is paid per person and pools everyone's documents into one allowance.</p>
-                    {businessPlan && subscription?.billingEnabled ? (
-                      <button className={primary} disabled={busy === "plan"} onClick={buyBusiness}>
-                        Get Business · {rupees(businessPlan.priceInr)} per person a month
-                      </button>
-                    ) : (
-                      <Link to="/billing/plans" className={quiet}>
-                        See plans
-                      </Link>
-                    )}
-                  </div>
-                )}
-              </section>
-            </aside>
-
-            {/* The chosen team */}
-            <section className="space-y-4 min-w-0">
-              {!details ? (
-                <div className={card}>
-                  <p className="text-sm text-gray-400">Choose a team on the left, or start one.</p>
-                </div>
-              ) : (
-                <>
-                  <div className={`${card} flex flex-wrap items-center justify-between gap-3`}>
-                    <div className="min-w-0">
-                      <h2 className="text-lg font-black text-white truncate">{details.name}</h2>
-                      <p className="text-xs text-gray-400">
-                        You are {ROLE_LABELS[details.role]?.toLowerCase() === "owner" ? "the owner" : `a${details.role === "admin" ? "n" : ""} ${details.role}`}
-                        {details.seats && ` · ${details.seats.used} of ${Number.isFinite(details.seats.allowed) && details.seats.allowed !== null ? details.seats.allowed : "unlimited"} seats in use`}
-                      </p>
-                      {details.status === "read_only" && (
-                        <p className="text-xs text-amber-400 mt-1">This team is read-only because its plan has lapsed. Documents can be read and downloaded; nothing new can be sent until the owner renews.</p>
-                      )}
-                    </div>
-                    <button className={primary} onClick={() => workIn(details)} data-testid="work-in-team">
-                      Work in this team
-                    </button>
-                  </div>
-
-                  <nav className="flex flex-wrap gap-2">
-                    {TABS.filter(([id]) => id !== "sso" || isOwner).map(([id, label]) => (
-                      <button key={id} onClick={() => setTab(id)} className={`px-3 py-2 rounded-xl text-xs font-bold border ${tab === id ? "bg-white text-black border-white" : "bg-white/5 text-gray-300 border-white/10 hover:bg-white/10"}`}>
-                        {label}
-                      </button>
-                    ))}
-                  </nav>
-
-                  {tab === "members" && (
-                    <div className={card} data-testid="team-members">
-                      <ul className="divide-y divide-white/10">
-                        {details.members.map((member) => (
-                          <li key={member.userId} className="py-3 flex flex-wrap items-center justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-sm font-bold text-white truncate">{member.name || member.email}</p>
-                              <p className="text-xs text-gray-400 truncate">
-                                {member.email}
-                                {member.role !== "owner" && details.policy?.requireTwoFactor && !member.twoFactor && <span className="text-amber-400"> · two-step sign-in not set up</span>}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {member.role === "owner" || !canManage ? (
-                                <span className="text-xs font-bold text-gray-300">{ROLE_LABELS[member.role]}</span>
-                              ) : (
-                                <select
-                                  value={member.role}
-                                  onChange={(e) => run("role", () => changeMemberRoleApi(selectedId, member.userId, e.target.value), "Role updated")}
-                                  className="px-2 py-1.5 bg-[#08090d] border border-white/15 rounded-lg text-xs text-white"
-                                  title={ROLE_HELP[member.role]}
-                                >
-                                  {["admin", "member", "viewer"].map((role) => (
-                                    <option key={role} value={role}>
-                                      {ROLE_LABELS[role]}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
-                              {member.role !== "owner" && (canManage || String(member.userId) === String(me?.id)) && (
-                                <button className={quiet} onClick={() => setRemoving(member)}>
-                                  {String(member.userId) === String(me?.id) ? "Leave" : "Remove"}
-                                </button>
-                              )}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-
-                      {details.invitations.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-white/10">
-                          <h3 className="text-xs font-bold uppercase text-gray-500">Invited, not yet joined</h3>
-                          <ul className="mt-2 space-y-2">
-                            {details.invitations.map((invitation) => (
-                              <li key={invitation.id} className="flex items-center justify-between gap-3 text-sm">
-                                <span className="text-gray-300 truncate">
-                                  {invitation.email} <span className="text-gray-500">· {ROLE_LABELS[invitation.role]} · until {when(invitation.expiresAt)}</span>
-                                </span>
-                                {canManage && (
-                                  <button className={quiet} onClick={() => run("revoke", () => revokeInvitationApi(selectedId, invitation.id), "Invitation withdrawn")}>
-                                    Withdraw
-                                  </button>
-                                )}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {canManage && (
-                        <form
-                          className="mt-4 pt-4 border-t border-white/10 grid grid-cols-1 sm:grid-cols-[1fr_9rem_auto] gap-2"
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                            run("invite", () => inviteWorkspaceMemberApi(selectedId, invite).then(() => setInvite({ email: "", role: invite.role })), "Invitation sent");
-                          }}
-                        >
-                          <input className={inputClass} type="email" required placeholder="name@company.com" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} />
-                          <select className={inputClass} value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}>
-                            {["admin", "member", "viewer"].map((role) => (
-                              <option key={role} value={role}>
-                                {ROLE_LABELS[role]}
-                              </option>
-                            ))}
-                          </select>
-                          <button className={primary} disabled={busy === "invite"}>
-                            Invite
-                          </button>
-                          <p className="sm:col-span-3 text-[11px] text-gray-500">{ROLE_HELP[invite.role]}. An invitation holds a seat until it is answered or expires after 7 days.</p>
-                        </form>
-                      )}
-
-                      {isOwner && details.seats && Number.isFinite(details.seats.allowed) && details.seats.used >= details.seats.allowed && (
-                        <div className="mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-wrap items-center justify-between gap-3">
-                          <p className="text-xs text-amber-200">Every seat is in use. Add one to invite another person; you pay only for the rest of the current period.</p>
-                          <button className={primary} disabled={busy === "seats"} onClick={() => buySeats(1)}>
-                            Add a seat
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {tab === "branding" && (
-                    <div className={`${card} space-y-4`} data-testid="team-branding">
-                      <p className="text-xs text-gray-400">Shown to signers on this team's emails and signing pages, in place of the PactDoc name and colour.</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <label className="block text-xs text-gray-400">
-                          Name shown to signers
-                          <input className={`${inputClass} mt-1`} disabled={!canManage} maxLength={80} value={brand.companyName} onChange={(e) => setBrand({ ...brand, companyName: e.target.value })} />
-                        </label>
-                        <label className="block text-xs text-gray-400">
-                          Colour
-                          <span className="mt-1 flex gap-2">
-                            <input type="color" disabled={!canManage} value={brand.primaryColor} onChange={(e) => setBrand({ ...brand, primaryColor: e.target.value })} className="h-10 w-14 bg-transparent" />
-                            <input className={inputClass} disabled={!canManage} value={brand.primaryColor} onChange={(e) => setBrand({ ...brand, primaryColor: e.target.value })} />
-                          </span>
-                        </label>
-                        <label className="block text-xs text-gray-400 sm:col-span-2">
-                          Line at the foot of emails
-                          <input className={`${inputClass} mt-1`} disabled={!canManage} maxLength={300} value={brand.emailFooterText} onChange={(e) => setBrand({ ...brand, emailFooterText: e.target.value })} />
-                        </label>
-                        <div className="sm:col-span-2 text-xs text-gray-400">
-                          Logo (PNG or JPEG, under 150 KB)
-                          <div className="mt-1 flex items-center gap-3">
-                            {brand.logoUrl && <img src={brand.logoUrl} alt="" className="h-10 max-w-[10rem] object-contain bg-white rounded p-1" />}
-                            {canManage && <input type="file" accept="image/png,image/jpeg" onChange={pickLogo} className="text-xs text-gray-300" />}
-                            {canManage && brand.logoUrl && (
-                              <button className={quiet} onClick={() => setBrand({ ...brand, logoUrl: "" })}>
-                                Remove
-                              </button>
-                            )}
-                          </div>
-                          <p className="mt-1 text-[11px] text-gray-500">An uploaded logo shows on the signing page. Email programs show a logo only when it is given as an https address.</p>
-                        </div>
-                      </div>
-                      {canManage && (
-                        <button
-                          className={primary}
-                          disabled={busy === "brand"}
-                          onClick={() => run("brand", () => updateWorkspaceApi(selectedId, { branding: { ...brand, logoUrl: brand.logoUrl || null } }), "Branding saved")}
-                        >
-                          Save branding
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {tab === "rules" && (
-                    <div className={`${card} space-y-5`} data-testid="team-rules">
-                      <label className="flex items-start gap-3">
-                        <input type="checkbox" className="mt-1" disabled={!canManage} checked={rules.requireTwoFactor} onChange={(e) => setRules({ ...rules, requireTwoFactor: e.target.checked })} />
-                        <span>
-                          <span className="block text-sm font-bold text-white">Require two-step sign-in</span>
-                          <span className="block text-xs text-gray-400">A member without it can open nothing in this team until they switch it on in their own settings.</span>
-                        </span>
-                      </label>
-                      <label className="block text-xs text-gray-400">
-                        Erase finished documents after this many days
-                        <input
-                          className={`${inputClass} mt-1 max-w-[10rem]`}
-                          type="number"
-                          min={30}
-                          max={3650}
-                          disabled={!canManage}
-                          placeholder="Keep them"
-                          value={rules.retentionDays}
-                          onChange={(e) => setRules({ ...rules, retentionDays: e.target.value })}
-                        />
-                        <span className="block mt-1 text-[11px] text-gray-500">Leave empty to keep documents until someone deletes them. Erasing cannot be undone; the record of who signed is kept.</span>
-                      </label>
-                      <label className="block text-xs text-gray-400">
-                        Websites allowed to show this team's signing pages inside their own pages, one per line
-                        <textarea className={`${inputClass} mt-1 font-mono`} rows={3} disabled={!canManage} placeholder="https://app.example.com" value={rules.origins} onChange={(e) => setRules({ ...rules, origins: e.target.value })} />
-                        <span className="block mt-1 text-[11px] text-gray-500">Used with embedded signing through the API. A signing page refuses to appear inside any other site.</span>
-                      </label>
-                      {canManage && (
-                        <button className={primary} disabled={busy === "rules"} onClick={saveRules}>
-                          Save rules
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {tab === "activity" && (
-                    <div className={card} data-testid="team-activity">
-                      {activity === null ? (
-                        <p className="text-sm text-gray-400">Loading…</p>
-                      ) : activity.length === 0 ? (
-                        <p className="text-sm text-gray-400">Nothing has happened in this team yet.</p>
-                      ) : (
-                        <ul className="divide-y divide-white/10">
-                          {activity.map((entry, index) => (
-                            <li key={index} className="py-2.5 text-sm">
-                              <span className="text-white font-bold">{entry.actor || "Someone"}</span>{" "}
-                              <span className="text-gray-300">{EVENT_WORDS[entry.event] || entry.event}</span>{" "}
-                              <span className="text-white">{entry.document}</span>
-                              <span className="block text-[11px] text-gray-500">{when(entry.at)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  )}
-
-                  {tab === "sso" && isOwner && (
-                    <div className={`${card} space-y-4`} data-testid="team-sso">
-                      {sso === null ? (
-                        <p className="text-sm text-gray-400">Loading…</p>
-                      ) : sso.unavailable ? (
-                        <p className="text-sm text-gray-400">{sso.unavailable}</p>
-                      ) : (
-                        <>
-                          <p className="text-xs text-gray-400">
-                            People at your organisation sign in through your own identity provider (OpenID Connect). In it, register this address as the place to send people back to:
-                            <code className="block mt-1 px-2 py-1 bg-black/40 rounded text-gray-200 break-all">{sso.callbackUrl}</code>
-                          </p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <label className="block text-xs text-gray-400 sm:col-span-2">
-                              Issuer address
-                              <input className={`${inputClass} mt-1`} placeholder="https://login.example.com" value={ssoForm.issuer} onChange={(e) => setSsoForm({ ...ssoForm, issuer: e.target.value })} />
-                            </label>
-                            <label className="block text-xs text-gray-400">
-                              Client id
-                              <input className={`${inputClass} mt-1`} value={ssoForm.clientId} onChange={(e) => setSsoForm({ ...ssoForm, clientId: e.target.value })} />
-                            </label>
-                            <label className="block text-xs text-gray-400">
-                              Client secret {sso.hasClientSecret && <span className="text-gray-500">(saved; type a new one to replace it)</span>}
-                              <input className={`${inputClass} mt-1`} type="password" autoComplete="off" value={ssoForm.clientSecret} onChange={(e) => setSsoForm({ ...ssoForm, clientSecret: e.target.value })} />
-                            </label>
-                            <label className="block text-xs text-gray-400 sm:col-span-2">
-                              Your email domains, separated by commas
-                              <input className={`${inputClass} mt-1`} placeholder="example.com" value={ssoForm.emailDomains} onChange={(e) => setSsoForm({ ...ssoForm, emailDomains: e.target.value })} />
-                            </label>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <button className={primary} disabled={busy === "sso"} onClick={() => saveSso()}>
-                              Save
-                            </button>
-                            <button className={quiet} disabled={busy === "sso" || sso.emailDomains.length === 0} onClick={checkDomains}>
-                              Check domains
-                            </button>
-                            <button className={quiet} disabled={busy === "sso"} onClick={() => saveSso(!sso.enabled)}>
-                              {sso.enabled ? "Switch single sign-on off" : "Switch single sign-on on"}
-                            </button>
-                          </div>
-                          {sso.dnsRecord && (
-                            <div className="text-xs text-gray-400">
-                              To prove a domain is yours, add this as a TXT record on it, then press "Check domains":
-                              <code className="block mt-1 px-2 py-1 bg-black/40 rounded text-gray-200 break-all">{sso.dnsRecord}</code>
-                              <p className="mt-2">
-                                Verified: <span className="text-white">{sso.verifiedDomains.length ? sso.verifiedDomains.join(", ") : "none yet"}</span>. Only addresses at verified domains can sign in this way.
-                              </p>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </section>
+          <Spinner className="w-8 h-8" />
+        ) : teams.length === 0 ? (
+          <NoTeam mayCreate={mayCreate} busy={busy} onCreate={create} price={businessPrice} canBuy={Boolean(businessPlan && subscription?.billingEnabled)} onBuy={() => setBuyingSeats(3)} />
+        ) : failed && !details ? (
+          <div className={`${PANEL} p-6`}>
+            <p className="text-sm text-gray-300">This team could not be loaded.</p>
+            <button type="button" className={`${BTN.secondary} mt-4`} onClick={() => loadDetails(selectedId)}>
+              Try again
+            </button>
           </div>
+        ) : !details ? (
+          <Spinner className="w-8 h-8" />
+        ) : (
+          <>
+            <TeamHeader team={details} teams={teams} onPick={pick} mayCreate={mayCreate} onNewTeam={() => setCreating(true)} onWorkIn={workIn} planName={isOwner ? plan?.name : null} />
+            {details.status === "read_only" && (
+              <Note tone="amber" icon="alert" className="mt-4">
+                This team is read-only because its plan has lapsed. Documents can be read and downloaded; nothing new can be sent until the owner renews.
+              </Note>
+            )}
+            {locked && (
+              <Note tone="amber" icon="alert" className="mt-4" testId="team-two-factor-locked">
+                This team requires two-step sign-in. Switch it on for your account to open the team&apos;s documents, templates and activity.{" "}
+                <Link to="/settings" className="font-black underline">
+                  Set it up
+                </Link>
+              </Note>
+            )}
+            <div className="mt-6 grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)] items-start">
+              <div className="lg:sticky lg:top-24 min-w-0">
+                <TeamNav tab={tab} onTab={setTab} team={details} isOwner={isOwner} />
+              </div>
+              <div className="min-w-0" key={details.id}>
+                {section}
+              </div>
+            </div>
+          </>
         )}
       </main>
 
       <ConfirmModal
         isOpen={Boolean(removing)}
         title={removing && String(removing.userId) === String(me?.id) ? "Leave this team?" : "Remove this person?"}
-        message={
-          removing
-            ? `${removing.name || removing.email} will lose access to everything in ${details?.name}. Documents and templates they made here stay with the team and pass to its owner.`
-            : ""
-        }
+        message={removing ? `${removing.name || removing.email} will lose access to everything in ${details?.name}. Documents and templates they made here stay with the team and pass to its owner.` : ""}
         confirmText={removing && String(removing.userId) === String(me?.id) ? "Leave" : "Remove"}
         onCancel={() => setRemoving(null)}
         onConfirm={async () => {
           const member = removing;
           setRemoving(null);
           const leaving = String(member.userId) === String(me?.id);
-          await run("remove", () => removeWorkspaceMemberApi(selectedId, member.userId), leaving ? "You have left the team" : "Removed");
-          if (leaving) {
+          const left = await run("remove", () => removeWorkspaceMemberApi(selectedId, member.userId), leaving ? "You have left the team" : "Removed");
+          if (left && leaving) {
             if (getActiveWorkspaceId() === selectedId) setActiveWorkspaceId("");
+            setDetails(null);
+            setActivity(null);
+            setSso(null);
             setSelectedId("");
             await loadAll();
           }
         }}
       />
 
+      {creating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="new-team-h" onKeyDown={(e) => e.key === "Escape" && setCreating(false)}>
+          <div className={`${PANEL} w-full max-w-md p-6 !shadow-[8px_8px_0px_0px_#a855f7]`}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 id="new-team-h" className="text-xl font-black uppercase text-white">
+                  New team
+                </h2>
+                <p className="mt-1 text-sm text-gray-400">Its documents, templates and rules are kept apart from your other teams.</p>
+              </div>
+              <button type="button" className={BTN.ghost} aria-label="Close" onClick={() => setCreating(false)}>
+                <ICONS.close className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="mt-5">
+              <CreateTeamForm busy={busy} onCreate={create} autoFocus />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {askingSales && <ContactSales open plan={enterprisePlan} user={me} onClose={() => setAskingSales(false)} />}
+
       {buyingSeats > 0 && businessPlan && (
         <PlanCheckout
           open
-          plans={subscription.catalogue.plans.filter((p) => p.purchasable && (p.id === businessPlan.id || p.yearlyOf === businessPlan.id))}
+          plans={plans.filter((p) => p.purchasable && (p.id === businessPlan.id || p.yearlyOf === businessPlan.id))}
           planId={businessPlan.id}
           seats={buyingSeats}
           chooseSeats

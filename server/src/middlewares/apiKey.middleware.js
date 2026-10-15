@@ -62,6 +62,11 @@ export const apiKeyAuth = asyncHandler(async (req, res, next) => {
   let workspace = apiKey.workspaceId ? await Workspace.findById(apiKey.workspaceId) : null;
   if (workspace && (!roleOf(workspace, user._id) || workspace.status === "archived")) throw refuse();
   if (!workspace) workspace = await ensurePersonalWorkspace(user._id, user.name);
+  // A team that requires two-step sign-in takes keys only from people who have it, so a key cannot
+  // be a way round the rule. Single sign-on does not count here: a key is not a sign-in.
+  if (workspace.policy?.requireTwoFactor && !user.twoFactor?.enabled) {
+    throw new ApiError(403, "TWO_FACTOR_REQUIRED: This workspace requires two-step sign-in, and the person who made this key has not switched it on.");
+  }
 
   // The plan that pays for the workspace must still include the API
   const subscription = await getOrCreateSubscription(workspace.ownerId);
@@ -87,6 +92,7 @@ export const apiKeyAuth = asyncHandler(async (req, res, next) => {
     role: user.role,
     emailVerified: user.emailVerified !== false,
     twoFactorEnabled: Boolean(user.twoFactor?.enabled),
+    ssoWorkspaceId: null,
   };
   req.workspace = {
     id: workspace._id.toString(),
@@ -95,7 +101,7 @@ export const apiKeyAuth = asyncHandler(async (req, res, next) => {
     personal: Boolean(workspace.personal),
     ownerId: workspace.ownerId.toString(),
     status: workspace.status,
-    requireTwoFactor: false,
+    requireTwoFactor: Boolean(workspace.policy?.requireTwoFactor),
   };
   req.billingUserId = req.workspace.ownerId;
 

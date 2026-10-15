@@ -7,7 +7,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { env } from "../config/env.js";
 import { seal, open } from "../utils/secretBox.js";
 import { safeEqual } from "../utils/tokens.js";
-import { assertWorkspaceAccess, roleOf } from "./authorize.service.js";
+import { assertWorkspaceAccess, assertTwoFactorRule, roleOf } from "./authorize.service.js";
 import { getOrCreateSubscription } from "./subscription.service.js";
 import { tierOf } from "./entitlements.service.js";
 import { seatsUsed, seatsAllowed } from "./workspace.service.js";
@@ -46,12 +46,16 @@ const discover = async (issuer) => {
   return config;
 };
 
+// Single sign-on works only while the plan that pays for the workspace is Enterprise
+const onEnterprise = async (workspace) => tierOf(await getOrCreateSubscription(workspace.ownerId)) === "enterprise";
+
 const loadForOwner = async (workspaceId, userId) => {
   const workspace = isId(workspaceId) ? await Workspace.findById(String(workspaceId)).select("+sso.clientSecret") : null;
   if (!workspace || workspace.personal || workspace.status === "archived") throw new ApiError(404, "Workspace not found");
   // Only the owner sets how people sign in
   assertWorkspaceAccess(workspace, userId, "billing.manage");
-  if (tierOf(await getOrCreateSubscription(workspace.ownerId)) !== "enterprise") {
+  await assertTwoFactorRule(workspace, userId);
+  if (!(await onEnterprise(workspace))) {
     throw new ApiError(403, "UPGRADE_REQUIRED: Single sign-on is part of the Enterprise plan.");
   }
   return workspace;
@@ -100,7 +104,16 @@ export const saveSsoSettings = async (workspaceId, userId, { issuer, clientId, c
   }
 
   await Workspace.updateOne({ _id: workspace._id }, { $set: set });
+  if (enabled === false) await endSsoSessions(workspace._id);
   return describe(await Workspace.findById(workspace._id).select("+sso.clientSecret"));
+};
+
+/**
+ * Single sign-on was switched off: sessions started through it stop counting as a second step
+ * for the team's two-step rule. The people stay signed in.
+ */
+export const endSsoSessions = async (workspaceId) => {
+  await User.updateMany({ ssoSessionWorkspaceId: workspaceId }, { $set: { ssoSessionWorkspaceId: null } });
 };
 
 /**
@@ -117,6 +130,7 @@ export const verifySsoDomains = async (workspaceId, userId) => {
   const set = { "sso.verifiedDomains": verified };
   if (verified.length === 0) set["sso.enabled"] = false;
   await Workspace.updateOne({ _id: workspace._id }, { $set: set });
+  if (verified.length === 0) await endSsoSessions(workspace._id);
   return describe(await Workspace.findById(workspace._id).select("+sso.clientSecret"));
 };
 
@@ -128,8 +142,11 @@ export const verifySsoDomains = async (workspaceId, userId) => {
 export const startSso = async (email) => {
   const domain = domainOf(email);
   const workspace = domain ? await Workspace.findOne({ "sso.enabled": true, "sso.verifiedDomains": domain, status: { $ne: "archived" } }) : null;
-  // The same answer whether or not the domain is known, so domains cannot be probed
-  if (!workspace) throw new ApiError(404, "Single sign-on is not set up for that email address");
+  // The same answer whether the domain is unknown or its plan no longer includes single sign-on,
+  // so domains cannot be probed. It says how to get in for someone who used to sign in this way.
+  if (!workspace || !(await onEnterprise(workspace))) {
+    throw new ApiError(404, "Single sign-on is not set up for that email address. If you used to sign in this way, choose Forgot password to set a password.");
+  }
 
   const config = await discover(workspace.sso.issuer);
   const nonce = crypto.randomBytes(16).toString("hex");
@@ -165,7 +182,8 @@ export const finishSso = async ({ code, state, cookieNonce }) => {
   if (!(claims.e > Date.now()) || !cookieNonce || !safeEqual(String(cookieNonce), String(claims.n))) throw refuse();
 
   const workspace = isId(claims.w) ? await Workspace.findById(claims.w).select("+sso.clientSecret") : null;
-  if (!workspace?.sso?.enabled || workspace.status === "archived") throw refuse();
+  // The plan may have ended while the person was at their identity provider
+  if (!workspace?.sso?.enabled || workspace.status === "archived" || !(await onEnterprise(workspace))) throw refuse();
   const clientSecret = open(workspace.sso.clientSecret);
   if (!clientSecret) throw new ApiError(500, "Single sign-on is misconfigured for this workspace. Its owner needs to enter the client secret again.");
 

@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { User } from "../models/User.model.js";
+import { Workspace } from "../models/Workspace.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { env } from "../config/env.js";
 import { seal, open } from "../utils/secretBox.js";
@@ -143,6 +144,19 @@ export const verifySecondStep = async (userId, code) => {
  * Switches two-step sign-in off. Needs a current code, so a stolen session cannot remove it.
  */
 export const disableTwoFactor = async (userId, code) => {
+  // Switching it off would shut the person out of a team that requires it, and owners and admins
+  // could drop below their own rule; they leave the team, or the rule goes, first
+  const requiring = await Workspace.find({
+    "policy.requireTwoFactor": true,
+    status: { $ne: "archived" },
+    $or: [{ ownerId: userId }, { members: { $elemMatch: { userId, status: "active" } } }],
+  })
+    .select("name")
+    .lean();
+  if (requiring.length > 0) {
+    const names = requiring.map((w) => `"${w.name}"`).join(", ");
+    throw new ApiError(409, `${names} ${requiring.length === 1 ? "requires" : "require"} two-step sign-in, so it cannot be switched off while you are in ${requiring.length === 1 ? "that team" : "those teams"}.`);
+  }
   if (!(await verifySecondStep(userId, code))) throw new ApiError(400, "That code is not right");
   await User.updateOne(
     { _id: userId },

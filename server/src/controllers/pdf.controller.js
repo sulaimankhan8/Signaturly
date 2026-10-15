@@ -10,7 +10,7 @@ import { originalKeyOf, downloadKeyOf, hasSignedCopy } from "../services/documen
 import { appendAuditEvent, verifyAuditChainIntegrity } from "../services/auditLedger.service.js";
 import { eventBus, EventTypes } from "../events/index.js";
 import { assertRecordAccess, recordsIn } from "../services/authorize.service.js";
-import { assertTwoFactorPolicy, assertCanWorkIn } from "../services/workspace.service.js";
+import { assertCanWorkIn } from "../services/workspace.service.js";
 
 export const uploadPdfController = asyncHandler(async (req, res) => {
   // A document is made in the workspace the sender is working in, if their role there allows it
@@ -83,11 +83,11 @@ const formatPdf = async (pdf) => {
 };
 
 // The documents of the workspace the request is working in. Deleted ones stay in the database
-// for their audit log but are never listed.
+// for their audit log but are never listed. A team whose two-step rule the person does not meet
+// was refused already, by `protect`.
 const ownedDocuments = (req) => Pdf.find({ ...recordsIn(req.workspace, req.user.id), deletedAt: null }).sort({ createdAt: -1 });
 
 export const getMyPdfsController = asyncHandler(async (req, res) => {
-  assertTwoFactorPolicy(req);
   const pdfs = await ownedDocuments(req);
   const formattedPdfs = await Promise.all(pdfs.map(formatPdf));
 

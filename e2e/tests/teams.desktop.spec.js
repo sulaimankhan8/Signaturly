@@ -17,7 +17,7 @@ test.describe("teams, two-step sign-in and developer settings", () => {
 
     // A Free account is told what teams need, and can buy it here
     await expect(page.getByTestId("team-list")).toContainText("You are not in a team yet.");
-    await page.getByRole("button", { name: /Get Business/ }).click();
+    await page.getByRole("button", { name: "Start a team" }).click();
     // How to pay for the three seats. Prepaid here, so a seat can be added part-way through below.
     const checkout = page.getByTestId("plan-checkout");
     await expect(checkout).toContainText("3 seats");
@@ -33,8 +33,8 @@ test.describe("teams, two-step sign-in and developer settings", () => {
     await expect(page.getByText("You are the owner")).toContainText("1 of 3 seats in use");
 
     await page.getByPlaceholder("name@company.com").fill(colleague.ownerEmail);
-    await page.getByRole("button", { name: "Invite", exact: true }).click();
-    await expect(page.getByTestId("team-members")).toContainText("Invited, not yet joined");
+    await page.getByRole("button", { name: "Send invitation", exact: true }).click();
+    await expect(page.getByTestId("team-members")).toContainText("Waiting to join");
     await expect(page.getByTestId("team-members")).toContainText(colleague.ownerEmail);
     await expect(page.getByText("You are the owner")).toContainText("2 of 3 seats in use");
 
@@ -58,7 +58,9 @@ test.describe("teams, two-step sign-in and developer settings", () => {
     // What they upload there belongs to the team: the owner sees it in the team's documents
     await theirs.goto("/upload");
     await theirs.locator("#file-input").setInputFiles(await pdfFile("Team notice.pdf"));
-    await theirs.getByRole("button", { name: /Upload & Open in Editor/ }).click();
+    await theirs.getByRole("button", { name: "Upload →", exact: true }).click();
+    // After the upload, the sender says who signs
+    await theirs.getByRole("button", { name: /Only me/ }).click();
     await theirs.waitForURL("**/editor/**");
     await context.close();
 
@@ -127,7 +129,8 @@ test.describe("teams, two-step sign-in and developer settings", () => {
     await page.getByTestId("chosen-files").getByTitle("Move up").click();
     await expect(page.getByTestId("chosen-files").locator("li").first()).toContainText("Leave policy.pdf");
 
-    await page.getByRole("button", { name: /Join, Upload & Open in Editor/ }).click();
+    await page.getByRole("button", { name: /Join & Upload/ }).click();
+    await page.getByRole("button", { name: /Only me/ }).click();
     await page.waitForURL("**/editor/**");
 
     const document = await latestDocumentOf(account.ownerEmail);

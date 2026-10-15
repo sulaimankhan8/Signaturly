@@ -431,6 +431,8 @@ export default function Dashboard() {
           // 1. Past Due Grace Period Alert Banner (High Priority, Non-Dismissible)
           if (status === "past_due") {
             const graceEnd = subscription?.gracePeriodEnd ? new Date(subscription.gracePeriodEnd).toLocaleDateString() : null;
+            // An automatic payment that failed, or a plan paid for once whose time has run out
+            const autoPay = subData?.renewal?.mode === "auto";
             return (
               <div className="bg-amber-950/50 border-2 border-amber-500/80 rounded-3xl p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
                 <div className="flex items-center gap-3 flex-1">
@@ -442,7 +444,7 @@ export default function Dashboard() {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-black uppercase tracking-wider text-amber-300">
-                        Payment Past Due &bull; Grace Period Active
+                        {autoPay ? <>Payment Past Due &bull; Grace Period Active</> : <>Plan Ended &bull; Grace Period Active</>}
                       </span>
                       {graceEnd && (
                         <span className="text-[10px] font-mono font-bold bg-amber-500/20 text-amber-200 px-2 py-0.5 rounded border border-amber-500/40">
@@ -451,7 +453,9 @@ export default function Dashboard() {
                       )}
                     </div>
                     <p className="text-[11px] text-gray-300 mt-0.5">
-                      Your subscription renewal payment could not be processed. Your features remain temporarily active. Please renew to avoid automatic downgrade.
+                      {autoPay
+                        ? "Your automatic renewal payment did not go through. Your plan stays on meanwhile. Pay now to keep it, or it moves to Free when the grace period ends."
+                        : "The time you paid for has ended. Your plan stays on for a few days. Renew to keep it, or it moves to Free when the grace period ends."}
                     </p>
                   </div>
                 </div>
@@ -461,7 +465,7 @@ export default function Dashboard() {
                   onClick={() => navigate("/billing")}
                   className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider rounded-xl shadow transition-all whitespace-nowrap cursor-pointer shrink-0"
                 >
-                  Update billing &amp; renew →
+                  {autoPay ? "Pay now →" : "Renew →"}
                 </button>
               </div>
             );

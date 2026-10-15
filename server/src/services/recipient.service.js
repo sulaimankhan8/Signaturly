@@ -14,6 +14,7 @@ import { sealDocument } from "./pdfSeal.service.js";
 import { normalizePhone, isMessagingAvailable } from "./messaging/index.js";
 import { normalizeLanguage } from "../i18n/messages.js";
 import { enqueueJob } from "../jobs/queue.js";
+import { mergeSignerFields } from "./fieldRules.service.js";
 
 const RECIPIENT_COLORS = [
   "#3b82f6", // Blue
@@ -210,17 +211,6 @@ export const recordRecipientView = async ({ token, ipAddress, userAgent }) => {
   return { recipient, pdf };
 };
 
-const isFilled = (field) => {
-  if (field.type === "signature" || field.type === "initials") {
-    return Boolean(field.signatureUrl || field.value);
-  }
-  if (field.type === "text") {
-    return typeof field.value === "string" && field.value.trim() !== "";
-  }
-  // Dates default to the signing date; checkboxes and radios may legitimately stay empty
-  return true;
-};
-
 export const submitRecipientSignature = async ({
   token,
   filledFields,
@@ -242,51 +232,15 @@ export const submitRecipientSignature = async ({
     assertRecipientVerified(recipient);
     await assertCanAct(recipient, pdf, "sign");
 
-    const rId = recipient._id.toString();
-    const submitted = new Map(
-      (Array.isArray(filledFields) ? filledFields : [])
-        .filter((f) => f && typeof f.id === "string")
-        .map((f) => [f.id, f])
-    );
-
-    // 1. Merge submitted values into this signer's own fields. Ownership is by recipient id only.
+    // 1. Take the submission into this signer's own fields (ownership is by recipient id only),
+    //    write the date, name and email fields, and check that everything required is there
     const signedAt = new Date();
-    const updatedPdfFields = (pdf.fields || []).map((dbField) => {
-      const isMine = dbField.recipientId && dbField.recipientId.toString() === rId;
-      if (!isMine) return dbField;
-
-      const incoming = submitted.get(dbField.id);
-      if (!incoming) return dbField;
-
-      const isImageField = dbField.type === "signature" || dbField.type === "initials";
-      const value =
-        typeof incoming.value === "string" || typeof incoming.value === "boolean" ? incoming.value : dbField.value;
-      const signatureUrl = isImageField
-        ? (typeof incoming.signatureUrl === "string" && incoming.signatureUrl) ||
-          (typeof incoming.value === "string" && incoming.value) ||
-          dbField.signatureUrl
-        : dbField.signatureUrl;
-
-      return {
-        ...dbField,
-        value,
-        signatureUrl,
-        checked: typeof incoming.checked === "boolean" ? incoming.checked : dbField.checked,
-        signedAt,
-        signedBy: rId,
-      };
+    const { merged: updatedPdfFields, mine: myFields } = mergeSignerFields({
+      fields: pdf.fields,
+      submitted: filledFields,
+      recipient,
+      signedAt,
     });
-
-    const myFields = updatedPdfFields.filter((f) => f.recipientId && f.recipientId.toString() === rId);
-
-    const missing = myFields.filter((f) => f.required !== false && !isFilled(f));
-    if (missing.length > 0) {
-      throw new ApiError(
-        422,
-        `Please complete all required fields (${missing.length} remaining)`,
-        missing.map((f) => ({ field: f.id, message: "Required" }))
-      );
-    }
 
     const remaining = await Recipient.countDocuments({
       pdfId: pdf._id,

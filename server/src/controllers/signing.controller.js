@@ -13,6 +13,7 @@ import { maskPhone } from "../services/messaging/index.js";
 import { brandingFor } from "../services/branding.service.js";
 import { readEmbedSession } from "../services/embed.service.js";
 import { esignStateFor } from "../services/esign/esign.service.js";
+import { fieldsForSigner } from "../services/fieldRules.service.js";
 
 const maskEmail = (email = "") => {
   const [local, domain] = String(email).split("@");
@@ -87,7 +88,8 @@ export const getPublicSigningSessionController = asyncHandler(async (req, res) =
           status: pdf.status,
           isSealed: Boolean(pdf.sealedKey),
           pdfUrl,
-          fields: pdf.fields || [],
+          // Only this signer's own fields: what others have signed is already on the page itself
+          fields: fieldsForSigner(pdf.fields, recipient._id),
           message: pdf.message,
           expiresAt: pdf.expiresAt,
         },

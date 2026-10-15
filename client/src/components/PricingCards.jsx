@@ -6,12 +6,14 @@ import PeriodSwitch from "./PeriodSwitch";
 import ContactSales from "./ContactSales";
 import { offersOf, offerOf, recordFor, bestSaving, savingSaid, savingOn, anyYearly, periodSaid } from "../utils/plans";
 import { checkoutPath, day, rankOf } from "../utils/billing";
+import { rupees } from "../utils/checkout";
 
 // How a plan may be bought. A price list that does not say sells it both ways.
 const soldAs = (plan) => plan.billing || { subscription: Boolean(plan.purchasable), prepaid: Boolean(plan.purchasable) };
 
 const quiet = BUTTONS.quiet;
-const note = "text-center text-xs text-gray-400 min-h-[2.25rem] flex items-center justify-center leading-snug";
+// One short line under each button, always two lines tall, so the cards stay level
+const note = "h-[34px] text-center text-xs leading-[17px] font-medium text-gray-400 line-clamp-2";
 
 /**
  * The plans, with the monthly or yearly switch above them: on the landing page, the pricing
@@ -45,6 +47,11 @@ export default function PricingCards({ catalogue, user = null, account = null, l
   const [asking, setAsking] = useState(null);
 
   const period = yearly ? "year" : "month";
+
+  // What paying by the year keeps in hand, in rupees, for the note beside the switch: on the
+  // account's own plan, or else on the plan most people choose
+  const sample = [mine, offers.find((offer) => offer.plan.highlight), ...offers].find((offer) => offer && savingOn(offer));
+  const kept = sample ? sample.plan.priceInr * 12 - sample.yearly.priceInr : 0;
   const afterSignIn = (path) => (user ? path : `/register?next=${encodeURIComponent(path)}`);
   const myRank = mine ? rankOf(mine.plan) : 0;
   const onPaidPlan = Boolean(mine) && mine.plan.priceInr > 0;
@@ -52,29 +59,43 @@ export default function PricingCards({ catalogue, user = null, account = null, l
   return (
     <div data-testid="billing-plans">
       {anyYearly(offers) && (
-        <div className={`flex justify-center ${large ? "mb-12" : "mb-10"}`}>
+        // The switch stays centred: an empty space as wide as the note balances it on the left.
+        // On a phone the note goes beneath it.
+        <div className={`flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 ${large ? "mb-12" : "mb-9"}`}>
+          {kept > 0 && <span className="hidden sm:block w-[230px]" aria-hidden="true" />}
           <PeriodSwitch yearly={yearly} onChange={setYearly} saving={savingSaid(bestSaving(offers))} />
+          {kept > 0 && (
+            <span className="w-full sm:w-[230px] flex items-center justify-center sm:justify-start gap-1 whitespace-nowrap -rotate-[4deg] font-['Caveat'] text-[21px] font-bold leading-none text-yellow-400">
+              <svg width="38" height="26" viewBox="0 0 38 26" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="hidden sm:block shrink-0" aria-hidden="true">
+                <path d="M36 20C26 22 14 18 6 8" />
+                <path d="M4 15L6 8l7 1" />
+              </svg>
+              Pay yearly, keep {rupees(kept)}
+              {sample.plan.perSeat ? " a seat" : ""}
+            </span>
+          )}
         </div>
       )}
 
-      <ul className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 gap-y-9 pt-3 items-stretch ${large ? "max-w-7xl mx-auto text-left" : ""}`}>
-        {offers.map((offer) => {
+      <ul className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-[22px] gap-y-9 pt-3 items-stretch ${large ? "max-w-7xl mx-auto text-left" : ""}`}>
+        {offers.map((offer, index) => {
           const { plan } = offer;
           const own = Boolean(mine) && offer === mine;
           const record = recordFor(offer, period);
           const ways = soldAs(record);
           const buyable = record.purchasable && (ways.subscription || ways.prepaid);
-          // The account's own plan at its other price: the same plan, paid for differently
+          // The account's own plan at its other price: the same plan, paid for differently. Only the
+          // move to yearly is offered; a yearly customer is not invited back to paying monthly.
           const other = own && current ? (current === offer.plan ? offer.yearly : offer.plan) : null;
           const otherWays = other ? soldAs(other) : null;
-          const canSwitch = Boolean(other?.purchasable) && (account?.renews ? otherWays.subscription : otherWays.subscription || otherWays.prepaid);
+          const canSwitch = Boolean(other?.purchasable) && other === offer.yearly && (account?.renews ? otherWays.subscription : otherWays.subscription || otherWays.prepaid);
           const saves = other && other === offer.yearly ? savingSaid(savingOn(offer)) : "";
           const button = lookOf(plan).button;
           const recommended = !own && Boolean(account?.recommended) && familyOf(plan.id) === account.recommended;
           const verb = !account ? "Get" : rankOf(plan) > myRank ? "Upgrade to" : "Switch to";
 
           return (
-            <PlanCard key={plan.id} offer={offer} period={period} current={own} recommended={recommended} large={large} testId={`plan-${plan.id.replace(/_monthly$/, "")}`}>
+            <PlanCard key={plan.id} offer={offer} period={period} previous={offers[index - 1]?.plan || null} current={own} recommended={recommended} large={large} testId={`plan-${plan.id.replace(/_monthly$/, "")}`}>
               {own ? (
                 <>
                   {canSwitch ? (

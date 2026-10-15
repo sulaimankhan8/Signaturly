@@ -41,7 +41,8 @@ export const fill = (text, values) => text.replace(/\{\{(\w+)\}\}/g, (_, name) =
 export const flatten = (object) =>
   Object.values(object).flatMap((value) => (typeof value === "string" ? [value] : flatten(value)));
 
-export const pageCanvas = (page) => page.locator(".react-pdf__Page__canvas");
+// The first drawn page: the document scrolls as one, with every page near the screen drawn
+export const pageCanvas = (page) => page.locator(".react-pdf__Page__canvas").first();
 
 // True when nothing on the page is wider than the screen
 export const fitsScreen = (page) =>

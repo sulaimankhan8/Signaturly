@@ -4,7 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { fetchUserProfileApi, updateUserProfileApi, changePasswordApi } from "../api/user.api";
 import { setCredentials } from "../store/authSlice";
 import Navbar from "../components/Navbar";
-import SignatureManager from "../components/SignatureManager";
+import SignatureStudio from "../components/signature/SignatureStudio";
+import { useSavedSignature } from "../components/signature/useSavedSignature";
 import toast, { Toaster } from "react-hot-toast";
 
 import TwoFactorSettings from "../components/TwoFactorSettings";
@@ -26,10 +27,9 @@ export default function Settings() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
-  // Signature preference
-  const [savedSignature, setSavedSignature] = useState(
-    localStorage.getItem("pactdoc_default_signature") || ""
-  );
+  // The signature and initials saved with the account
+  const saved = useSavedSignature();
+  const [studio, setStudio] = useState(null);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -105,13 +105,13 @@ export default function Settings() {
     }
   };
 
-  const handleSaveSignature = (dataUrl) => {
-    setSavedSignature(dataUrl);
-    if (dataUrl) {
-      localStorage.setItem("pactdoc_default_signature", dataUrl);
-      toast.success("Default signature saved locally!");
-    } else {
-      localStorage.removeItem("pactdoc_default_signature");
+  const handleSaveSignature = async (kind, dataUrl) => {
+    setStudio(null);
+    try {
+      await saved.save(kind, dataUrl);
+      toast.success(dataUrl ? "Saved to your account." : "Removed from your account.");
+    } catch {
+      toast.error("It could not be saved. Please try again.");
     }
   };
 
@@ -369,18 +369,56 @@ export default function Settings() {
         {activeTab === "signatures" && (
           <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
             <div className="border-b border-white/10 pb-4">
-              <h2 className="text-lg font-black text-white">Default E-Signature &amp; Initials Asset</h2>
+              <h2 className="text-lg font-black text-white">Your signature and initials</h2>
               <p className="text-xs text-gray-400 mt-0.5">
-                Draw, type, or upload your signature once. It will be pre-loaded whenever you sign agreements.
+                Saved with your account, so they are ready whenever you sign your own documents, on any device. Nothing is kept in this browser.
               </p>
             </div>
 
-            <div className="max-w-lg bg-[#08090d] p-6 rounded-2xl border border-white/10 shadow-lg">
-              <SignatureManager
-                defaultSignatureUrl={savedSignature}
-                onUploaded={handleSaveSignature}
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+              {[
+                ["signature", "Signature"],
+                ["initials", "Initials"],
+              ].map(([kind, words]) => (
+                <div key={kind} className="bg-[#08090d] p-4 rounded-2xl border-2 border-white/15 space-y-3">
+                  <p className="text-[11px] font-black uppercase tracking-wider text-gray-300">{words}</p>
+                  <div className="h-24 rounded-xl bg-white border-2 border-black flex items-center justify-center p-2">
+                    {saved[kind] ? (
+                      <img src={saved[kind]} alt={`Your ${words.toLowerCase()}`} className="max-h-20 max-w-full object-contain" />
+                    ) : (
+                      <span className="text-xs font-bold text-gray-500">{saved.loading ? "Loading…" : "None yet"}</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setStudio(kind)}
+                      className="flex-1 min-h-[40px] rounded-xl border-2 border-black bg-red-600 hover:bg-red-500 text-white text-[11px] font-black uppercase tracking-wider shadow-[2px_2px_0px_0px_#facc15]"
+                    >
+                      {saved[kind] ? "Change" : "Create"}
+                    </button>
+                    {saved[kind] && (
+                      <button
+                        type="button"
+                        onClick={() => handleSaveSignature(kind, "")}
+                        className="min-h-[40px] px-3 rounded-xl border-2 border-white/20 bg-[#1e2235] hover:bg-[#282d47] text-white text-[11px] font-black uppercase tracking-wider"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
+            <SignatureStudio
+              open={Boolean(studio)}
+              onClose={() => setStudio(null)}
+              kinds={["signature", "initials"]}
+              kind={studio || "signature"}
+              current={{ signature: saved.signature, initials: saved.initials }}
+              onAdopt={handleSaveSignature}
+              signerName={authUser?.name || ""}
+            />
           </div>
         )}
 
