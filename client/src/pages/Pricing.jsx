@@ -9,7 +9,8 @@ import { fetchPlansApi } from "../api/billing.api";
 import { rupees } from "../utils/checkout";
 import { perMessage } from "../utils/billing";
 import { Pill, Assurances } from "../components/billing/ui";
-import { BTN, PANEL, ICONS } from "../components/billing/theme";
+import { BTN, PANEL } from "../components/billing/theme";
+import BrandGlyph from "../components/BrandGlyph";
 
 /**
  * The public price list, at /pricing: written out as HTML when the site is built, so search
@@ -56,7 +57,7 @@ export default function Pricing({ initial }) {
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
             <Link to="/" className="flex items-center gap-2.5 group select-none">
               <span className="w-9 h-9 grid place-items-center rounded-xl bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_#ffffff] group-hover:rotate-[-2deg] transition-transform" aria-hidden="true">
-                <ICONS.brand className="w-[18px] h-[18px]" />
+                <BrandGlyph className="w-6 h-6" />
               </span>
               <span className="text-lg font-black text-white tracking-tight">
                 Pact<span className="text-red-500">Doc</span>

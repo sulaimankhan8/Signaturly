@@ -22,9 +22,16 @@ const brandColor = (brand) => (/^#[0-9a-f]{6}$/i.test(brand?.primaryColor || "")
 // Email programs show images only from web addresses, so a logo stored as a data URL is left out
 const brandHeader = (brand) => {
   const name = esc(brand?.companyName || env.appName);
-  return /^https:\/\//i.test(brand?.logoUrl || "")
-    ? `<img src="${esc(brand.logoUrl)}" alt="${name}" style="max-height:44px; max-width:220px;">`
-    : `<h1>${name}</h1>`;
+  if (/^https:\/\//i.test(brand?.logoUrl || "")) {
+    return `<img src="${esc(brand.logoUrl)}" alt="${name}" style="max-height:44px; max-width:220px;">`;
+  }
+  // PactDoc's own logo (client/public/brand), when no workspace name replaces it and the app is at
+  // an https address email programs will fetch from; sized by attribute too, for Outlook
+  if (!brand?.companyName && /^https:\/\//i.test(env.appUrl)) {
+    const src = `${env.appUrl.replace(/\/+$/, "")}/brand/pactdoc-logo-on-dark@2x.png`;
+    return `<img src="${esc(src)}" alt="${esc(env.appName)}" width="151" height="36" style="display:inline-block; width:151px; height:36px; border:0;">`;
+  }
+  return `<h1>${name}</h1>`;
 };
 
 const emailWrapper = (content, headerTitle = env.appName, language = "en", { showBadge = false, brand = null } = {}) => `

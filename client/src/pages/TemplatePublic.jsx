@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import API from "../api/axios";
 import { withNext } from "../utils/nextPath";
+import BrandGlyph from "../components/BrandGlyph";
 
 /**
  * The public pages for ready-made templates (plan task P4-08): a list at /t and one page per
@@ -41,8 +42,13 @@ const Shell = ({ children }) => (
   <div className="min-h-screen bg-[#08090d] text-gray-100 font-sans">
     <header className="border-b border-white/10">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-        <Link to="/" className="text-lg font-black text-white">
-          Pact<span className="text-red-500">Doc</span>
+        <Link to="/" className="flex items-center gap-2.5 text-lg font-black text-white">
+          <span className="w-8 h-8 grid place-items-center rounded-lg bg-red-600 border-2 border-black" aria-hidden="true">
+            <BrandGlyph className="w-6 h-6" />
+          </span>
+          <span>
+            Pact<span className="text-red-500">Doc</span>
+          </span>
         </Link>
         <nav className="flex items-center gap-5 text-xs font-bold text-gray-300">
           <Link to="/t" className="hover:text-white">

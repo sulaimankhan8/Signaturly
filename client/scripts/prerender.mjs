@@ -46,7 +46,8 @@ const fail = (message) => {
 
 const shellPath = path.join(dist, "index.html");
 if (!fs.existsSync(shellPath)) fail("dist/index.html not found. Run `vite build` first.");
-const shell = fs.readFileSync(shellPath, "utf8");
+// Link previews (WhatsApp, Slack, social sites) load the share image only from a full address
+const shell = fs.readFileSync(shellPath, "utf8").replace('content="/og-image.png"', `content="${SITE_URL}/og-image.png"`);
 if (!shell.includes('<div id="root"></div>')) fail('dist/index.html has no empty <div id="root"></div> to fill.');
 
 // Build the public pages for Node, with every dependency bundled in so nothing is resolved at run time

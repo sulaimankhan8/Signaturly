@@ -2,9 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <!-- The mark, in each size a browser or phone asks for; the full logo files are in public/brand -->
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#08090d" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
+
     <meta name="description" content="PactDoc is a precise PDF signing engine that guarantees perfect field placement across devices and final PDFs." />
     <meta name="keywords" content="pdf signing, e signature, document signing, pdf fields, sign documents online" />
     <meta name="author" content="PactDoc" />
@@ -12,6 +17,13 @@
     <meta property="og:title" content="PactDoc — Precise E-Signature Platform" />
     <meta property="og:description" content="Place signature fields once. They stay accurate everywhere." />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="PactDoc" />
+    <!-- Made a full address at build time (scripts/prerender.mjs), as link previews need one -->
+    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="PactDoc: place signature fields once, they stay accurate everywhere." />
+    <meta name="twitter:card" content="summary_large_image" />
 
     <!-- Fonts are served with the app itself: see src/fonts.js -->
 

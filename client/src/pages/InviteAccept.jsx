@@ -9,6 +9,7 @@ import { withNext } from "../utils/nextPath";
 import { BTN, ICONS } from "../components/billing/theme";
 import { Spinner } from "../components/billing/ui";
 import { TeamMark } from "../components/team/parts";
+import BrandGlyph from "../components/BrandGlyph";
 import { isHex, dateOf } from "../utils/team";
 
 /**
@@ -64,8 +65,13 @@ export default function InviteAccept() {
   return (
     <div className="min-h-screen bg-[#08090d] text-gray-100 flex flex-col items-center px-4 py-12">
       <Toaster position="top-right" />
-      <p className="text-2xl font-black text-white">
-        Pact<span className="text-red-500">Doc</span>
+      <p className="flex items-center gap-3 text-2xl font-black text-white">
+        <span className="w-10 h-10 grid place-items-center rounded-xl bg-red-600 border-2 border-black shadow-[2px_2px_0px_0px_#ffffff]" aria-hidden="true">
+          <BrandGlyph className="w-7 h-7" />
+        </span>
+        <span>
+          Pact<span className="text-red-500">Doc</span>
+        </span>
       </p>
 
       <main

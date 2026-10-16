@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { rupees, SETUP_CHECK } from "../utils/checkout";
 import { ICONS } from "./billing/theme";
+import BrandGlyph from "./BrandGlyph";
 
 /**
  * The screen a customer sees from the moment they choose to pay until the payment is in their
@@ -49,7 +50,7 @@ export const CheckoutHeader = ({ children }) => (
       <div className="flex items-center gap-4 min-w-0">
         <Link to="/dashboard" className="flex items-center gap-2.5 group select-none">
           <span className="w-9 h-9 grid place-items-center rounded-xl bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_#ffffff] group-hover:rotate-[-2deg] transition-transform" aria-hidden="true">
-            <ICONS.brand className="w-[18px] h-[18px]" />
+            <BrandGlyph className="w-6 h-6" />
           </span>
           <span className="text-lg font-black text-white tracking-tight">
             Pact<span className="text-red-500">Doc</span>

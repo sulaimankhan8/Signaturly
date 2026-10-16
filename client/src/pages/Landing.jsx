@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Toaster } from "react-hot-toast";
 import PricingCards from "../components/PricingCards";
+import BrandGlyph from "../components/BrandGlyph";
 import { PRICING_FALLBACK } from "../config/pricingFallback";
 
 const Landing = () => {
@@ -69,9 +70,7 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 bg-red-600 border-2 border-black rounded-xl flex items-center justify-center shadow-[3px_3px_0px_0px_#ffffff] transform -rotate-2 hover:rotate-0 transition-transform">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
+              <BrandGlyph className="w-8 h-8 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -486,6 +485,9 @@ const Landing = () => {
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t-2 border-white/20 bg-[#090a0f] text-gray-400 text-xs">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2 font-bold">
+            <span className="w-7 h-7 grid place-items-center rounded-lg bg-red-600 border-2 border-black text-white" aria-hidden="true">
+              <BrandGlyph className="w-5 h-5" />
+            </span>
             <span className="text-white text-sm font-black">Pact<span className="text-red-500">Doc</span></span>
             <span>— The Non-Repudiation E-Signature Standard.</span>
           </div>

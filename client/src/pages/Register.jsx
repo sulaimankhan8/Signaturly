@@ -3,6 +3,7 @@ import { registerApi } from "../api/auth.api";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { nextPathFrom, withNext } from "../utils/nextPath";
 import toast, { Toaster } from "react-hot-toast";
+import BrandGlyph from "../components/BrandGlyph";
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -55,9 +56,7 @@ export default function Register() {
         {/* Brand / Title Section */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-red-600 rounded-2xl border-2 border-black shadow-[4px_4px_0px_0px_#facc15] mb-2 transform rotate-1">
-            <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
+            <BrandGlyph className="w-10 h-10 text-white" />
           </div>
           <h2 className="text-3xl font-black text-white tracking-tight uppercase">
             Create Account

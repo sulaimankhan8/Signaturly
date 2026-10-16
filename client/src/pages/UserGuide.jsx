@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import BrandGlyph from "../components/BrandGlyph";
 
 export default function UserGuide() {
   const [selectedJourney, setSelectedJourney] = useState("journey-send-contract");
@@ -330,9 +331,7 @@ export default function UserGuide() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-red-600 border-2 border-black rounded-xl flex items-center justify-center shadow-[3px_3px_0px_0px_#facc15]">
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              <BrandGlyph className="w-7 h-7 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">

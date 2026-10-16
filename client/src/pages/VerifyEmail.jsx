@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import toast, { Toaster } from "react-hot-toast";
 import { verifyEmailApi, resendVerificationApi } from "../api/auth.api";
+import BrandGlyph from "../components/BrandGlyph";
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
@@ -54,6 +55,9 @@ export default function VerifyEmail() {
     <div className="min-h-screen bg-[#08090d] flex items-center justify-center p-4 text-gray-100">
       <Toaster position="top-right" />
       <div className="bg-[#12141c] border border-white/10 rounded-3xl p-8 max-w-md w-full text-center space-y-5 shadow-2xl">
+        <span className="inline-flex w-12 h-12 items-center justify-center bg-red-600 rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_#facc15]" aria-hidden="true">
+          <BrandGlyph className="w-9 h-9 text-white" />
+        </span>
         <h1 className="text-2xl font-bold text-white">{heading}</h1>
         <p className="text-sm text-gray-400 leading-relaxed">{body}</p>
 

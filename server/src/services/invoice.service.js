@@ -7,6 +7,7 @@ import { env } from "../config/env.js";
 import { GST_RATE_PERCENT, SAC_CODE, PLANS, TOPUP_PACKS, isPlan, isTopUpPack, priceOf } from "../config/plans.js";
 import { drawShapedText, isPlainLatin, measureText } from "./textShaping.service.js";
 import { formatDate } from "../utils/format.js";
+import { drawBrandMark } from "../utils/brandMark.js";
 
 /**
  * Invoices for payments (plan task P4-16).
@@ -286,8 +287,10 @@ export const renderInvoicePdf = async (invoice) => {
   page.drawRectangle({ x: 0, y: H - 6, width: W, height: 6, color: accent });
 
   let y = H - 62;
-  const pactWidth = write("Pact", M, y, { size: 24, font: bold });
-  write("Doc", M + pactWidth, y, { size: 24, font: bold, color: accent });
+  // The mark, then the name, its capitals centred on the mark
+  drawBrandMark(page, { x: M, top: y + 24, size: 31 });
+  const pactWidth = write("Pact", M + 40, y, { size: 24, font: bold });
+  write("Doc", M + 40 + pactWidth, y, { size: 24, font: bold, color: accent });
   write(taxInvoice ? "TAX INVOICE" : "RECEIPT", R, y + 2, { size: 19, font: bold, align: "right" });
 
   // Paid: a stamp under the title

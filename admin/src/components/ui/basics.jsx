@@ -68,14 +68,20 @@ export function Icon({ d, className = "w-5 h-5" }) {
   );
 }
 
-const PEN = "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10";
+// PactDoc's glyph, as the customer app draws it (client/src/components/BrandGlyph.jsx):
+// a P drawn as a page with its corner folded, its stem a pen nib
+const BRAND_PAGE = "M6 3H19L26 10V22H13V24L9.5 29L6 24Z M13 10H19V16H13Z";
+const BRAND_FOLD = "M19 3V10H26Z";
 
 // The mark, as it stands at the top of the frame and of the sign-in screen
 export function Brand() {
   return (
     <div className="flex items-center gap-3">
       <span className="grid place-items-center w-10 h-10 rounded-xl bg-gradient-to-br from-accent-hover to-accent-deep text-white shadow-accent ring-1 ring-white/10" aria-hidden="true">
-        <Icon d={PEN} className="w-5 h-5" />
+        <svg viewBox="0 0 32 32" className="w-7 h-7">
+          <path fill="currentColor" fillRule="evenodd" d={BRAND_PAGE} />
+          <path fill="#000" d={BRAND_FOLD} />
+        </svg>
       </span>
       <span className="leading-tight">
         <span className="block font-display text-lg font-bold tracking-tight text-ink">

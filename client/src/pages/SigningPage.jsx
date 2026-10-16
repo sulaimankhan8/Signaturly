@@ -10,6 +10,7 @@ import { LIGHT } from "../components/signature/lightTheme";
 import { fetchSigningSessionApi, submitPublicSignatureApi, declinePublicSigningApi, startEsignApi, completeEsignApi } from "../api/signing.api";
 import { OtpVerificationModal } from "../components/OtpVerificationModal";
 import { SIGNING_LANGUAGES } from "../i18n";
+import BrandGlyph from "../components/BrandGlyph";
 
 // The widest a page is drawn. On a phone the page takes the width of the screen instead.
 const MAX_PAGE_WIDTH = 820;
@@ -321,7 +322,12 @@ export default function SigningPage() {
         {/* Documents sent from a Free account carry this line and an invitation */}
         {session?.branding?.badge && (
           <div className="pt-4 border-t-2 border-black/10 text-xs text-gray-600 space-y-1" data-testid="signed-with-badge">
-            <p>{t("completed.badge")}</p>
+            <p className="inline-flex items-center gap-1.5 font-bold text-gray-700">
+              <span className="w-5 h-5 grid place-items-center rounded-md bg-red-600 border border-black text-white" aria-hidden="true">
+                <BrandGlyph className="w-4 h-4" />
+              </span>
+              {t("completed.badge")}
+            </p>
             <p>
               {t("completed.invite")}{" "}
               <a href="/register" className="text-red-700 font-bold underline">
