@@ -87,9 +87,8 @@ export default function Pricing({ initial }) {
           <p className="mt-2.5 text-sm sm:text-base text-gray-300 leading-relaxed max-w-xl mx-auto">
             Start free with {free?.documentsPerMonth ?? 5} documents a month. A document is one PDF sent for signature, however many people sign it. Prices are in rupees.
           </p>
-          <Assurances items={FACTS} className="mt-3.5 justify-center text-xs sm:text-sm" />
           {user && (
-            <p className="mt-5 text-sm text-gray-400">
+            <p className="mt-4 text-sm text-gray-400">
               Signed in?{" "}
               <Link to="/billing" className="font-bold text-yellow-400 hover:text-yellow-300 underline underline-offset-2">
                 Your plan and invoices are under Billing →
@@ -99,6 +98,10 @@ export default function Pricing({ initial }) {
         </div>
 
         <PricingCards catalogue={list} user={user} defaultYearly />
+
+        <div className="flex justify-center -mt-3">
+          <Assurances items={FACTS} className="justify-center text-xs sm:text-sm" />
+        </div>
 
         <PlanComparison catalogue={list} />
 
