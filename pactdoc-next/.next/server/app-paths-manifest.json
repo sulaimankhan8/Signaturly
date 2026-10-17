@@ -1,0 +1,19 @@
+{
+  "/sitemap.xml/route": "app/sitemap.xml/route.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/(auth)/login/page": "app/(auth)/login/page.js",
+  "/(dashboard)/billing/page": "app/(dashboard)/billing/page.js",
+  "/(auth)/register/page": "app/(auth)/register/page.js",
+  "/(dashboard)/settings/page": "app/(dashboard)/settings/page.js",
+  "/(dashboard)/dashboard/page": "app/(dashboard)/dashboard/page.js",
+  "/(dashboard)/bulk-send/page": "app/(dashboard)/bulk-send/page.js",
+  "/(dashboard)/workspaces/page": "app/(dashboard)/workspaces/page.js",
+  "/(dashboard)/upload/page": "app/(dashboard)/upload/page.js",
+  "/(dashboard)/contacts/page": "app/(dashboard)/contacts/page.js",
+  "/page": "app/page.js",
+  "/sign/[token]/page": "app/sign/[token]/page.js",
+  "/verify/page": "app/verify/page.js",
+  "/(editor)/editor/[pdfId]/page": "app/(editor)/editor/[pdfId]/page.js",
+  "/t/[slug]/page": "app/t/[slug]/page.js",
+  "/pricing/page": "app/pricing/page.js"
+}

@@ -1,0 +1,15 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/billing/layout,_N_T_/(dashboard)/billing/page,_N_T_/billing"
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/2f198e9a9a27fc7180930f22bd2f6b1cf10f8312249ff754767835d299ac273b/$/billing",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(dashboard)/billing/page"
+    },
+    "isFallback": false
+  }
+}

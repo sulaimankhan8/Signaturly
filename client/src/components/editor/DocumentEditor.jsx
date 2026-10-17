@@ -6,6 +6,9 @@ import FieldProperties from "./FieldProperties";
 import { FIELD_TYPES, PALETTE, clamp, clampToPage, labelOf, makeField, newFieldId, isRequired, sortForReading, typeOf } from "./fieldTypes";
 import { FieldIcon, UI } from "./icons";
 import { saveStatusText } from "./useAutosave";
+import EditorHeader from "./EditorHeader";
+import EditorSidebar from "./EditorSidebar";
+import EditorGhost from "./EditorGhost";
 
 const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 // How close (in screen pixels) an edge has to come to another before it snaps to it
@@ -731,128 +734,25 @@ export default function DocumentEditor({
   const paletteColor = mode === "self" ? SELF_COLOR : activeParticipant?.color || "#facc15";
 
   const sidebar = (
-    <div className="p-4 space-y-5">
-      {sidebarTop}
-
-      {mode !== "self" && (
-        <section aria-labelledby="who-heading" className="space-y-2">
-          <h2 id="who-heading" className="text-[11px] font-black uppercase tracking-wider text-gray-300">
-            {mode === "template" ? "Fields for role" : "Fields for"}
-          </h2>
-          {assignable.length === 0 && <p className="text-xs text-red-300">Add a signer first.</p>}
-          <div className="space-y-1.5" role="radiogroup" aria-label="Who the next field is for">
-            {assignable.map((p) => {
-              const theirs = fields.filter((f) => f[ownerKey] === p.id);
-              const lacksSignature = mode === "send" && p.role === "signer" && !theirs.some((f) => f.type === "signature");
-              const active = p.id === activeId;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => setActiveId(p.id)}
-                  className={`w-full min-h-[48px] flex items-center gap-2.5 px-2.5 py-2 rounded-xl border-2 text-left transition-all ${
-                    active ? "bg-[#1e2235] border-white shadow-[3px_3px_0px_0px_#000]" : "bg-[#090a0f] border-white/10 hover:border-white/30"
-                  }`}
-                >
-                  <span className="w-3.5 h-3.5 rounded-full border-2 border-black shrink-0" style={{ background: p.color }} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-xs font-black text-white truncate">{p.name || "Unnamed"}</span>
-                    <span className={`block text-[11px] truncate ${lacksSignature ? "text-amber-300 font-bold" : "text-gray-400"}`}>
-                      {lacksSignature ? "No signature field yet" : `${theirs.length} field${theirs.length === 1 ? "" : "s"}`}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      <section aria-labelledby="palette-heading" className="space-y-2">
-        <h2 id="palette-heading" className="text-[11px] font-black uppercase tracking-wider text-gray-300">
-          Add a field
-        </h2>
-        <FieldPalette
-          types={PALETTE[mode]}
-          armedType={armedType}
-          color={paletteColor}
-          disabled={mode !== "self" && !activeParticipant}
-          onPointerDown={onPalettePointerDown}
-          onKeyboardPlace={placeAtCentre}
-        />
-        <p className="text-[11px] text-gray-400">
-          {armedType ? (
-            <>
-              Click on the page to place it. <kbd className="font-mono">Esc</kbd> cancels.
-            </>
-          ) : (
-            "Drag onto the page, or click then click where it goes."
-          )}
-        </p>
-      </section>
-
-      <section aria-labelledby="list-heading" className="space-y-2">
-        <h2 id="list-heading" className="text-[11px] font-black uppercase tracking-wider text-gray-300 flex justify-between">
-          <span>On this document</span>
-          <span className="text-yellow-400 tabular-nums">{fields.length}</span>
-        </h2>
-        {fields.length === 0 ? (
-          <p className="text-xs text-gray-500">No fields yet.</p>
-        ) : (
-          <ul className="space-y-1 max-h-56 overflow-y-auto pr-1">
-            {sortForReading(fields).map((field) => (
-              <li key={field.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedIds([field.id]);
-                    canvasRef.current?.scrollToField(field.id);
-                    setDrawerOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-[11px] border-2 ${
-                    selectedIds.includes(field.id) ? "border-yellow-400 bg-[#1e2235]" : "border-transparent hover:bg-white/5"
-                  }`}
-                >
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: colorOf(field) }} />
-                  <FieldIcon type={field.type} className="w-3.5 h-3.5 shrink-0 text-gray-300" />
-                  <span className="truncate flex-1 text-gray-200 font-bold">
-                    {labelOf(field)}
-                    {mode !== "self" && isRequired(field) ? " *" : ""}
-                  </span>
-                  <span className="text-gray-500 shrink-0">p.{field.page}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <details className="text-[11px] text-gray-400">
-        <summary className="cursor-pointer font-black uppercase tracking-wider text-gray-300">Keyboard shortcuts</summary>
-        <dl className="mt-2 grid grid-cols-[auto,1fr] gap-x-3 gap-y-1">
-          {[
-            ["Tab", "Go to the next field"],
-            ["Arrows", "Nudge (Shift: more)"],
-            ["Delete", "Delete"],
-            ["Ctrl+Z", "Undo"],
-            ["Ctrl+Shift+Z", "Redo"],
-            ["Ctrl+C / V", "Copy / paste"],
-            ["Ctrl+D", "Duplicate"],
-            ["Ctrl+A", "Pick all on the page"],
-            ["Shift+click", "Pick several"],
-            ["Alt+drag", "Move without snapping"],
-            ["Esc", "Let go"],
-          ].map(([keys, words]) => (
-            <div key={keys} className="contents">
-              <dt className="font-mono text-gray-200">{keys}</dt>
-              <dd>{words}</dd>
-            </div>
-          ))}
-        </dl>
-      </details>
-    </div>
+    <EditorSidebar
+      sidebarTop={sidebarTop}
+      mode={mode}
+      assignable={assignable}
+      fields={fields}
+      ownerKey={ownerKey}
+      activeId={activeId}
+      setActiveId={setActiveId}
+      armedType={armedType}
+      paletteColor={paletteColor}
+      activeParticipant={activeParticipant}
+      onPalettePointerDown={onPalettePointerDown}
+      placeAtCentre={placeAtCentre}
+      selectedIds={selectedIds}
+      setSelectedIds={setSelectedIds}
+      canvasRef={canvasRef}
+      setDrawerOpen={setDrawerOpen}
+      colorOf={colorOf}
+    />
   );
 
   const properties = selection.length > 0 && (
@@ -879,102 +779,26 @@ export default function DocumentEditor({
   return (
     <div ref={editorRef} className="h-[100dvh] flex flex-col bg-[#08090d] text-gray-100 font-sans overflow-hidden">
       {/* Header */}
-      <header className="shrink-0 border-b-2 border-white/15 bg-[#0d0f16]">
-        <div className="px-3 sm:px-4 py-2.5 flex items-center gap-2 sm:gap-3">
-          <button type="button" onClick={onBack} className={`${iconButton} sm:w-auto sm:px-3 gap-1.5`} aria-label={backLabel}>
-            <UI.back className="w-4 h-4" />
-            <span className="hidden sm:inline text-[11px] font-black uppercase tracking-wider">{backLabel}</span>
-          </button>
-
-          <div className="min-w-0 flex-1">
-            <h1 className="text-sm font-black text-white truncate" title={title}>
-              {title}
-            </h1>
-            <p className="text-[11px] text-gray-400 truncate flex items-center gap-2">
-              {subtitle && <span className="truncate">{subtitle}</span>}
-              {saveStatus && (
-                <span role="status" className={`shrink-0 font-bold ${saveStatus === "error" ? "text-amber-300" : "text-gray-500"}`}>
-                  {saveStatusText(saveStatus)}
-                </span>
-              )}
-            </p>
-          </div>
-
-          {steps && (
-            <ol className="hidden xl:flex items-center gap-1 text-[11px] font-black uppercase tracking-wider" aria-label="Steps">
-              {steps.map((step, index) => (
-                <li key={step.label} className="flex items-center gap-1">
-                  {index > 0 && <span className="w-4 h-0.5 bg-white/20" aria-hidden="true" />}
-                  <button
-                    type="button"
-                    disabled={!step.onClick}
-                    onClick={step.onClick}
-                    aria-current={step.active ? "step" : undefined}
-                    className={`px-2.5 py-1.5 rounded-lg border-2 ${
-                      step.active ? "bg-yellow-400 text-black border-black" : step.done ? "border-white/20 text-white hover:bg-white/10" : "border-white/10 text-gray-500"
-                    }`}
-                  >
-                    {index + 1}. {step.label}
-                  </button>
-                </li>
-              ))}
-            </ol>
-          )}
-
-          <div className="hidden md:flex items-center gap-1.5">
-            <button type="button" className={iconButton} onClick={undo} disabled={!canUndo} aria-label="Undo" title="Undo (Ctrl+Z)">
-              <UI.undo />
-            </button>
-            <button type="button" className={iconButton} onClick={redo} disabled={!canRedo} aria-label="Redo" title="Redo (Ctrl+Shift+Z)">
-              <UI.redo />
-            </button>
-          </div>
-
-          <div className="hidden md:flex items-center gap-1 rounded-xl border-2 border-white/15 bg-[#1e2235] px-1">
-            <button type="button" className="w-8 h-9 flex items-center justify-center hover:text-yellow-400" onClick={() => stepZoom(-1)} aria-label="Zoom out">
-              <UI.zoomOut />
-            </button>
-            <button
-              type="button"
-              className="min-w-[52px] h-9 text-[11px] font-black tabular-nums hover:text-yellow-400"
-              onClick={() => setZoom("fit")}
-              aria-label={`Zoom ${zoomLabel}. Fit to width`}
-              title="Fit to width"
-            >
-              {zoomLabel}
-            </button>
-            <button type="button" className="w-8 h-9 flex items-center justify-center hover:text-yellow-400" onClick={() => stepZoom(1)} aria-label="Zoom in">
-              <UI.zoomIn />
-            </button>
-          </div>
-
-          <button
-            type="button"
-            className={`${iconButton} hidden md:flex ${thumbnails ? "border-yellow-400" : ""}`}
-            onClick={() => setThumbnails((on) => !on)}
-            aria-pressed={thumbnails}
-            aria-label="Page thumbnails"
-            title="Page thumbnails"
-          >
-            <UI.pages />
-          </button>
-
-          {secondaryAction}
-
-          {primaryAction && (
-            <button
-              type="button"
-              onClick={primaryAction.onClick}
-              disabled={primaryAction.disabled || primaryAction.busy}
-              className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 sm:px-5 rounded-xl border-2 border-black bg-red-600 hover:bg-red-500 text-white text-[11px] font-black uppercase tracking-wider shadow-[3px_3px_0px_0px_#facc15] hover:-translate-x-0.5 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap"
-            >
-              {primaryAction.busy ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : primaryAction.icon}
-              <span>{primaryAction.busy ? primaryAction.busyLabel || primaryAction.label : primaryAction.label}</span>
-            </button>
-          )}
-        </div>
-        {notice}
-      </header>
+      <EditorHeader
+        title={title}
+        subtitle={subtitle}
+        saveStatus={saveStatus}
+        steps={steps}
+        undo={undo}
+        redo={redo}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        zoomLabel={zoomLabel}
+        stepZoom={stepZoom}
+        setZoom={setZoom}
+        thumbnails={thumbnails}
+        setThumbnails={setThumbnails}
+        primaryAction={primaryAction}
+        secondaryAction={secondaryAction}
+        onBack={onBack}
+        backLabel={backLabel}
+        notice={notice}
+      />
 
       <div className="flex-1 min-h-0 flex relative">
         {/* Left: who, what to add, what is there */}
@@ -1043,41 +867,11 @@ export default function DocumentEditor({
       </div>
 
       {/* The field type following the pointer while it is dragged or about to be placed */}
-      {ghost && <Ghost key={ghost.type} start={ghost} color={paletteColor} scale={scale} />}
+      {ghost && <EditorGhost key={ghost.type} start={ghost} color={paletteColor} scale={scale} />}
 
       <p className="sr-only" role="status" aria-live="polite">
         {message}
       </p>
-    </div>
-  );
-}
-
-/** The field type following the pointer while it is dragged in or about to be placed. It follows the
- *  pointer by itself, so the editor does not redraw on every movement. */
-function Ghost({ start, color, scale }) {
-  const [at, setAt] = useState({ x: start.x, y: start.y });
-  useEffect(() => {
-    const follow = (event) => setAt({ x: event.clientX, y: event.clientY });
-    window.addEventListener("pointermove", follow);
-    return () => window.removeEventListener("pointermove", follow);
-  }, []);
-  const config = FIELD_TYPES[start.type];
-  return (
-    <div
-      aria-hidden="true"
-      className="fixed z-[60] pointer-events-none rounded-[3px] border-2 flex items-center justify-center text-[10px] font-black uppercase"
-      style={{
-        left: at.x,
-        top: at.y,
-        width: config.size[0] * scale,
-        height: config.size[1] * scale,
-        transform: "translate(-50%, -50%)",
-        borderColor: color,
-        background: `${color}33`,
-        color,
-      }}
-    >
-      {config.square ? "" : config.label}
     </div>
   );
 }

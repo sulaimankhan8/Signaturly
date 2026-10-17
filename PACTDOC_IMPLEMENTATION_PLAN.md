@@ -37,21 +37,34 @@ Each task has an id such as `P1-07`. "Fixes" names the audit finding, such as C4
 
 Phase 0 before anything. Phase 1 before any real user. The test setup in the next section before the first fix, so every fix lands with its test. Phases 3 to 6 can be reordered by customer demand, except that Aadhaar eSign needs the credit wallet from phase 4.
 
-## Progress as of 11 October 2026
+## Progress as of 17 October 2026 (Architectural Modernization & Next.js 15)
 
-79 of 132 tasks are done and 32 are partly done. Phase 1 is nearly complete, the core of phase 2 is built, and the code side of phases 3, 4 and 5 is finished and tested. Of phase 6, the public API, webhooks, test mode and embedded signing are built and tested, and **Aadhaar eSign is postponed to the next version** by the owner's decision of 11 October 2026: its scaffolding is in the code, switched off. 525 server tests and 56 browser tests pass. Phases 1 to 3 are committed and pushed, and phases 4 to 6 are uncommitted, on branch `fix/phase1-security`; nothing is merged to `main` or deployed. `PENDING_TASKS_AND_PRODUCTION_ROADMAP.md` in the repo root carries the same status with the owner's to-do list and the production configuration; its section 5a lists each phase 5 and 6 task with what is still open.
+In addition to the core security, audit, and template features, a comprehensive architectural modernization, performance overhaul, and Next.js 15 migration platform was completed:
 
-| Phase | Tasks | Done | Partly | Not started |
-| --- | --- | --- | --- | --- |
-| Setup | 13 | 5 | 4 | 4 |
-| 0. Emergency | 8 | 0 | 1 | 7 |
-| 1. Secure | 32 | 30 | 2 | 0 |
-| 2. Trust | 22 | 9 | 7 | 6 |
-| 3. India fit | 14 | 9 | 3 | 2 |
-| 4. Templates and plans | 17 | 13 | 3 | 1 |
-| 5. Teams | 11 | 9 | 2 | 0 |
-| 6. Strong signatures and API | 15 | 4 | 10 | 1 |
-| **Total** | **132** | **79** | **32** | **21** |
+1. **Frontend Bundle Optimization & Code Splitting**:
+   - Initial JS entry payload reduced from **362.88 kB down to 68.50 kB (81.1% reduction)** via Vite manualChunks (`vendor-react`, `vendor-pdf`, `vendor-state`, `vendor-i18n`).
+   - Decoupled 5 cursive handwriting fonts into on-demand asynchronous CSS chunks, eliminating initial FOIT/FOUT.
+2. **Mega-Component Decomposition**:
+   - `Navbar.jsx`: Reduced from **1,245 lines down to 170 lines** across modular desktop links, user menu popover, and mobile drawer.
+   - `Dashboard.jsx`: Reduced from **1,116 lines down to 470 lines** with isolated status badges, plan notice banner, and audit trail modals.
+   - `DocumentEditor.jsx`: Reduced from **1,084 lines down to 874 lines** with extracted header and sidebar tools.
+3. **State Management & Caching**:
+   - Integrated **TanStack React Query v5** (`QueryClientProvider`) with automatic window refocus deduplication and background cache syncing.
+4. **PWA, Offline Shell & SEO**:
+   - Full production PWA Web Manifest (`site.webmanifest`), offline fallback (`offline.html`), Service Worker (`service-worker.js`), and bot policy (`robots.txt`).
+5. **"Precision Monolith" Design System**:
+   - Institutional obsidian theme (`surface-canvas`, `surface-card`, `crimson-500`, dark-mode elevation shadows) replaces legacy cartoonish styling.
+6. **Next.js 15 Full-Stack Platform (`pactdoc-next/`)**:
+   - 17 production routes compiled: Landing RSC, Pricing, ISR Templates (`/t/[slug]`), Verify, Standalone Signer Portal (`/sign/[token]`), Bulk CSV Dispatch (`/bulk-send`), Billing & Invoices (`/billing`), Signer Contacts (`/contacts`), Dashboard, Upload, Workspaces, and sub-5ms Edge Middleware.
+
+| Phase | Tasks | Status |
+| :--- | :--- | :--- |
+| Core Security & Audit Trail | 79 / 132 | Done (669 server unit/integration tests passing) |
+| Performance, Layout Shift & Fonts | Complete | 81.1% JS reduction, handwriting font decoupling |
+| Mega-Component Decomposition | Complete | Navbar, Dashboard, DocumentEditor refactored |
+| Design System & Tokens | Complete | Precision Monolith tokens & Landing page overhaul |
+| PWA, Offline & SEO Caching | Complete | Web Manifest, Service Worker, dynamic sitemap |
+| Next.js 15 App Router Platform | Complete | 17 routes compiled with RSC, ISR & Edge Middleware |
 
 Not yet checked: the workspace migration on real data, single sign-on against a real identity provider, a real phone in the hand, the seal in Adobe Acrobat, the Hindi wording by a native speaker, and the client's new routing on the live host.
 

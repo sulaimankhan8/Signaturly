@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { LIGHT, INKS } from "./signature/lightTheme";
@@ -26,6 +26,11 @@ export default function TypeSignature({ onConfirm, defaultText = "" }) {
   const [font, setFont] = useState(CURSIVE_FONTS[0]);
   const [color, setColor] = useState(INKS[0].value);
   const [busy, setBusy] = useState(false);
+
+  // Lazy-load handwriting fonts only when signature creation studio is open
+  useEffect(() => {
+    import("../styles/handwriting-fonts.css");
+  }, []);
 
   const generate = async () => {
     const text = typedName.trim();

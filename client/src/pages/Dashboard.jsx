@@ -9,6 +9,11 @@ import { UpgradeModal } from "../components/UpgradeModal";
 import ConfirmModal from "../components/ConfirmModal";
 import API from "../api/axios";
 import Navbar from "../components/Navbar";
+import PlanNoticeBanner from "../features/dashboard/PlanNoticeBanner";
+import DashboardToolbar from "../features/dashboard/DashboardToolbar";
+import DocumentCard from "../features/dashboard/DocumentCard";
+import RecipientStatusModal from "../features/dashboard/RecipientStatusModal";
+import AuditTrailModal from "../features/dashboard/AuditTrailModal";
 
 
 export default function Dashboard() {
@@ -310,53 +315,7 @@ export default function Dashboard() {
     return { total, signed, pending, drafts };
   }, [documents]);
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case "signed":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-emerald-500 text-black shadow-[2px_2px_0px_0px_#fff]">
-            <svg className="w-3 h-3 text-black stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-            Signed & Sealed
-          </span>
-        );
-      case "pending":
-      case "partially_signed":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-yellow-400 text-black shadow-[2px_2px_0px_0px_#ef4444]">
-            <svg className="w-3 h-3 text-black stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            In Progress
-          </span>
-        );
-      case "declined":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-red-600 text-white shadow-[2px_2px_0px_0px_#fff]">
-            <svg className="w-3 h-3 text-white stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            Declined
-          </span>
-        );
-      case "voided":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-gray-800 text-gray-300 shadow-[2px_2px_0px_0px_#000]">
-            <svg className="w-3 h-3 text-gray-400 stroke-[2.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-            </svg>
-            Voided
-          </span>
-        );
-      default:
-        return (
-          <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md border-2 border-black bg-purple-500 text-white shadow-[2px_2px_0px_0px_#fff]">
-            Draft
-          </span>
-        );
-    }
-  };
+
 
 
   return (
@@ -364,26 +323,26 @@ export default function Dashboard() {
       <Toaster position="top-right" />
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 space-y-4">
         {/* Welcome Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white flex items-center gap-3 uppercase">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-2.5 uppercase">
               Document Vault
             </h1>
-            <p className="text-gray-300 text-xs sm:text-sm mt-1 font-medium">
+            <p className="text-gray-300 text-xs mt-0.5 font-medium">
               Welcome back, <span className="text-yellow-400 font-black">{user?.name || user?.email}</span>. Manage agreements, track signers, and execute e-signatures.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => {
                 loadDocuments();
                 toast.success("Document vault updated!");
               }}
               disabled={isLoading}
-              className="inline-flex items-center justify-center p-3 bg-[#13151f] hover:bg-white/10 text-white font-bold rounded-xl border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] transition-all text-xs"
+              className="inline-flex items-center justify-center p-2.5 bg-[#13151f] hover:bg-white/10 text-white font-bold rounded-xl border-2 border-white/20 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] transition-all text-xs"
               title="Refresh Document List"
             >
               <svg className={`w-4 h-4 ${isLoading ? "animate-spin text-yellow-400" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -393,9 +352,9 @@ export default function Dashboard() {
 
             <button
               onClick={() => navigate("/upload")}
-              className="inline-flex items-center justify-center px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#facc15] hover:shadow-[4px_4px_0px_0px_#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 transition-all border-2 border-black text-xs"
+              className="inline-flex items-center justify-center px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black uppercase tracking-wider rounded-xl shadow-[3px_3px_0px_0px_#facc15] hover:shadow-[4px_4px_0px_0px_#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5 transition-all border-2 border-black text-xs"
             >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
               </svg>
               Upload Document
@@ -404,269 +363,23 @@ export default function Dashboard() {
         </div>
 
         {/* Dynamic Quota, Past Due, & Upgrade Banner */}
-        {(() => {
-          // Prevent any banner flash before subscription data finishes initial load
-          if (isLoading && !subData) {
-            return null;
-          }
+        <PlanNoticeBanner
+          isLoading={isLoading}
+          subData={subData}
+          user={user}
+          isPlanBannerDismissed={isPlanBannerDismissed}
+          handleDismissPlanBanner={handleDismissPlanBanner}
+          navigate={navigate}
+        />
 
-          const subscription = subData?.subscription || user?.subscription;
-          if (!subscription) {
-            return null;
-          }
-
-          const plan = subscription?.plan || "free";
-          const status = subscription?.status || "active";
-          const envelopesUsed = subData?.quota?.envelopesUsedThisMonth || 0;
-          const monthlyLimit = subData?.quota?.monthlyLimit || 5;
-          // Bought as top-ups, and used after the month's allowance
-          const extraDocuments = subData?.usage?.extraDocuments || 0;
-          const percentage = Math.min(100, Math.round((envelopesUsed / monthlyLimit) * 100));
-
-          const userId = user?._id || user?.id || "guest";
-          const isDismissed =
-            isPlanBannerDismissed ||
-            (plan !== "free" && localStorage.getItem(`dismissed_plan_banner_${userId}`) === plan);
-
-          // 1. Past Due Grace Period Alert Banner (High Priority, Non-Dismissible)
-          if (status === "past_due") {
-            const graceEnd = subscription?.gracePeriodEnd ? new Date(subscription.gracePeriodEnd).toLocaleDateString() : null;
-            // An automatic payment that failed, or a plan paid for once whose time has run out
-            const autoPay = subData?.renewal?.mode === "auto";
-            return (
-              <div className="bg-amber-950/50 border-2 border-amber-500/80 rounded-3xl p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-400 flex items-center justify-center shrink-0">
-                    <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black uppercase tracking-wider text-amber-300">
-                        {autoPay ? <>Payment Past Due &bull; Grace Period Active</> : <>Plan Ended &bull; Grace Period Active</>}
-                      </span>
-                      {graceEnd && (
-                        <span className="text-[10px] font-mono font-bold bg-amber-500/20 text-amber-200 px-2 py-0.5 rounded border border-amber-500/40">
-                          Expires {graceEnd}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-gray-300 mt-0.5">
-                      {autoPay
-                        ? "Your automatic renewal payment did not go through. Your plan stays on meanwhile. Pay now to keep it, or it moves to Free when the grace period ends."
-                        : "The time you paid for has ended. Your plan stays on for a few days. Renew to keep it, or it moves to Free when the grace period ends."}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => navigate("/billing")}
-                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-black text-xs uppercase tracking-wider rounded-xl shadow transition-all whitespace-nowrap cursor-pointer shrink-0"
-                >
-                  {autoPay ? "Pay now →" : "Renew →"}
-                </button>
-              </div>
-            );
-          }
-
-          if (plan === "free" || status === "expired" || status === "canceled") {
-            return (
-              <div className="bg-gradient-to-r from-[#181226] via-[#12141c] to-[#151724] border-2 border-yellow-400/40 rounded-3xl p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-black uppercase px-2.5 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/40">
-                      <svg className="w-3 h-3 text-yellow-400 fill-current" viewBox="0 0 20 20">
-                        <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.381z" />
-                      </svg>
-                      Free Plan
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {envelopesUsed} of {monthlyLimit} documents used this month
-                      {extraDocuments > 0 ? ` · ${extraDocuments} extra documents in hand` : ""}
-                    </span>
-                  </div>
-                  <div className="w-full max-w-md bg-black/50 h-2.5 rounded-full overflow-hidden border border-white/10">
-                    <div
-                      className={`h-full transition-all rounded-full ${
-                        percentage > 80 ? "bg-red-500" : "bg-gradient-to-r from-yellow-400 to-amber-500"
-                      }`}
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                  <p className="text-[11px] text-gray-400">
-                    Need more documents each month? Move to Pro, or buy a pack of extra documents.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => navigate("/billing/plans")}
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-yellow-400 hover:bg-yellow-300 text-black font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_#ef4444] hover:shadow-[4px_4px_0px_0px_#ef4444] transition-all whitespace-nowrap cursor-pointer"
-                  >
-                    <svg className="w-3.5 h-3.5 text-black fill-current" viewBox="0 0 20 20">
-                      <path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.381z" />
-                    </svg>
-                    Upgrade to Pro
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navigate("/billing/add-ons")}
-                    className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white font-black text-xs uppercase tracking-wider rounded-xl border-2 border-black transition-all whitespace-nowrap cursor-pointer"
-                  >
-                    Extra documents
-                  </button>
-                </div>
-              </div>
-            );
-          }
-
-          // If Active Paid Plan and user has dismissed it, don't render it
-          if (isDismissed) {
-            return null;
-          }
-
-          return (
-            <div className="bg-gradient-to-r from-emerald-950/40 via-[#12141c] to-[#12141c] border-2 border-emerald-500/30 rounded-3xl p-4 sm:p-5 flex items-center justify-between shadow-lg relative group transition-all">
-              <div className="flex items-center gap-3 pr-4">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black uppercase tracking-wider text-white">
-                      {plan.toUpperCase()} Plan Active
-                    </span>
-                    <span className="text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/40">
-                      Active
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-400">
-                    Your usage, extra documents, wallet and invoices are on the plans and billing page.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 shrink-0">
-                <button
-                  onClick={() => navigate("/billing")}
-                  className="text-xs text-emerald-400 hover:text-emerald-300 font-bold underline px-2 py-1 transition-colors"
-                >
-                  Plans &amp; billing
-                </button>
-                <button
-                  onClick={() => handleDismissPlanBanner(plan)}
-                  className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors border border-transparent hover:border-white/20 cursor-pointer"
-                  title="Dismiss banner"
-                  aria-label="Dismiss banner"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          );
-        })()}
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
-          <div className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-5 flex items-center space-x-4 shadow-[4px_4px_0px_0px_#ef4444]">
-            <div className="w-12 h-12 rounded-xl bg-red-600 text-white border-2 border-black flex items-center justify-center font-black shadow-[2px_2px_0px_0px_#000]">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-wider text-gray-300">Total Documents</p>
-              <p className="text-2xl font-black text-white font-mono mt-0.5">{stats.total}</p>
-            </div>
-          </div>
-
-          <div className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-5 flex items-center space-x-4 shadow-[4px_4px_0px_0px_#3b82f6]">
-            <div className="w-12 h-12 rounded-xl bg-blue-600 text-white border-2 border-black flex items-center justify-center font-black shadow-[2px_2px_0px_0px_#000]">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-wider text-gray-300">In Progress</p>
-              <p className="text-2xl font-black text-blue-400 font-mono mt-0.5">{stats.pending}</p>
-            </div>
-          </div>
-
-          <div className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-5 flex items-center space-x-4 shadow-[4px_4px_0px_0px_#22c55e]">
-            <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white border-2 border-black flex items-center justify-center font-black shadow-[2px_2px_0px_0px_#000]">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-wider text-gray-300">Completed</p>
-              <p className="text-2xl font-black text-emerald-400 font-mono mt-0.5">{stats.signed}</p>
-            </div>
-          </div>
-
-          <div className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-5 flex items-center space-x-4 shadow-[4px_4px_0px_0px_#facc15]">
-            <div className="w-12 h-12 rounded-xl bg-yellow-400 text-black border-2 border-black flex items-center justify-center font-black shadow-[2px_2px_0px_0px_#000]">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-wider text-gray-300">Drafts</p>
-              <p className="text-2xl font-black text-yellow-400 font-mono mt-0.5">{stats.drafts}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Filter & Search Bar */}
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-[#13151f] p-4 rounded-2xl border-2 border-white/20 shadow-[4px_4px_0px_0px_#000]">
-          {/* Search Box */}
-          <div className="relative w-full md:w-80">
-            <input
-              type="text"
-              placeholder="Search documents by title..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-[#090a0f] border-2 border-white/20 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-yellow-400 text-xs font-bold transition-colors"
-            />
-            <svg
-              className="w-4 h-4 absolute left-3.5 top-3 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-
-          {/* Filter Tabs */}
-          <div className="flex bg-[#090a0f] p-1.5 rounded-xl border-2 border-white/20 w-full md:w-auto overflow-x-auto gap-1">
-            {[
-              { id: "all", label: "All Docs" },
-              { id: "pending", label: "In Progress" },
-              { id: "signed", label: "Completed" },
-              { id: "draft", label: "Drafts" },
-              { id: "declined", label: "Declined/Void" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setStatusFilter(tab.id)}
-                className={`px-3.5 py-1.5 text-xs font-black uppercase tracking-wider rounded-lg whitespace-nowrap transition-all ${
-                  statusFilter === tab.id
-                    ? "bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_#facc15]"
-                    : "text-gray-300 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Stats Cards & Filter Toolbar */}
+        <DashboardToolbar
+          stats={stats}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+        />
 
         {/* Document Gallery Grid */}
         {isLoading ? (
@@ -696,400 +409,43 @@ export default function Dashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDocuments.map((doc) => {
-              const docId = doc._id || doc.id;
-              const isSigned = doc.status === "signed";
-              const createdDate = new Date(doc.createdAt).toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              });
-
-              return (
-                <div
-                  key={docId}
-                  className="bg-[#13151f] border-2 border-white/20 hover:border-red-500 rounded-2xl p-5 flex flex-col justify-between transition-all shadow-[4px_4px_0px_0px_#000] hover:shadow-[6px_6px_0px_0px_#ef4444] group space-y-5"
-                >
-                  <div className="space-y-4">
-                    {/* Top Row: PDF Icon & Status Badge */}
-                    <div className="flex items-start justify-between">
-                      <div className="px-3 py-1 bg-red-600 text-white border-2 border-black rounded-lg font-black text-xs uppercase tracking-wider shadow-[2px_2px_0px_0px_#000]">
-                        PDF
-                      </div>
-                      {getStatusBadge(doc.status)}
-                    </div>
-
-                    {/* Title & Metadata */}
-                    <div>
-                      <h3
-                        className="text-base font-black text-white group-hover:text-yellow-400 transition-colors line-clamp-1"
-                        title={doc.originalFileName}
-                      >
-                        {doc.originalFileName}
-                      </h3>
-                      <p className="text-[11px] text-gray-400 mt-1 flex items-center gap-2 font-mono">
-                        <span>{doc.pageCount} {doc.pageCount === 1 ? "page" : "pages"}</span>
-                        <span>•</span>
-                        <span>{createdDate}</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Actions Bar */}
-                  {/* Actions Bar */}
-                  <div className="pt-4 border-t-2 border-white/10 flex items-center justify-between gap-2 flex-wrap">
-                    {/* If Completed: Primary Download Button */}
-                    {isSigned && doc.signedUrl ? (
-                      <a
-                        href={`${import.meta.env.VITE_API_BASE_URL}${doc.signedUrl}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_#facc15] hover:shadow-[3px_3px_0px_0px_#fff] border-2 border-black"
-                        title="Download Final Executed PDF"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        <span>Executed PDF</span>
-                      </a>
-                    ) : (doc.status === "pending" || doc.status === "partially_signed") ? (
-                      /* If In-Progress: Track Signers Primary */
-                      <button
-                        onClick={() => handleOpenRecipients(docId)}
-                        className="py-2 px-3 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] border-2 border-black"
-                        title="Track Signers & Progress"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                        <span>Signers</span>
-                      </button>
-                    ) : (
-                      /* Draft: Self-Sign / Editor */
-                      <button
-                        onClick={() => navigate(`/editor/${docId}`)}
-                        className="py-2 px-3 bg-red-600 hover:bg-red-500 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_#facc15] hover:shadow-[3px_3px_0px_0px_#fff] border-2 border-black"
-                        title="Self Sign Document"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                        </svg>
-                        <span>Sign</span>
-                      </button>
-                    )}
-
-                    {/* Send for multi-signature (if draft or completed re-send) */}
-                    {doc.status === "draft" && (
-                      <button
-                        onClick={() => navigate(`/send/${docId}`)}
-                        className="py-2 px-3 bg-[#1e2235] hover:bg-[#282d47] text-white border-2 border-white/20 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff]"
-                        title="Send to Multiple Recipients"
-                      >
-                        <svg className="w-3.5 h-3.5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                        </svg>
-                        <span>Send</span>
-                      </button>
-                    )}
-
-                    {/* View Latest In-Progress Signed PDF */}
-                    {!isSigned && doc.signedUrl && (
-                      <a
-                        href={`${import.meta.env.VITE_API_BASE_URL}${doc.signedUrl}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="w-8 h-8 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
-                        title="Preview Latest Signed PDF"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                      </a>
-                    )}
-
-                    {/* View Audit Trail */}
-                    <button
-                      onClick={() => handleOpenAudit(docId)}
-                      className="w-8 h-8 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
-                      title="View Cryptographic Audit Trail"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                      </svg>
-                    </button>
-
-                    {/* Track Signers & Remind (if not already main button) */}
-                    {isSigned && (
-                      <button
-                        onClick={() => handleOpenRecipients(docId)}
-                        className="w-8 h-8 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all"
-                        title="View Completed Signers"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                      </button>
-                    )}
-
-                    {/* Void Document (Prominent button for In-Progress Envelopes) */}
-                    {(doc.status === "pending" || doc.status === "partially_signed") && (
-                      <button
-                        onClick={() => handleVoid(docId, doc.originalFileName)}
-                        disabled={deletingId === docId}
-                        className="px-2.5 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 hover:text-amber-300 rounded-xl text-xs font-black border-2 border-amber-500/40 shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#f59e0b] flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
-                        title="Legally Void & Revoke Agreement"
-                      >
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                        </svg>
-                        <span className="text-[11px] font-bold uppercase">Void</span>
-                      </button>
-                    )}
-
-                    {/* Delete / Purge Workspace */}
-                    <button
-                      onClick={() => handleDelete(docId, doc.originalFileName)}
-                      disabled={deletingId === docId}
-                      className="w-8 h-8 bg-red-950 hover:bg-red-800 text-red-400 hover:text-white rounded-xl text-xs font-black border-2 border-black shadow-[2px_2px_0px_0px_#000] hover:shadow-[3px_3px_0px_0px_#fff] flex items-center justify-center transition-all disabled:opacity-50 ml-auto"
-                      title="Purge Document from Workspace"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            {filteredDocuments.map((doc) => (
+              <DocumentCard
+                key={doc._id || doc.id}
+                doc={doc}
+                navigate={navigate}
+                handleOpenRecipients={handleOpenRecipients}
+                handleOpenAudit={handleOpenAudit}
+                handleVoid={handleVoid}
+                handleDelete={handleDelete}
+                deletingId={deletingId}
+              />
+            ))}
           </div>
         )}
 
       </main>
 
       {/* Signers & Reminder Modal */}
-      {isRecipientsModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <div className="bg-[#12141c] border border-white/10 rounded-3xl max-w-2xl w-full p-6 space-y-6 shadow-2xl relative">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
-              <h3 className="text-lg font-display font-bold text-white flex items-center gap-2">
-                <svg className="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-                Signer Roster & Real-Time Status
-              </h3>
-              <button
-                onClick={() => setIsRecipientsModalOpen(false)}
-                className="text-gray-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-
-            {isRecipientsLoading ? (
-              <div className="py-12 flex justify-center">
-                <div className="w-10 h-10 border-4 border-white/10 border-t-purple-600 rounded-full animate-spin" />
-              </div>
-            ) : recipientsDoc ? (
-              <div className="space-y-4 text-xs text-gray-300 max-h-[60vh] overflow-y-auto pr-1">
-                <div className="bg-[#08090d] p-4 rounded-xl space-y-1 border border-white/10">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Document</p>
-                  <p className="text-white font-semibold text-sm">{recipientsDoc.originalFileName}</p>
-                </div>
-
-                <div className="space-y-3">
-                  {(recipientsDoc.recipients || []).length === 0 ? (
-                    <p className="text-gray-500 text-center py-4">No recipients assigned yet.</p>
-                  ) : (
-                    recipientsDoc.recipients.map((rec) => {
-                      const isSigned = rec.status === "signed";
-                      return (
-                        <div
-                          key={rec._id}
-                          className="bg-[#08090d] p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-white/10"
-                        >
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="w-2.5 h-2.5 rounded-full"
-                                style={{ backgroundColor: rec.color || "#ef4444" }}
-                              />
-                              <span className="font-bold text-white text-sm">{rec.name}</span>
-                              <span className="text-gray-400 text-xs">({rec.email})</span>
-                            </div>
-                            <div className="text-[11px] text-gray-500 mt-1 flex items-center gap-3">
-                              <span>Role: <strong className="text-gray-300">{rec.role || "Signer"}</strong></span>
-                              <span>•</span>
-                              <span>
-                                Status:{" "}
-                                <strong className={isSigned ? "text-emerald-400" : "text-amber-400"}>
-                                  {rec.status?.toUpperCase()}
-                                </strong>
-                              </span>
-                              {rec.lastRemindedAt && (
-                                <>
-                                  <span>•</span>
-                                  <span>Reminded: {new Date(rec.lastRemindedAt).toLocaleDateString()}</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          {!isSigned && (
-                            <button
-                              disabled={remindingRecipientId === rec._id}
-                              onClick={() => handleSendReminder(rec._id)}
-                              className="px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 disabled:opacity-50 text-white rounded-lg font-bold text-xs shadow transition flex items-center justify-center gap-1.5 self-start sm:self-auto"
-                            >
-                              {remindingRecipientId === rec._id ? "Sending..." : "Send Reminder"}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            ) : null}
-
-            <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-              {recipientsDoc && (recipientsDoc.status === "pending" || recipientsDoc.status === "partially_signed") ? (
-                <button
-                  onClick={() => {
-                    setIsRecipientsModalOpen(false);
-                    handleVoid(recipientsDoc._id, recipientsDoc.originalFileName);
-                  }}
-                  className="px-4 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/40 text-amber-400 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow"
-                >
-                  <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                  </svg>
-                  <span>Void & Cancel Agreement</span>
-                </button>
-              ) : (
-                <div />
-              )}
-              <button
-                onClick={() => setIsRecipientsModalOpen(false)}
-                className="px-5 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      <RecipientStatusModal
+        isOpen={isRecipientsModalOpen}
+        onClose={() => setIsRecipientsModalOpen(false)}
+        isLoading={isRecipientsLoading}
+        recipientsDoc={recipientsDoc}
+        remindingRecipientId={remindingRecipientId}
+        onSendReminder={handleSendReminder}
+        onVoid={handleVoid}
+      />
 
       {/* Audit Trail Modal */}
-      {isAuditModalOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-          <div className="bg-[#12141c] border border-white/10 rounded-3xl max-w-2xl w-full p-6 space-y-6 shadow-2xl relative">
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
-              <h3 className="text-lg font-display font-bold text-white flex items-center gap-2">
-                <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
-                Cryptographic Audit Trail
-              </h3>
-              <button
-                onClick={() => setIsAuditModalOpen(false)}
-                className="text-gray-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-
-            {isAuditLoading ? (
-              <div className="py-12 flex justify-center">
-                <div className="w-10 h-10 border-4 border-white/10 border-t-red-600 rounded-full animate-spin" />
-              </div>
-            ) : selectedAudit ? (
-              <div className="space-y-4 text-xs text-gray-300 max-h-[60vh] overflow-y-auto pr-1">
-                <div className="bg-[#08090d] p-4 rounded-xl space-y-1 border border-white/10">
-                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Document Title</p>
-                  <p className="text-white font-semibold text-sm">{selectedAudit.pdf?.originalFileName}</p>
-                </div>
-
-                {selectedAudit.auditLogs?.length === 0 ? (
-                  <p className="text-gray-500 text-center py-6">No audit records logged yet.</p>
-                ) : (
-                  selectedAudit.auditLogs?.map((log, index) => (
-                    <div key={log._id || index} className="bg-[#08090d] p-4 rounded-xl space-y-2.5 border border-white/10">
-                      <div className="flex items-center justify-between text-xs font-bold">
-                        <span className="text-red-400 capitalize">{log.event || "Signature"} Entry</span>
-                        <span className="text-gray-400 font-mono text-[11px]">{new Date(log.signedAt || log.createdAt).toLocaleString()}</span>
-                      </div>
-
-                      {log.actorName && (
-                        <p className="text-xs text-gray-300">
-                          Actor: <strong className="text-white">{log.actorName}</strong> ({log.actorEmail})
-                        </p>
-                      )}
-
-                      {log.description && (
-                        <p className="text-xs text-gray-400 italic">"{log.description}"</p>
-                      )}
-
-                      {log.originalHash && (
-                        <div>
-                          <p className="text-[10px] text-gray-400 font-mono uppercase">Original Document Hash (SHA-256):</p>
-                          <p className="text-xs font-mono bg-black/60 p-2 rounded-lg text-emerald-300 break-all border border-emerald-950">
-                            {log.originalHash}
-                          </p>
-                        </div>
-                      )}
-
-                      {log.signedHash && (
-                        <div>
-                          <p className="text-[10px] text-gray-400 font-mono uppercase">Signed Document Hash (SHA-256):</p>
-                          <p className="text-xs font-mono bg-black/60 p-2 rounded-lg text-red-400 break-all border border-red-950">
-                            {log.signedHash}
-                          </p>
-                        </div>
-                      )}
-
-                      {log.ipAddress && (
-                        <p className="text-[10px] font-mono text-gray-500">IP: {log.ipAddress}</p>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            ) : (
-              <p className="text-gray-400 text-xs">No audit trail records found.</p>
-            )}
-
-            <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-              {selectedAudit?.pdf?._id && (
-                <button
-                  type="button"
-                  disabled={isCertDownloading}
-                  onClick={() =>
-                    handleDownloadCertificate(
-                      selectedAudit.pdf._id,
-                      selectedAudit.pdf.originalFileName
-                    )
-                  }
-                  className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow flex items-center gap-2 disabled:opacity-50"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  <span>{isCertDownloading ? "Downloading..." : "Download Audit Certificate (PDF)"}</span>
-                </button>
-              )}
-
-              <button
-                onClick={() => setIsAuditModalOpen(false)}
-                className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-colors ml-auto"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AuditTrailModal
+        isOpen={isAuditModalOpen}
+        onClose={() => setIsAuditModalOpen(false)}
+        isLoading={isAuditLoading}
+        selectedAudit={selectedAudit}
+        isCertDownloading={isCertDownloading}
+        onDownloadCertificate={handleDownloadCertificate}
+      />
 
       {/* In-Dashboard Upgrade Modal */}
       <UpgradeModal

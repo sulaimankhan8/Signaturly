@@ -61,7 +61,7 @@ export default function PricingCards({ catalogue, user = null, account = null, l
       {anyYearly(offers) && (
         // The switch stays centred: an empty space as wide as the note balances it on the left.
         // On a phone the note goes beneath it.
-        <div className={`flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 ${large ? "mb-12" : "mb-9"}`}>
+        <div className={`flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 ${large ? "mb-6" : "mb-5"}`}>
           {kept > 0 && <span className="hidden sm:block w-[230px]" aria-hidden="true" />}
           <PeriodSwitch yearly={yearly} onChange={setYearly} saving={savingSaid(bestSaving(offers))} />
           {kept > 0 && (
@@ -77,7 +77,7 @@ export default function PricingCards({ catalogue, user = null, account = null, l
         </div>
       )}
 
-      <ul className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-[22px] gap-y-9 pt-3 items-stretch ${large ? "max-w-7xl mx-auto text-left" : ""}`}>
+      <ul className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-[22px] gap-y-5 pt-1 items-stretch ${large ? "max-w-7xl mx-auto text-left" : ""}`}>
         {offers.map((offer, index) => {
           const { plan } = offer;
           const own = Boolean(mine) && offer === mine;

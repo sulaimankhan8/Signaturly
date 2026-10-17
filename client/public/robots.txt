@@ -1,9 +1,61 @@
+# ==============================================================================
+# PactDoc Search Engine Crawler Policy
+# Website: https://pactdoc.com
+# ==============================================================================
+
+# 1. Search Engine Crawlers (Google, Bing, Slurp, DuckDuckBot)
+User-agent: Googlebot
+User-agent: Bingbot
+User-agent: Slurp
+User-agent: DuckDuckBot
+Allow: /
+Allow: /pricing
+Allow: /verify
+Allow: /userguide
+Allow: /t
+Allow: /t/*
+Disallow: /dashboard
+Disallow: /upload
+Disallow: /editor/
+Disallow: /send/
+Disallow: /assign/
+Disallow: /review/
+Disallow: /sign/
+Disallow: /templates
+Disallow: /settings
+Disallow: /workspaces
+Disallow: /developer
+Disallow: /billing/
+Disallow: /api/
+Disallow: /*?*token=*
+Disallow: /*?*key=*
+
+# 2. AI Scrapers & Data Harvesters
+User-agent: GPTBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Anthropic-AI
+User-agent: PerplexityBot
+Allow: /
+Allow: /pricing
+Allow: /verify
+Allow: /t
+Disallow: /dashboard
+Disallow: /editor/
+Disallow: /sign/
+
+User-agent: CCBot
+User-agent: Bytespider
+Disallow: /
+
+# 3. Default Catch-all
 User-agent: *
 Allow: /
 Allow: /pricing
 Allow: /verify
 Allow: /userguide
 Allow: /t
+Allow: /t/*
 Disallow: /dashboard
 Disallow: /upload
 Disallow: /editor/
@@ -16,4 +68,5 @@ Disallow: /workspaces
 Disallow: /developer
 Disallow: /test
 
+# Canonical Sitemap Declaration
 Sitemap: https://pactdoc.com/sitemap.xml

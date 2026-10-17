@@ -1,0 +1,59 @@
+{
+  "id": "/?pwa=true",
+  "name": "PactDoc — Precise E-Signature Platform",
+  "short_name": "PactDoc",
+  "description": "Legally binding e-signatures compliant with IT Act 2000, US ESIGN, and EU eIDAS. Place fields once, exact everywhere.",
+  "start_url": "/dashboard?utm_source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#08090d",
+  "theme_color": "#08090d",
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Upload Document",
+      "short_name": "Upload",
+      "description": "Upload a PDF document to sign or send",
+      "url": "/upload?utm_source=pwa_shortcut",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Sign Documents",
+      "short_name": "Sign",
+      "description": "Review and sign pending documents",
+      "url": "/dashboard?filter=pending&utm_source=pwa_shortcut",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Verify Certificate",
+      "short_name": "Verify",
+      "description": "Verify an executed document's SHA-256 seal",
+      "url": "/verify?utm_source=pwa_shortcut",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

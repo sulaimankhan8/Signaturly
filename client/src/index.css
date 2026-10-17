@@ -3,51 +3,119 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --surface-canvas: #08090d;
+    --surface-card: #13151f;
+    --surface-elevated: #1a1d2b;
+    --border-subtle: rgba(255, 255, 255, 0.07);
+    --border-moderate: rgba(255, 255, 255, 0.14);
+    --content-primary: #f8fafc;
+    --content-secondary: #cbd5e1;
+    --content-muted: #94a3b8;
+    --brand-primary: #e11d48;
+    --brand-hover: #f43f5e;
+    --seal-gold: #facc15;
+  }
+
   body {
-    background-color: #08090d;
-    color: #f3f4f6;
-    font-family: 'DM Sans', sans-serif;
+    background-color: var(--surface-canvas);
+    color: var(--content-primary);
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-
-/* Custom Matte Scrollbars */
+/* Precision Matte Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0d0e14;
+  background: #0d0f17;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #262938;
+  background: #1e2235;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #950101;
+  background: #e11d48;
 }
 
 /* Subtle Glassmorphism */
 .glass-panel {
-  background: rgba(21, 24, 34, 0.75);
+  background: rgba(19, 21, 31, 0.75);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .glass-panel-crimson {
-  background: linear-gradient(135deg, rgba(61, 0, 0, 0.4) 0%, rgba(21, 24, 34, 0.8) 100%);
+  background: linear-gradient(135deg, rgba(61, 0, 0, 0.4) 0%, rgba(19, 21, 31, 0.85) 100%);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 0, 60, 0.2);
+  border: 1px solid rgba(225, 29, 72, 0.25);
 }
 
-/* Smooth Focus Rings */
+/* High-Precision Focus Rings */
 *:focus-visible {
-  outline: 2px solid #ff003c;
+  outline: 2px solid #e11d48;
   outline-offset: 2px;
+}
+
+/* Layout Containment Utilities to Prevent CLS */
+.contain-layout {
+  contain: layout;
+}
+
+.contain-paint {
+  contain: paint;
+}
+
+/* Tactile Neo-Pop Badges & 3D Shelves */
+.stamp-badge-faster {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #dc2626;
+  color: #ffffff;
+  border: 2.5px solid #ffffff;
+  border-radius: 12px;
+  padding: 1px 16px;
+  box-shadow: 4px 4px 0px #facc15;
+  transform: rotate(-1.5deg);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.btn-shelf-yellow {
+  box-shadow: 3px 3px 0px 0px #facc15;
+  border: 2px solid #000000;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-shelf-yellow:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px #ffffff;
+}
+.btn-shelf-yellow:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px 0px #facc15;
+}
+
+.btn-shelf-crimson {
+  box-shadow: 3px 3px 0px 0px #e11d48;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-shelf-crimson:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px 0px #facc15;
+}
+.btn-shelf-crimson:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0px 0px #e11d48;
 }

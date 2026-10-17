@@ -1,0 +1,15 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/(dashboard)/layout,_N_T_/(dashboard)/workspaces/layout,_N_T_/(dashboard)/workspaces/page,_N_T_/workspaces"
+  },
+  "routeCache": {
+    "key": "/route-cache/APP_PAGE/e87d9339d59f3e9b2e205901accc1e69487ddf26a98f9e6d0c525fb56f919399/$/workspaces",
+    "owner": {
+      "kind": "APP_PAGE",
+      "sourceRoute": "/(dashboard)/workspaces/page"
+    },
+    "isFallback": false
+  }
+}

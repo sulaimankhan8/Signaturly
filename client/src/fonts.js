@@ -16,9 +16,4 @@ import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/jetbrains-mono/700.css";
 import "@fontsource/jetbrains-mono/800.css";
 
-// Handwriting, for typed signatures and initials (see components/TypeSignature.jsx)
-import "@fontsource/great-vibes/400.css";
-import "@fontsource/dancing-script/700.css";
-import "@fontsource/caveat/600.css";
-import "@fontsource/caveat/700.css";
-import "@fontsource/alex-brush/400.css";
+// Handwriting fonts for signatures and initials are loaded on-demand in components/TypeSignature.jsx via styles/handwriting-fonts.css
