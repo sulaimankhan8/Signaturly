@@ -75,19 +75,19 @@ export default function Pricing({ initial }) {
         </header>
       )}
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-10 pb-20 grid gap-14">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-5 pb-16 grid gap-7">
         <div className="text-center max-w-3xl mx-auto">
           <p>
             <Pill tone="yellow">Plans and prices</Pill>
           </p>
-          <h1 className="mt-5 text-4xl sm:text-5xl font-black uppercase tracking-tight text-white leading-[1.1]">
+          <h1 className="mt-3 text-3xl sm:text-4xl font-black uppercase tracking-tight text-white leading-[1.1]">
             E-signatures priced for{" "}
-            <span className="inline-block mt-2 px-2.5 py-0.5 -rotate-1 rounded-lg border-2 border-black bg-yellow-400 text-black shadow-[4px_4px_0px_0px_#ef4444]">how much you send</span>
+            <span className="inline-block mt-1 px-2.5 py-0.5 -rotate-1 rounded-lg border-2 border-black bg-yellow-400 text-black shadow-[3px_3px_0px_0px_#ef4444]">how much you send</span>
           </h1>
-          <p className="mt-5 text-base text-gray-300 leading-relaxed max-w-xl mx-auto">
+          <p className="mt-2.5 text-sm sm:text-base text-gray-300 leading-relaxed max-w-xl mx-auto">
             Start free with {free?.documentsPerMonth ?? 5} documents a month. A document is one PDF sent for signature, however many people sign it. Prices are in rupees.
           </p>
-          <Assurances items={FACTS} className="mt-6 justify-center text-sm" />
+          <Assurances items={FACTS} className="mt-3.5 justify-center text-xs sm:text-sm" />
           {user && (
             <p className="mt-5 text-sm text-gray-400">
               Signed in?{" "}

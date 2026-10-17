@@ -61,7 +61,7 @@ export default function PricingCards({ catalogue, user = null, account = null, l
       {anyYearly(offers) && (
         // The switch stays centred: an empty space as wide as the note balances it on the left.
         // On a phone the note goes beneath it.
-        <div className={`flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 ${large ? "mb-6" : "mb-5"}`}>
+        <div className={`flex flex-wrap items-center justify-center gap-x-3.5 gap-y-1.5 ${large ? "mb-4" : "mb-3"}`}>
           {kept > 0 && <span className="hidden sm:block w-[230px]" aria-hidden="true" />}
           <PeriodSwitch yearly={yearly} onChange={setYearly} saving={savingSaid(bestSaving(offers))} />
           {kept > 0 && (

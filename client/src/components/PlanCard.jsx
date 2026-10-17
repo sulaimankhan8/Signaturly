@@ -91,23 +91,23 @@ export default function PlanCard({ offer, period, previous = null, current = fal
   const shown = summarise ? points.filter((point) => !before.has(point)) : points;
 
   return (
-    <li data-testid={testId} className={`relative flex flex-col ${frame} ${large ? "p-7" : "px-[22px] pt-[22px] pb-6"} rounded-2xl transition-transform hover:-translate-x-0.5 hover:-translate-y-1 motion-reduce:transform-none`}>
+    <li data-testid={testId} className={`relative flex flex-col ${frame} ${large ? "p-6" : "px-4 pt-4 pb-5"} rounded-2xl transition-transform hover:-translate-x-0.5 hover:-translate-y-1 motion-reduce:transform-none`}>
       {ribbon && (
         <span className={`absolute -top-3.5 right-5 -rotate-2 px-2.5 py-1 rounded-md border-2 border-black text-[10px] font-black uppercase tracking-wider whitespace-nowrap shadow-[2px_2px_0px_0px_#000] ${ribbon[1]}`}>{ribbon[0]}</span>
       )}
 
       <div className="relative flex flex-col flex-1">
         <div className="h-[22px]">{look.tag && <span className={`inline-block px-2 py-0.5 rounded-md border-2 text-[10px] leading-[14px] font-black uppercase tracking-wider ${look.chip}`}>{look.tag}</span>}</div>
-        <h3 className={`mt-3 h-8 ${large ? "text-[28px]" : "text-[26px]"} leading-8 font-black uppercase tracking-tight text-white truncate`}>{plan.name}</h3>
-        <p className="mt-1 h-10 text-sm leading-5 text-gray-400 line-clamp-2">{plan.tagline}</p>
+        <h3 className={`mt-1.5 h-8 ${large ? "text-[28px]" : "text-[26px]"} leading-8 font-black uppercase tracking-tight text-white truncate`}>{plan.name}</h3>
+        <p className="mt-0.5 h-10 text-sm leading-5 text-gray-400 line-clamp-2">{plan.tagline}</p>
 
-        <div className="mt-4">
+        <div className="mt-2.5">
           <Price price={priceShown(offer, period)} large={large} />
         </div>
 
-        <div className="mt-4 flex flex-col gap-2">{children}</div>
+        <div className="mt-3 flex flex-col gap-1.5">{children}</div>
 
-        <div className="mt-4 pt-4 border-t-2 border-dashed border-white/10 flex-1">
+        <div className="mt-3.5 pt-3.5 border-t-2 border-dashed border-white/10 flex-1">
           <p className="mb-2.5 text-[11px] font-black uppercase tracking-wider" style={{ color: look.tick }}>
             {summarise ? `Everything in ${previous.name}, plus` : "Includes"}
           </p>
