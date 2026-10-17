@@ -119,3 +119,5 @@ export const AdInterstitialModal = ({ documentName, onProceed, show = true }) =>
     </div>
   );
 };
+
+export default AdInterstitialModal;

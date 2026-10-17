@@ -11,6 +11,7 @@ import { fetchSigningSessionApi, submitPublicSignatureApi, declinePublicSigningA
 import { OtpVerificationModal } from "../components/OtpVerificationModal";
 import { SIGNING_LANGUAGES } from "../i18n";
 import BrandGlyph from "../components/BrandGlyph";
+import AdInterstitialModal from "../components/ads/AdInterstitialModal";
 
 // The widest a page is drawn. On a phone the page takes the width of the screen instead.
 const MAX_PAGE_WIDTH = 820;
@@ -663,6 +664,13 @@ export default function SigningPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {session?.monetization?.showAds && !isCompleted && !isDeclined && (
+        <AdInterstitialModal
+          documentName={session?.document?.originalFileName}
+          onProceed={() => {}}
+        />
       )}
 
       <SignatureStudio

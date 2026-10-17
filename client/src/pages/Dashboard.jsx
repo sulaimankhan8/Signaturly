@@ -14,6 +14,7 @@ import DashboardToolbar from "../features/dashboard/DashboardToolbar";
 import DocumentCard from "../features/dashboard/DocumentCard";
 import RecipientStatusModal from "../features/dashboard/RecipientStatusModal";
 import AuditTrailModal from "../features/dashboard/AuditTrailModal";
+import AdBanner from "../components/ads/AdBanner";
 
 
 export default function Dashboard() {
@@ -423,6 +424,9 @@ export default function Dashboard() {
             ))}
           </div>
         )}
+
+        {/* Free-Tier Ad Banner & Monetag In-Page Push */}
+        <AdBanner user={user} compact={true} />
 
       </main>
 

@@ -63,6 +63,7 @@ export const getPublicSigningSessionController = asyncHandler(async (req, res) =
 
   // A short-lived link for this signer only
   const pdfUrl = await getFileUrl(key);
+  const { badge, brand } = await brandingFor(pdf);
 
   res.status(200).json(
     new ApiResponse(
@@ -95,14 +96,11 @@ export const getPublicSigningSessionController = asyncHandler(async (req, res) =
         },
         consentVersion: CONSENT_VERSION,
         monetization: {
-          showAds: false,
+          showAds: Boolean(badge),
         },
         // Documents from a Free account show "Signed with PactDoc" and an invitation after signing;
         // a team's documents show the team's own name, colour and logo
-        branding: await (async () => {
-          const { badge, brand } = await brandingFor(pdf);
-          return { badge, ...(brand || {}) };
-        })(),
+        branding: { badge, ...(brand || {}) },
         // Set only when the page was opened with a valid embedded-signing session: the one
         // website allowed to show this page inside its own
         embed: await readEmbedSession(req.query?.embed, recipient, pdf),
