@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { InHouseAdCard } from "./InHouseAdCard";
+import { useMonetag } from "../../hooks/useMonetag";
 
 export const AdInterstitialModal = ({ documentName, onProceed, show = true }) => {
   const [countdown, setCountdown] = useState(10);
   const [canProceed, setCanProceed] = useState(false);
   const [isOpen, setIsOpen] = useState(show);
+
+  // Trigger Monetag Vignette (Interstitial) when modal is active
+  useMonetag({ enabled: isOpen, format: "vignette" });
 
   useEffect(() => {
     // Check if user already saw the ad in this session
