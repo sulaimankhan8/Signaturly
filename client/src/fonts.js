@@ -15,5 +15,8 @@ import "@fontsource/lora/700.css";
 import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/jetbrains-mono/700.css";
 import "@fontsource/jetbrains-mono/800.css";
+import "@fontsource/kalam/400.css";
+import "@fontsource/kalam/700.css";
+import "@fontsource/caveat/700.css";
 
 // Handwriting fonts for signatures and initials are loaded on-demand in components/TypeSignature.jsx via styles/handwriting-fonts.css

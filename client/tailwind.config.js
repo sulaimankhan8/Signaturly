@@ -65,6 +65,8 @@ export default {
         serif: ["'Lora'", "serif"],
         mono: ["'JetBrains Mono'", "monospace"],
         signature: ["'Great Vibes'", "cursive"],
+        kalam: ["'Kalam'", "'Caveat'", "cursive", "sans-serif"],
+        handwriting: ["'Kalam'", "'Caveat'", "cursive", "sans-serif"],
       },
       boxShadow: {
         "elevation-1": "0 1px 2px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.05)",

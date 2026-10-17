@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, JetBrains_Mono, Caveat } from "next/font/google";
+import { DM_Sans, JetBrains_Mono, Caveat, Kalam } from "next/font/google";
 import QueryProvider from "@/providers/QueryProvider";
 import "./globals.css";
 
@@ -15,6 +15,13 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   display: "swap",
   weight: ["400", "700"],
+});
+
+const kalam = Kalam({
+  subsets: ["latin", "devanagari"],
+  variable: "--font-kalam",
+  display: "swap",
+  weight: ["700"],
 });
 
 const caveat = Caveat({
@@ -61,7 +68,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${jetbrainsMono.variable} ${caveat.variable}`}>
+    <html lang="en" className={`${dmSans.variable} ${jetbrainsMono.variable} ${kalam.variable} ${caveat.variable}`}>
       <body className="min-h-screen bg-surface-canvas text-content-primary font-sans antialiased selection:bg-crimson selection:text-white">
         <QueryProvider>{children}</QueryProvider>
       </body>

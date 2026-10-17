@@ -46,7 +46,8 @@ const config: Config = {
         sans: ["var(--font-dm-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-jetbrains-mono)", "monospace"],
         caveat: ["var(--font-caveat)", "cursive"],
-        handwriting: ["var(--font-caveat)", "cursive"],
+        kalam: ["var(--font-kalam)", "var(--font-caveat)", "cursive", "sans-serif"],
+        handwriting: ["var(--font-kalam)", "var(--font-caveat)", "cursive", "sans-serif"],
       },
       boxShadow: {
         "elevation-1": "0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3)",

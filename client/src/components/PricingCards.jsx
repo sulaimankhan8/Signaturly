@@ -65,13 +65,15 @@ export default function PricingCards({ catalogue, user = null, account = null, l
           {kept > 0 && <span className="hidden sm:block w-[230px]" aria-hidden="true" />}
           <PeriodSwitch yearly={yearly} onChange={setYearly} saving={savingSaid(bestSaving(offers))} />
           {kept > 0 && (
-            <span className="w-full sm:w-[230px] flex items-center justify-center sm:justify-start gap-1 whitespace-nowrap -rotate-[4deg] font-['Caveat'] text-[21px] font-bold leading-none text-yellow-400">
-              <svg width="38" height="26" viewBox="0 0 38 26" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="hidden sm:block shrink-0" aria-hidden="true">
+            <span className="w-full sm:w-[230px] flex items-center justify-center sm:justify-start gap-1.5 -rotate-[4deg] font-kalam text-[17px] sm:text-[18px] font-bold leading-tight text-yellow-400">
+              <svg width="34" height="24" viewBox="0 0 38 26" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="hidden sm:block shrink-0" aria-hidden="true">
                 <path d="M36 20C26 22 14 18 6 8" />
                 <path d="M4 15L6 8l7 1" />
               </svg>
-              Pay yearly, keep {rupees(kept)}
-              {sample.plan.perSeat ? " a seat" : ""}
+              <span className="inline-block text-left leading-tight">
+                Pay yearly, keep
+                <span className="block">{rupees(kept)}{sample.plan.perSeat ? " a seat" : ""}</span>
+              </span>
             </span>
           )}
         </div>
