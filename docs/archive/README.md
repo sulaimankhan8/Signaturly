@@ -1,20 +1,23 @@
 # Archive
 
-Documents written before the October 2026 audit, when the product was called Signaturly. They are kept for reference and are **not maintained**. Do not rely on them for how the product works today, and do not publish them.
+Documents written before the October 2026 audit, when the product was called Signaturly. They are kept for historical reference and are **not maintained**. Do not rely on them for current production configurations, and do not publish them.
 
 What is wrong in them, in general:
 
 - They describe features as finished that the audit found were not.
 - They make claims about legal validity and compliance that no lawyer has reviewed.
-- Setting names, addresses and prices are out of date.
+- Setting names, addresses, prices, and deployment steps are out of date.
 
-| File | What it was |
-| --- | --- |
-| `IMPLEMENTATION_PLAN_v1.md` | The first build plan. Replaced by `PACTDOC_IMPLEMENTATION_PLAN.md` at the top of the repository |
-| `implementation_plan_v2.md` | The plan for payments and advertising. Replaced by the same |
-| `E_SIGNATURE_GUIDE.md` | A background explainer on how electronic signatures work |
-| `USER_FLOWS_MANUAL.md`, `USER_GUIDE_MANUAL.md`, `USER_GUIDE_MANUAL.docx` | A manual for the old screens |
-| `CLOUD_DEPLOYMENT_DOCKER_GCP_MASTERCLASS.docx` | A long guide to the Google Cloud deployment. Credentials that were in it have been removed; the ones it once showed must still be treated as leaked |
-| `resources/` | Early design notes and a signature background-remover experiment |
+| File | What it was | Replaced by |
+| --- | --- | --- |
+| `DEPLOYMENT_GUIDE.md` | Original GCP/Docker deployment guide | `PENDING_TASKS_AND_PRODUCTION_ROADMAP.md` (Sections 7 & 10) |
+| `IMPLEMENTATION_PLAN_v1.md` | The first build plan | `PACTDOC_IMPLEMENTATION_PLAN.md` at repository root |
+| `implementation_plan_v2.md` | Early plan for payments and advertising | `PACTDOC_IMPLEMENTATION_PLAN.md` at repository root |
+| `E_SIGNATURE_GUIDE.md` | Background explainer on electronic signatures | Current legal & product documentation |
+| `USER_FLOWS_MANUAL.md` | User flows for the legacy interface | Current application UI & route maps |
+| `USER_GUIDE_MANUAL.md` | User manual for legacy screens | Modern user guide & templates documentation |
 
-For the current state see `PENDING_TASKS_AND_PRODUCTION_ROADMAP.md`.
+For the current authoritative state, see:
+- [`PENDING_TASKS_AND_PRODUCTION_ROADMAP.md`](../../PENDING_TASKS_AND_PRODUCTION_ROADMAP.md)
+- [`PACTDOC_IMPLEMENTATION_PLAN.md`](../../PACTDOC_IMPLEMENTATION_PLAN.md)
+- [`docs/architecture/`](../architecture/)

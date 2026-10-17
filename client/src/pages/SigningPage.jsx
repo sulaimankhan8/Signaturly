@@ -638,7 +638,7 @@ export default function SigningPage() {
 
       {declineOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50">
-          <div role="dialog" aria-modal="true" aria-labelledby="decline-title" className="bg-white border-2 border-black rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-[6px_6px_0px_0px_#000]">
+          <div role="dialog" aria-modal="true" aria-labelledby="decline-title" className="bg-white border-2 border-black rounded-t-2xl sm:rounded-2xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-[6px_6px_0px_0px_#000]">
             <h2 id="decline-title" className="text-lg font-black uppercase tracking-tight">
               {t("declineModal.title")}
             </h2>

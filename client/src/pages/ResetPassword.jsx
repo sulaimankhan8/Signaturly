@@ -46,7 +46,7 @@ export default function ResetPassword() {
     return (
       <div className="min-h-screen bg-[#090a0f] text-gray-100 flex flex-col items-center justify-center p-4">
         <Toaster position="top-right" />
-        <div className="bg-[#151722] border-2 border-red-500 rounded-3xl p-8 max-w-md w-full text-center space-y-4 shadow-[6px_6px_0px_0px_#ef4444]">
+        <div className="bg-[#151722] border-2 border-red-500 rounded-2xl p-8 max-w-md w-full text-center space-y-4 shadow-[6px_6px_0px_0px_#ef4444]">
           <h2 className="text-xl font-black uppercase text-white">Invalid Reset Link</h2>
           <p className="text-xs text-gray-300 font-medium">
             This password reset link is invalid or has expired. Please request a new link.
@@ -101,7 +101,7 @@ export default function ResetPassword() {
         </div>
 
         {/* Card */}
-        <div className="bg-[#151722] border-2 border-white/20 rounded-3xl shadow-[6px_6px_0px_0px_#ef4444] p-8 space-y-6">
+        <div className="bg-[#151722] border-2 border-white/20 rounded-2xl shadow-[6px_6px_0px_0px_#ef4444] p-8 space-y-6">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-xs font-black uppercase tracking-wider text-gray-300 mb-2">

@@ -264,7 +264,7 @@ export default function Templates() {
                 <div className="w-12 h-12 border-4 border-white/10 border-t-red-600 rounded-full animate-spin" />
               </div>
             ) : filteredMy.length === 0 ? (
-              <div className="text-center py-16 bg-[#12141c] rounded-3xl border border-white/10 p-8 shadow-2xl space-y-5">
+              <div className="text-center py-16 bg-[#12141c] rounded-2xl border border-white/10 p-8 shadow-2xl space-y-5">
                 <div className="w-16 h-16 bg-red-950/60 border border-red-800/40 text-red-400 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
                   <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
@@ -418,7 +418,7 @@ export default function Templates() {
       {/* Create Custom Template Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-[#13151f] border-2 border-white/20 rounded-3xl max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-[8px_8px_0px_0px_#ef4444] my-8">
+          <div className="bg-[#13151f] border-2 border-white/20 rounded-2xl max-w-xl w-full p-6 sm:p-8 space-y-6 shadow-[8px_8px_0px_0px_#ef4444] my-8">
             <div className="flex items-center justify-between border-b-2 border-white/10 pb-4">
               <h3 className="text-xl font-black text-white uppercase">Create Custom Template</h3>
               <button

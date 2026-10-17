@@ -2,16 +2,13 @@
 
 ---
 
-> **Updated 11 October 2026.** This guide was written before the security audit and has only been corrected where it was unsafe.
-> The current, correct list of secrets, settings, scheduler jobs and webhook paths is in section 7 of
-> [`PENDING_TASKS_AND_PRODUCTION_ROADMAP.md`](../PENDING_TASKS_AND_PRODUCTION_ROADMAP.md). Where the two disagree, that file is right.
->
-> Earlier versions of this guide contained the live database password and other production secrets.
-> They have been removed here but remain in git history: every one of them must be rotated.
+> **ARCHIVED DOCUMENT — OCTOBER 2026.** This guide was written before the security audit and has only been corrected where it was unsafe.
+> The current, authoritative list of secrets, settings, scheduler jobs, and cloud configuration is in section 7 and section 10 of
+> [`PENDING_TASKS_AND_PRODUCTION_ROADMAP.md`](../../PENDING_TASKS_AND_PRODUCTION_ROADMAP.md). Where the two disagree, that file is right.
 >
 > Known differences from the text below: the API now refuses to start with missing or placeholder secrets;
 > stored files are served only through short-lived signed links; scheduled work is triggered by Cloud Scheduler
-> through `/api/internal/*`; the container health check is `/api/health`; a full rewrite is planned with the rename to PactDoc.
+> through `/api/internal/*`; the container health check is `/api/health`; the product and cloud resources are renamed to PactDoc.
 
 ---
 
@@ -25,13 +22,13 @@
 7. [Frontend Deployment on Vercel & SPA Routing (`vercel.json`)](#7-frontend-deployment-on-vercel--spa-routing-verceljson)
 8. [Environment Variables Reference & Secret Acquisition Guide](#8-environment-variables-reference--secret-acquisition-guide)
 9. [Disaster Recovery, Tear Down & Project Migration Guide](#9-disaster-recovery-tear-down--project-migration-guide)
-10. [Production Go-Live, Telemetry & Cost Unit Economics (`PENDING_TASKS_AND_PRODUCTION_ROADMAP.md`)](../PENDING_TASKS_AND_PRODUCTION_ROADMAP.md)
+10. [Production Go-Live, Telemetry & Cost Unit Economics (`PENDING_TASKS_AND_PRODUCTION_ROADMAP.md`)](../../PENDING_TASKS_AND_PRODUCTION_ROADMAP.md)
 
 ---
 
 ## 💰 1. Cost Architecture ($0.00 / Month Free-Tier Matrix)
 
-Signaturly Pro is engineered to run at **$0.00 / month** in production by taking full advantage of the **Always-Free Tiers** of Google Cloud Platform, MongoDB Atlas, and Vercel Global Edge Network. For scaling cost estimates and unit economics ($/signed envelope), see [Production Roadmap & Unit Economics](../PENDING_TASKS_AND_PRODUCTION_ROADMAP.md#3-devops-cost-estimation-infrastructure-budget--unit-economics).
+Signaturly Pro is engineered to run at **$0.00 / month** in production by taking full advantage of the **Always-Free Tiers** of Google Cloud Platform, MongoDB Atlas, and Vercel Global Edge Network. For scaling cost estimates and unit economics ($/signed envelope), see [Production Roadmap & Unit Economics](../../PENDING_TASKS_AND_PRODUCTION_ROADMAP.md#3-devops-cost-estimation-infrastructure-budget--unit-economics).
 
 ### 📊 Monthly Cost Breakdown Matrix
 

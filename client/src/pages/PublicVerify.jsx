@@ -129,7 +129,7 @@ export default function PublicVerify() {
         </div>
 
         {/* Verification Input Box */}
-        <div className="bg-[#10131d] border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+        <div className="bg-[#10131d] border border-white/15 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
           <form onSubmit={handleVerify} className="space-y-5">
             {/* Drag & Drop Area */}
             <div
@@ -275,7 +275,7 @@ export default function PublicVerify() {
           <div className="space-y-6">
             {/* Authenticity Certificate Card */}
             <div
-              className={`rounded-3xl p-6 sm:p-8 border shadow-2xl transition-all ${
+              className={`rounded-2xl p-6 sm:p-8 border shadow-2xl transition-all ${
                 result.isAuthentic
                   ? "bg-gradient-to-b from-[#0b1b15] to-[#07110e] border-emerald-500/40 shadow-emerald-950/40"
                   : "bg-gradient-to-b from-[#1c0e0e] to-[#120707] border-red-500/40 shadow-red-950/40"
@@ -437,7 +437,7 @@ export default function PublicVerify() {
             </div>
 
             {/* Detailed Ledger & Signers Tabs */}
-            <div className="bg-[#10131d] border border-white/15 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+            <div className="bg-[#10131d] border border-white/15 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
               {/* Tab Navigation */}
               <div className="flex bg-[#090b12] p-1.5 rounded-2xl border border-white/10 overflow-x-auto">
                 {[

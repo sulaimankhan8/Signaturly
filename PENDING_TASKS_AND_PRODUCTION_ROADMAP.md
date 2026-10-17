@@ -533,7 +533,7 @@ The app and the server must share the parent domain (`pactdoc.com`), or sign-in 
 
 3. Protect `main`: Settings, Branches, add a rule requiring a pull request and the CI checks.
 
-The link that lets GitHub deploy to Google Cloud without a key file already exists in the workflow. `docs/DEPLOYMENT_GUIDE.md` describes how it was made, should it need making again in a new project.
+The link that lets GitHub deploy to Google Cloud without a key file already exists in the workflow. `docs/archive/DEPLOYMENT_GUIDE.md` describes how it was made, should it need making again in a new project.
 
 ### Step 3: MongoDB Atlas
 

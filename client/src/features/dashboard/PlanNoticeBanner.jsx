@@ -36,7 +36,7 @@ export default function PlanNoticeBanner({
       : null;
     const autoPay = subData?.renewal?.mode === "auto";
     return (
-      <div className="bg-amber-950/50 border-2 border-amber-500/80 rounded-3xl p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+      <div className="bg-amber-950/50 border-2 border-amber-500/80 rounded-2xl p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
         <div className="flex items-center gap-3 flex-1">
           <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-400 flex items-center justify-center shrink-0">
             <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,7 +81,7 @@ export default function PlanNoticeBanner({
   // 2. Free Plan Usage Banner
   if (plan === "free" || status === "expired" || status === "canceled") {
     return (
-      <div className="bg-gradient-to-r from-[#181226] via-[#12141c] to-[#151724] border-2 border-yellow-400/40 rounded-3xl p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
+      <div className="bg-gradient-to-r from-[#181226] via-[#12141c] to-[#151724] border-2 border-yellow-400/40 rounded-2xl p-5 sm:p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xl">
         <div className="space-y-2 flex-1">
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 text-[10px] font-mono font-black uppercase px-2.5 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/40">

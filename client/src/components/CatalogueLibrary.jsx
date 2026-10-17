@@ -34,7 +34,7 @@ export default function CatalogueLibrary({ catalogue, searchQuery = "", onLocked
 
   if (packs.length === 0) {
     return (
-      <div className="text-center py-16 bg-[#12141c] rounded-3xl border border-white/10 p-8 text-sm text-gray-400">
+      <div className="text-center py-16 bg-[#12141c] rounded-2xl border border-white/10 p-8 text-sm text-gray-400">
         No template matches your search.
       </div>
     );

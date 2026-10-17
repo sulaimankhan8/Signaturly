@@ -132,9 +132,9 @@ Both use a throwaway in-memory database and never touch the one in `server/.env`
 | Where | What |
 | --- | --- |
 | [PENDING_TASKS_AND_PRODUCTION_ROADMAP.md](PENDING_TASKS_AND_PRODUCTION_ROADMAP.md) | Status, blockers, the owner's to-do list, production settings, service set-up |
-| [PACTDOC_IMPLEMENTATION_PLAN.md](PACTDOC_IMPLEMENTATION_PLAN.md) | The 132 tasks and their state |
-| [docs/api/](docs/api/) | The public API: guide and OpenAPI file |
-| [docs/decisions/](docs/decisions/) | Why things were built the way they were |
-| [docs/reports/](docs/reports/) | The October 2026 audit, the market report and the India strategy |
-| [docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md) | How the Google Cloud deployment was first set up. Older than the audit; section 10 of the roadmap is the current guide |
-| [docs/archive/](docs/archive/) | Documents from before the audit, kept for reference and not maintained |
+| [PACTDOC_IMPLEMENTATION_PLAN.md](PACTDOC_IMPLEMENTATION_PLAN.md) | The 132 tasks, execution progress, and test states |
+| [docs/architecture/](docs/architecture/) | Performance audit, design system tokens, PWA/caching strategy, and Next.js migration |
+| [docs/api/](docs/api/) | The public API: developer guide and OpenAPI specification |
+| [docs/decisions/](docs/decisions/) | Architectural Decision Records (ADRs) |
+| [docs/reports/](docs/reports/) | The October 2026 audit, market research, and India strategy |
+| [docs/archive/](docs/archive/) | Pre-audit documents (including original deployment guide and early plans) kept for reference |

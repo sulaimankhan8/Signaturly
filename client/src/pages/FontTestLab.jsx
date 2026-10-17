@@ -88,7 +88,7 @@ export default function FontTestLab() {
         {/* ========================================================================= */}
         {/* SCENARIO 1: Brand & Hero Display Headlines */}
         {/* ========================================================================= */}
-        <section className="bg-[#13151f] border-2 border-white/20 rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_#ef4444] space-y-6">
+        <section className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_#ef4444] space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-white/10 pb-4">
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider text-red-400">Scenario 1</span>
@@ -134,7 +134,7 @@ export default function FontTestLab() {
         {/* ========================================================================= */}
         {/* SCENARIO 2: UI Controls, Navigation & Dense Tables */}
         {/* ========================================================================= */}
-        <section className="bg-[#13151f] border-2 border-white/20 rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_#3b82f6] space-y-6">
+        <section className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_#3b82f6] space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-white/10 pb-4">
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider text-blue-400">Scenario 2</span>
@@ -207,7 +207,7 @@ export default function FontTestLab() {
         {/* ========================================================================= */}
         {/* SCENARIO 3: Statutory Legal Contracts & Clause Viewers */}
         {/* ========================================================================= */}
-        <section className="bg-[#13151f] border-2 border-white/20 rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_#facc15] space-y-6">
+        <section className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_#facc15] space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-white/10 pb-4">
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider text-yellow-400">Scenario 3</span>
@@ -261,7 +261,7 @@ export default function FontTestLab() {
         {/* ========================================================================= */}
         {/* SCENARIO 4: Cryptographic Hashes, SHA-256 Checksums & Audit Logs */}
         {/* ========================================================================= */}
-        <section className="bg-[#13151f] border-2 border-white/20 rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_#22c55e] space-y-6">
+        <section className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_#22c55e] space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-white/10 pb-4">
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">Scenario 4</span>
@@ -310,7 +310,7 @@ export default function FontTestLab() {
         {/* ========================================================================= */}
         {/* SCENARIO 5: Handwritten Signatures & Monogram Seals */}
         {/* ========================================================================= */}
-        <section className="bg-[#13151f] border-2 border-white/20 rounded-3xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_#a855f7] space-y-6">
+        <section className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-6 sm:p-8 shadow-[6px_6px_0px_0px_#a855f7] space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-white/10 pb-4">
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider text-purple-400">Scenario 5</span>

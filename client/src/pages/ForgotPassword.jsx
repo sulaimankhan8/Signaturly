@@ -66,7 +66,7 @@ export default function ForgotPassword() {
         </div>
 
         {/* Card */}
-        <div className="bg-[#151722] border-2 border-white/20 rounded-3xl shadow-[6px_6px_0px_0px_#ef4444] p-8 space-y-6">
+        <div className="bg-[#151722] border-2 border-white/20 rounded-2xl shadow-[6px_6px_0px_0px_#ef4444] p-8 space-y-6">
           {isSent ? (
             <div className="text-center space-y-4 py-4">
               <div className="w-14 h-14 bg-emerald-500 text-black border-2 border-black rounded-2xl flex items-center justify-center mx-auto shadow-[3px_3px_0px_0px_#fff]">

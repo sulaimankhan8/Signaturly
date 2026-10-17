@@ -53,7 +53,7 @@ export default function SignatureStudio({ open, onClose, kinds, kind, current, o
         role="dialog"
         aria-modal="true"
         aria-labelledby="signature-studio-title"
-        className="bg-white text-gray-900 border-2 border-black rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain shadow-[6px_6px_0px_0px_#000] p-4 sm:p-6 space-y-4"
+        className="bg-white text-gray-900 border-2 border-black rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[92dvh] overflow-y-auto overscroll-contain shadow-[6px_6px_0px_0px_#000] p-4 sm:p-6 space-y-4"
         style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
       >
         <div className="flex items-center justify-between gap-3">

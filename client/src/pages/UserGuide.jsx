@@ -412,7 +412,7 @@ export default function UserGuide() {
 
         {/* Right Main Panel: Step Viewer */}
         <main className="lg:col-span-8 space-y-6">
-          <div className="bg-[#12141d] border-2 border-white/20 rounded-3xl p-6 shadow-[6px_6px_0px_0px_#ef4444] space-y-6">
+          <div className="bg-[#12141d] border-2 border-white/20 rounded-2xl p-6 shadow-[6px_6px_0px_0px_#ef4444] space-y-6">
             {/* Journey Header */}
             <div className="flex items-center justify-between border-b-2 border-white/10 pb-4 flex-wrap gap-2">
               <div>

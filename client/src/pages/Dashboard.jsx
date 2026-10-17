@@ -388,7 +388,7 @@ export default function Dashboard() {
             <p className="text-gray-300 text-xs font-bold uppercase tracking-wider">Fetching documents...</p>
           </div>
         ) : filteredDocuments.length === 0 ? (
-          <div className="text-center py-20 bg-[#13151f] rounded-3xl border-2 border-white/20 p-8 shadow-[6px_6px_0px_0px_#000]">
+          <div className="text-center py-20 bg-[#13151f] rounded-2xl border-2 border-white/20 p-8 shadow-[6px_6px_0px_0px_#000]">
             <div className="w-16 h-16 bg-red-600 border-2 border-black rounded-2xl flex items-center justify-center mx-auto mb-4 text-white shadow-[3px_3px_0px_0px_#facc15]">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

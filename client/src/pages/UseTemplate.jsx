@@ -141,7 +141,7 @@ export default function UseTemplate() {
         <Navbar />
 
         <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-14 space-y-8">
-          <div className="bg-[#13151f] border-2 border-yellow-400 rounded-3xl p-8 sm:p-12 shadow-[8px_8px_0px_0px_#ef4444] text-center space-y-8">
+          <div className="bg-[#13151f] border-2 border-yellow-400 rounded-2xl p-8 sm:p-12 shadow-[8px_8px_0px_0px_#ef4444] text-center space-y-8">
             <div className="w-16 h-16 rounded-2xl bg-yellow-400 text-black border-2 border-black flex items-center justify-center mx-auto shadow-[4px_4px_0px_0px_#fff]">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -212,7 +212,7 @@ export default function UseTemplate() {
 
         <form onSubmit={handleSend} className="space-y-6">
           {/* Signers Mapping Card */}
-          <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-5">
+          <div className="bg-[#12141c] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-5">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-base font-display font-bold text-white">Assign Signer Roles</h2>
@@ -292,7 +292,7 @@ export default function UseTemplate() {
           </div>
 
           {/* Invitation Message Card */}
-          <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4">
+          <div className="bg-[#12141c] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-4">
             <h2 className="text-base font-display font-bold text-white">Custom Message & Expiration</h2>
 
             <div>

@@ -221,7 +221,7 @@ export default function Settings() {
 
         {/* Tab 1: Profile & Account */}
         {activeTab === "profile" && (
-          <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="bg-[#12141c] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
             <div className="border-b border-white/10 pb-4">
               <h2 className="text-lg font-black text-white">Personal Identity &amp; Profile</h2>
               <p className="text-xs text-gray-400 mt-0.5">
@@ -273,7 +273,7 @@ export default function Settings() {
 
         {/* Tab 2: Billing & Plans. The plan, documents, wallet and invoices are on one page of their own. */}
         {activeTab === "billing" && (
-          <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-4">
+          <div className="bg-[#12141c] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-4">
             <div>
               <h2 className="text-lg font-black text-white">Plans &amp; billing</h2>
               <p className="text-sm text-gray-400 mt-1 max-w-xl leading-relaxed">
@@ -292,7 +292,7 @@ export default function Settings() {
 
         {/* Tab 3: Security & Password */}
         {activeTab === "security" && (
-          <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="bg-[#12141c] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
             <div className="border-b border-white/10 pb-4">
               <h2 className="text-lg font-black text-white">Security &amp; Password</h2>
               <p className="text-xs text-gray-400 mt-0.5">
@@ -367,7 +367,7 @@ export default function Settings() {
 
         {/* Tab 4: Signature Studio */}
         {activeTab === "signatures" && (
-          <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="bg-[#12141c] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
             <div className="border-b border-white/10 pb-4">
               <h2 className="text-lg font-black text-white">Your signature and initials</h2>
               <p className="text-xs text-gray-400 mt-0.5">
@@ -424,7 +424,7 @@ export default function Settings() {
 
         {/* Tab 5: Enterprise & APIs */}
         {activeTab === "enterprise" && (
-          <div className="bg-[#12141c] border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="bg-[#12141c] border border-white/10 rounded-2xl p-6 sm:p-8 shadow-2xl space-y-6">
             <div className="border-b border-white/10 pb-4">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-black text-white">Enterprise Organizations &amp; Developer Tools</h2>

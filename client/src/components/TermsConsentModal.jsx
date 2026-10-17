@@ -43,7 +43,7 @@ export default function TermsConsentModal() {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn selection:bg-yellow-400 selection:text-black">
-      <div className="bg-[#11131f] border-2 border-yellow-400/40 rounded-3xl shadow-[0_0_50px_rgba(234,179,8,0.2)] max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden text-gray-100 font-sans relative">
+      <div className="bg-[#11131f] border-2 border-yellow-400/40 rounded-2xl shadow-[0_0_50px_rgba(234,179,8,0.2)] max-w-2xl w-full flex flex-col max-h-[90vh] overflow-hidden text-gray-100 font-sans relative">
         
         {/* Top Header */}
         <div className="px-6 py-5 bg-[#171a2b] border-b border-white/10 flex items-center justify-between">

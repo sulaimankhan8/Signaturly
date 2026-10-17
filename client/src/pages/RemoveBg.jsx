@@ -296,7 +296,7 @@ export default function SignatureRemover() {
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="bg-[#13151f] border-2 border-white/20 rounded-3xl p-6 sm:p-10 shadow-[6px_6px_0px_0px_#ef4444] space-y-8">
+        <div className="bg-[#13151f] border-2 border-white/20 rounded-2xl p-6 sm:p-10 shadow-[6px_6px_0px_0px_#ef4444] space-y-8">
           <div>
             <span className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider bg-yellow-400 text-black border-2 border-black rounded shadow-[2px_2px_0px_0px_#ef4444] mb-2 inline-block">
               Signature Vector Studio

@@ -65,7 +65,7 @@ export default function Register() {
         </div>
 
         {/* Register Form Card */}
-        <div className="bg-[#151722] border-2 border-white/20 rounded-3xl shadow-[6px_6px_0px_0px_#ef4444] p-8 space-y-6">
+        <div className="bg-[#151722] border-2 border-white/20 rounded-2xl shadow-[6px_6px_0px_0px_#ef4444] p-8 space-y-6">
           <form onSubmit={submit} className="space-y-5">
             {/* Full Name Field */}
             <div>

@@ -80,7 +80,7 @@ export function OtpVerificationModal({
 
   return (
     <div className="min-h-screen bg-[#f3efe6] text-gray-900 flex items-center justify-center p-4 font-sans">
-      <div className="bg-white border-2 border-black rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-[6px_6px_0px_0px_#000] space-y-5" role="main">
+      <div className="bg-white border-2 border-black rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-[6px_6px_0px_0px_#000] space-y-5" role="main">
         <div className="inline-flex items-center gap-1.5 text-[11px] font-black tracking-wider text-black bg-yellow-300 border-2 border-black px-3 py-1 rounded-full uppercase">
           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />

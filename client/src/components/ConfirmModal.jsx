@@ -14,7 +14,7 @@ export default function ConfirmModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-150">
-      <div className="bg-[#12141c] border-2 border-white/20 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-[8px_8px_0px_0px_#ef4444] space-y-6 text-center">
+      <div className="bg-[#12141c] border-2 border-white/20 rounded-2xl max-w-md w-full p-6 sm:p-7 shadow-[8px_8px_0px_0px_#ef4444] space-y-6 text-center">
         {/* Icon */}
         <div
           className={`w-14 h-14 rounded-2xl mx-auto flex items-center justify-center border-2 ${

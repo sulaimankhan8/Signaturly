@@ -178,7 +178,7 @@ const BulkSend = () => {
 
         {/* Free Tier Lock Screen */}
         {subData && subData.subscription?.plan === "free" ? (
-          <div className="bg-[#13151f] border-2 border-yellow-400 rounded-3xl p-8 sm:p-12 shadow-[8px_8px_0px_0px_#ef4444] text-center space-y-8">
+          <div className="bg-[#13151f] border-2 border-yellow-400 rounded-2xl p-8 sm:p-12 shadow-[8px_8px_0px_0px_#ef4444] text-center space-y-8">
             <div className="w-16 h-16 rounded-2xl bg-yellow-400 text-black border-2 border-black flex items-center justify-center text-3xl mx-auto shadow-[4px_4px_0px_0px_#fff]">
               ⚡
             </div>
@@ -211,7 +211,7 @@ const BulkSend = () => {
             </div>
           </div>
         ) : resultBatch ? (
-          <div className="bg-[#13151f] border-2 border-emerald-500 rounded-3xl p-8 shadow-[8px_8px_0px_0px_#22c55e] text-center space-y-6">
+          <div className="bg-[#13151f] border-2 border-emerald-500 rounded-2xl p-8 shadow-[8px_8px_0px_0px_#22c55e] text-center space-y-6">
             <div className="w-16 h-16 bg-emerald-500 text-black border-2 border-black rounded-2xl flex items-center justify-center mx-auto shadow-[4px_4px_0px_0px_#fff]">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />

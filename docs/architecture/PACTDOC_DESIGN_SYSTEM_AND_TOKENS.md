@@ -205,12 +205,13 @@ Dark mode interfaces require **layered luminosity** rather than blurry drop shad
 PactDoc balances modern ergonomics with high-density precision. Avoid overly bubbly pill shapes for cards; use refined radii:
 
 ```css
---radius-xs:    3px;   /* Micro badges, checkbox checkmarks */
---radius-sm:    6px;   /* Tags, status pills, table action buttons */
---radius-md:    10px;  /* Form inputs, buttons, dropdown menus */
---radius-lg:    14px;  /* Cards, document grid items, alerts */
---radius-xl:    20px;  /* Modal windows, signature studio panels */
---radius-2xl:   28px;  /* Marketing mockup containers */
+--radius-xs:    2px;   /* Micro badges, checkbox checkmarks */
+--radius-sm:    4px;   /* Tags, status pills, table action buttons */
+--radius-md:    6px;   /* Form inputs, buttons, dropdown menus */
+--radius-lg:    8px;   /* Inner containers, action items */
+--radius-xl:    12px;  /* Subpanels, compact cards, preview boxes */
+--radius-2xl:   16px;  /* Standard cards, document grid items, alerts */
+--radius-3xl:   20px;  /* Modal windows, large container frames */
 --radius-full:  9999px;/* Round avatars, circular initial stamps */
 ```
 
